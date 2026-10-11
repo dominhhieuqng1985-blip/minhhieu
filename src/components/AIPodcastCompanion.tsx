@@ -32,12 +32,14 @@ export const AIPodcastCompanion: React.FC<AIPodcastCompanionProps> = ({
   const [questionInput, setQuestionInput] = useState<string>('');
   const [qaHistory, setQaHistory] = useState<{ question: string; answer: string }[]>([]);
 
+  const API_BASE = `${import.meta.env.BASE_URL}api/`;
+
   const fetchAIAnalysis = async (action: 'summary' | 'chapters' | 'quotes' | 'qa', question?: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/podcast/ai', {
+      const response = await fetch(`${API_BASE}podcast/ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

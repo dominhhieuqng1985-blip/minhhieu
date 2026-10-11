@@ -14,6 +14,14 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json());
 
+// Support base prefix from Vite base: '/minhhieu/'
+app.use((req, _res, next) => {
+  if (req.url.startsWith('/minhhieu/api')) {
+    req.url = req.url.replace(/^\/minhhieu\/api/, '/api');
+  }
+  next();
+});
+
 // Initialize Google GenAI
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',

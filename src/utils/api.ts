@@ -14,9 +14,8 @@ export const isStaticHost =
     window.location.protocol === 'file:' ||
     !window.location.port);
 
-// In local or Cloud Run/AI Studio development, use relative path '' so requests go to the Express server.
-// Never use https://minhhieuvnbt.github.io/podcast as an API backend because GitHub Pages does not run Node.js/Express!
-export const API_BASE = '';
+// API Base matching Vite base URL
+export const API_BASE = `${import.meta.env.BASE_URL}api/`;
 
 /**
  * Safely fetches and parses JSON.

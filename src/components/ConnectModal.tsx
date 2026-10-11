@@ -29,6 +29,8 @@ interface ConnectModalProps {
   onSubscribeChannel?: (channelName: string) => void;
 }
 
+const API_BASE = `${import.meta.env.BASE_URL}api/`;
+
 export const ConnectModal: React.FC<ConnectModalProps> = ({
   isOpen,
   onClose,
@@ -97,7 +99,7 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
       // 1. Is it a channel URL? (@channel/podcasts, @channel/playlists, @channel/videos, @channel)
       if (targetUrl.includes('youtube.com/@') || targetUrl.startsWith('@')) {
         const fullUrl = targetUrl.startsWith('http') ? targetUrl : `https://www.youtube.com/${targetUrl}`;
-        const response = await fetch(`/api/podcast/channel?url=${encodeURIComponent(fullUrl)}`);
+        const response = await fetch(`${API_BASE}podcast/channel?url=${encodeURIComponent(fullUrl)}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -110,7 +112,7 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
 
       // 2. Is it a playlist URL? (list=...)
       if (targetUrl.includes('list=')) {
-        const response = await fetch(`/api/podcast/playlist?url=${encodeURIComponent(targetUrl)}`);
+        const response = await fetch(`${API_BASE}podcast/playlist?url=${encodeURIComponent(targetUrl)}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -136,7 +138,7 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
       // 3. Is it a single video URL?
       const ytId = extractYouTubeId(targetUrl);
       if (ytId) {
-        const response = await fetch(`/api/podcast/meta?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}`);
+        const response = await fetch(`${API_BASE}podcast/meta?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}`);
         if (response.ok) {
           const data = await response.json();
           setSinglePreview({
@@ -216,7 +218,7 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
   const handleLoadSpecificPlaylist = async (playlistUrl: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/podcast/playlist?url=${encodeURIComponent(playlistUrl)}`);
+      const response = await fetch(`${API_BASE}podcast/playlist?url=${encodeURIComponent(playlistUrl)}`);
       const data = await response.json();
       if (data.episodes) {
         handleConfirmEpisodes(data.episodes);
