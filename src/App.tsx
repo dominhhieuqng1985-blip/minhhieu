@@ -78,27 +78,27 @@ export default function App() {
   });
 
   // Loaded Content Categorized: Videos, Podcasts, Playlists
-  const [channelVideos, setChannelVideos] = useState<PodcastEpisode[]>([]);
-  const [channelPodcasts, setChannelPodcasts] = useState<PodcastEpisode[]>([]);
-  const [podcastSeries, setPodcastSeries] = useState<PodcastSeries[]>([]);
+  const [channelVideos, setChannelVideos] = useState<PodcastEpisode[]>(DEFAULT_VIDEOS);
+  const [channelPodcasts, setChannelPodcasts] = useState<PodcastEpisode[]>(DEFAULT_PODCASTS);
+  const [podcastSeries, setPodcastSeries] = useState<PodcastSeries[]>(DEFAULT_PODCAST_SERIES);
   const [selectedPodcastSeries, setSelectedPodcastSeries] = useState<string>('all');
-  const [channelPlaylists, setChannelPlaylists] = useState<PodcastPlaylist[]>([]);
+  const [channelPlaylists, setChannelPlaylists] = useState<PodcastPlaylist[]>(DEFAULT_CHANNEL_PLAYLISTS);
 
   // Active Tab: 'videos' | 'podcasts' | 'playlists'
   const [activeTab, setActiveTab] = useState<'videos' | 'podcasts' | 'playlists'>('videos');
   const [videoFilter, setVideoFilter] = useState<'all' | 'long' | 'shorts'>('all');
   const [videoCounts, setVideoCounts] = useState<{ all: number; long: number; shorts: number }>({
-    all: 65,
-    long: 45,
-    shorts: 20,
+    all: DEFAULT_VIDEOS.length,
+    long: DEFAULT_VIDEOS.filter((v) => !v.isShort).length,
+    shorts: DEFAULT_VIDEOS.filter((v) => v.isShort).length,
   });
 
   // Currently Active Playlist being played & its title
-  const [activeQueue, setActiveQueue] = useState<PodcastEpisode[]>([]);
+  const [activeQueue, setActiveQueue] = useState<PodcastEpisode[]>(DEFAULT_VIDEOS);
   const [activePlaylistTitle, setActivePlaylistTitle] = useState<string>('Tất cả Video');
 
   // Current playing episode
-  const [currentEpisode, setCurrentEpisode] = useState<PodcastEpisode | null>(null);
+  const [currentEpisode, setCurrentEpisode] = useState<PodcastEpisode | null>(DEFAULT_VIDEOS[0] || null);
 
   // Auto-play next episode toggle (default: true)
   const [isAutoplayNext, setIsAutoplayNext] = useState<boolean>(true);

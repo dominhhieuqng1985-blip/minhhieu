@@ -73,9 +73,10 @@ function parseLockupBlocks(htmlOrJson: string, defaultChannel: string = 'Kênh Y
 
   for (let i = 1; i < blocks.length; i++) {
     const block = blocks[i];
-    const idMatch = block.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+    const idMatch = block.match(/"(?:videoId|contentId)":"([a-zA-Z0-9_-]{11})"/);
     const titleMatch = block.match(/"lockupMetadataViewModel":\{"title":\{"content":"(.*?)"\}/);
     const timeMatch = block.match(/"thumbnailBadgeViewModel":\{"text":"(.*?)"/);
+    const labelMatch = block.match(/"accessibilityContext":\{"label":"(.*?)"\}/);
     const channelMatch = block.match(/"a11yLabel":"Go to channel (.*?)"/);
     const avatarMatch = block.match(/"avatarViewModel":\{"image":\{"sources":\[\{"url":"(.*?)"/);
 
@@ -87,7 +88,18 @@ function parseLockupBlocks(htmlOrJson: string, defaultChannel: string = 'Kênh Y
       } catch {}
 
       const channel = channelMatch ? channelMatch[1] : defaultChannel;
-      const duration = timeMatch ? timeMatch[1] : '10:00';
+      let duration = timeMatch ? timeMatch[1] : '10:00';
+      if (!timeMatch && labelMatch) {
+        const lbl = labelMatch[1];
+        const hM = lbl.match(/(\d+)\s*giờ/);
+        const mM = lbl.match(/(\d+)\s*phút/);
+        const sM = lbl.match(/(\d+)\s*giây/);
+        const h = hM ? parseInt(hM[1], 10) : 0;
+        const m = mM ? parseInt(mM[1], 10) : 0;
+        const s = sM ? parseInt(sM[1], 10) : 0;
+        if (h > 0) duration = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        else if (m > 0 || s > 0) duration = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }
       const avatar = avatarMatch ? avatarMatch[1] : defaultAvatar;
 
       if (!items.some((x) => x.youtubeId === vidId)) {
@@ -167,7 +179,7 @@ function parseShortsBlocks(htmlOrJson: string, defaultChannel: string = 'Kênh Y
   const shortBlocks = htmlOrJson.split('"shortsLockupViewModel":');
   for (let i = 1; i < shortBlocks.length; i++) {
     const b = shortBlocks[i];
-    const idM = b.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+    const idM = b.match(/"videoId":"([a-zA-Z0-9_-]{11})"/) || b.match(/"entityId":"(?:shorts-shelf-item-)?([a-zA-Z0-9_-]{11})"/);
     const accM = b.match(/"accessibilityText":"(.*?)"/);
     const titleM = b.match(/"overlayMetadata":\{.*?"primaryText":\{.*?"content":"(.*?)"/);
     if (idM) {
