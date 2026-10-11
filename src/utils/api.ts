@@ -7,20 +7,80 @@ import {
   DEFAULT_CHANNEL_PLAYLISTS,
 } from '../data/minhhieuChannelData';
 
-// Determine if we are hosted on a static host like GitHub Pages
-export const isStaticHost =
+// Storage key for optional remote backend URL
+export const STORAGE_KEY_API_URL = 'casttube_custom_backend_url';
+
+/**
+ * Get configured custom backend URL if user deployed server.ts to Render, Railway, etc.
+ */
+export function getCustomBackendUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem(STORAGE_KEY_API_URL);
+  if (stored && stored.trim()) {
+    return stored.trim().replace(/\/$/, '');
+  }
+  // Optional Vite env var: VITE_BACKEND_URL
+  if (import.meta.env.VITE_BACKEND_URL) {
+    return String(import.meta.env.VITE_BACKEND_URL).trim().replace(/\/$/, '');
+  }
+  return null;
+}
+
+/**
+ * Set custom backend URL
+ */
+export function setCustomBackendUrl(url: string | null): void {
+  if (typeof window === 'undefined') return;
+  if (!url || !url.trim()) {
+    localStorage.removeItem(STORAGE_KEY_API_URL);
+  } else {
+    localStorage.setItem(STORAGE_KEY_API_URL, url.trim().replace(/\/$/, ''));
+  }
+}
+
+/**
+ * Check if running on a static host like GitHub Pages
+ */
+export const isStaticHost: boolean =
   typeof window !== 'undefined' &&
   (window.location.hostname.includes('github.io') ||
     window.location.protocol === 'file:' ||
-    !window.location.port);
+    (!window.location.port && !window.location.hostname.includes('run.app')));
 
-// API Base matching Vite base URL
-export const API_BASE = `${import.meta.env.BASE_URL}api/`;
+/**
+ * Whether the application currently has a usable Node.js / Express backend
+ */
+export function hasBackend(): boolean {
+  if (getCustomBackendUrl()) return true;
+  // If we are on GitHub Pages without a remote backend, we do NOT have a backend
+  if (isStaticHost) return false;
+  return true;
+}
+
+/**
+ * Dynamic API Base URL
+ * - If user configured a custom backend (Render, Cloud Run, etc.): use that remote URL
+ * - If running with local/embedded backend: use relative import.meta.env.BASE_URL + 'api/'
+ * - If on GitHub Pages without backend: return null so code uses instant client-side data
+ */
+export function getApiBaseUrl(): string | null {
+  const customUrl = getCustomBackendUrl();
+  if (customUrl) {
+    return `${customUrl}/api/`;
+  }
+  if (!hasBackend()) {
+    return null;
+  }
+  const base = import.meta.env.BASE_URL || '/';
+  return `${base.endsWith('/') ? base : base + '/'}api/`;
+}
+
+// Fallback constant for backwards compatibility
+export const API_BASE = `${import.meta.env.BASE_URL || '/'}api/`;
 
 /**
  * Safely fetches and parses JSON.
- * If the server returns HTML (e.g., GitHub Pages 404.html),
- * throws a clean descriptive error instead of `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`.
+ * Throws clean errors if response is HTML (e.g. GitHub Pages 404.html).
  */
 export async function safeFetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
@@ -28,10 +88,9 @@ export async function safeFetchJson<T>(url: string, options?: RequestInit): Prom
   const contentType = response.headers.get('content-type') || '';
   const text = await response.text();
 
-  // If response is HTML or starts with '<'
   if (contentType.includes('text/html') || text.trim().startsWith('<') || text.trim().startsWith('<!DOCTYPE')) {
     throw new Error(
-      `Máy chủ trả về trang HTML thay vì JSON (Endpoint có thể không tồn tại trên máy chủ tĩnh).`
+      `Máy chủ trả về trang HTML thay vì JSON (Endpoint không tồn tại trên máy chủ tĩnh).`
     );
   }
 
@@ -48,7 +107,7 @@ export async function safeFetchJson<T>(url: string, options?: RequestInit): Prom
   try {
     return JSON.parse(text) as T;
   } catch (err: any) {
-    throw new Error(`Dữ liệu nhận được không đúng định dạng JSON: ${err.message}`);
+    throw new Error(`Dữ liệu không đúng định dạng JSON: ${err.message}`);
   }
 }
 

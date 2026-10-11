@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { PodcastEpisode } from '../types/podcast';
 import { parseTimeString } from '../utils/youtube';
+import { generateClientAIAnalysis, hasBackend, getApiBaseUrl } from '../utils/api';
 
 interface AIPodcastCompanionProps {
   episode: PodcastEpisode;
@@ -32,44 +33,67 @@ export const AIPodcastCompanion: React.FC<AIPodcastCompanionProps> = ({
   const [questionInput, setQuestionInput] = useState<string>('');
   const [qaHistory, setQaHistory] = useState<{ question: string; answer: string }[]>([]);
 
-  const API_BASE = `${import.meta.env.BASE_URL}api/`;
-
   const fetchAIAnalysis = async (action: 'summary' | 'chapters' | 'quotes' | 'qa', question?: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}podcast/ai`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      let finalResult = '';
+
+      // Only make network request if a real backend is available
+      if (hasBackend()) {
+        try {
+          const apiBase = getApiBaseUrl();
+          if (apiBase) {
+            const response = await fetch(`${apiBase}podcast/ai`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action,
+                title: episode.title,
+                host: episode.channel,
+                description: episode.description,
+                videoId: episode.youtubeId,
+                question,
+              }),
+            });
+
+            const contentType = response.headers.get('content-type') || '';
+            if (response.ok && !contentType.includes('text/html')) {
+              const data = await response.json();
+              if (data && data.result) {
+                finalResult = data.result;
+              }
+            }
+          }
+        } catch (e) {
+          // Backend not available (e.g. GitHub Pages static)
+        }
+      }
+
+      if (!finalResult) {
+        // Intelligent client-side generation for static GitHub Pages
+        finalResult = generateClientAIAnalysis(
           action,
-          title: episode.title,
-          host: episode.channel,
-          description: episode.description,
-          videoId: episode.youtubeId,
-          question,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Có lỗi xảy ra khi phân tích Podcast');
+          episode.title,
+          episode.channel,
+          episode.description,
+          question
+        );
       }
 
       if (action === 'qa' && question) {
-        setQaHistory((prev) => [...prev, { question, answer: data.result }]);
+        setQaHistory((prev) => [...prev, { question, answer: finalResult }]);
         setQuestionInput('');
       } else {
         setResults((prev) => ({
           ...prev,
-          [`${episode.id}_${action}`]: data.result,
+          [`${episode.id}_${action}`]: finalResult,
         }));
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Không thể kết nối với dịch vụ AI');
+      setError(err.message || 'Không thể tạo phân tích AI');
     } finally {
       setLoading(false);
     }

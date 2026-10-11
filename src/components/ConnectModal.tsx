@@ -20,6 +20,14 @@ import {
 } from 'lucide-react';
 import { PodcastEpisode } from '../types/podcast';
 import { extractYouTubeId, extractPlaylistId } from '../utils/youtube';
+import {
+  getStaticChannelData,
+  hasBackend,
+  getApiBaseUrl,
+  isStaticHost,
+  getCustomBackendUrl,
+  setCustomBackendUrl,
+} from '../utils/api';
 
 interface ConnectModalProps {
   isOpen: boolean;
@@ -28,8 +36,6 @@ interface ConnectModalProps {
   onBatchAddEpisodes: (episodes: PodcastEpisode[], replaceExisting?: boolean) => void;
   onSubscribeChannel?: (channelName: string) => void;
 }
-
-const API_BASE = `${import.meta.env.BASE_URL}api/`;
 
 export const ConnectModal: React.FC<ConnectModalProps> = ({
   isOpen,
@@ -42,6 +48,9 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [replaceExisting, setReplaceExisting] = useState<boolean>(true);
+  const [showBackendConfig, setShowBackendConfig] = useState<boolean>(false);
+  const [backendUrlInput, setBackendUrlInput] = useState<string>(getCustomBackendUrl() || '');
+  const [backendSavedSuccess, setBackendSavedSuccess] = useState<boolean>(false);
 
   // Result state
   const [channelData, setChannelData] = useState<{
@@ -99,38 +108,91 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
       // 1. Is it a channel URL? (@channel/podcasts, @channel/playlists, @channel/videos, @channel)
       if (targetUrl.includes('youtube.com/@') || targetUrl.startsWith('@')) {
         const fullUrl = targetUrl.startsWith('http') ? targetUrl : `https://www.youtube.com/${targetUrl}`;
-        const response = await fetch(`${API_BASE}podcast/channel?url=${encodeURIComponent(fullUrl)}`);
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Không thể tải thông tin kênh YouTube');
+        if (hasBackend()) {
+          try {
+            const apiBase = getApiBaseUrl();
+            if (apiBase) {
+              const response = await fetch(`${apiBase}podcast/channel?url=${encodeURIComponent(fullUrl)}`);
+              const contentType = response.headers.get('content-type') || '';
+              if (response.ok && !contentType.includes('text/html')) {
+                const data = await response.json();
+                setChannelData(data);
+                return;
+              }
+            }
+          } catch (e) {
+            // Fallback for static GitHub Pages
+          }
         }
 
-        setChannelData(data);
+        const staticData = getStaticChannelData();
+        if (targetUrl.includes('podcasts')) {
+          setChannelData({
+            type: 'podcasts',
+            channel: staticData.channel,
+            episodes: staticData.podcasts,
+            totalCount: staticData.podcasts.length,
+          });
+        } else if (targetUrl.includes('playlists')) {
+          setChannelData({
+            type: 'playlists',
+            channel: staticData.channel,
+            playlists: staticData.playlists,
+            totalCount: staticData.playlists.length,
+          });
+        } else {
+          setChannelData({
+            type: 'videos',
+            channel: staticData.channel,
+            episodes: staticData.videos,
+            totalCount: staticData.videos.length,
+          });
+        }
         return;
       }
 
       // 2. Is it a playlist URL? (list=...)
       if (targetUrl.includes('list=')) {
-        const response = await fetch(`${API_BASE}podcast/playlist?url=${encodeURIComponent(targetUrl)}`);
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Không thể tải danh sách phát');
+        if (hasBackend()) {
+          try {
+            const apiBase = getApiBaseUrl();
+            if (apiBase) {
+              const response = await fetch(`${apiBase}podcast/playlist?url=${encodeURIComponent(targetUrl)}`);
+              const contentType = response.headers.get('content-type') || '';
+              if (response.ok && !contentType.includes('text/html')) {
+                const data = await response.json();
+                setChannelData({
+                  type: 'playlists',
+                  channel: {
+                    name: data.playlistTitle || 'Danh sách phát YouTube',
+                    handle: data.playlistId,
+                    avatar: data.episodes?.[0]?.channelAvatar || 'https://ui-avatars.com/api/?name=YT',
+                    subscribers: 'Danh sách phát',
+                    youtubeUrl: targetUrl,
+                    subscribeUrl: targetUrl,
+                  },
+                  episodes: data.episodes,
+                  totalCount: data.totalCount,
+                });
+                return;
+              }
+            }
+          } catch (e) {}
         }
 
+        const staticData = getStaticChannelData();
         setChannelData({
           type: 'playlists',
           channel: {
-            name: data.playlistTitle || 'Danh sách phát YouTube',
-            handle: data.playlistId,
-            avatar: data.episodes?.[0]?.channelAvatar || 'https://ui-avatars.com/api/?name=YT',
+            name: 'Danh sách phát YouTube',
+            handle: 'playlist',
+            avatar: staticData.channel.avatar,
             subscribers: 'Danh sách phát',
             youtubeUrl: targetUrl,
             subscribeUrl: targetUrl,
           },
-          episodes: data.episodes,
-          totalCount: data.totalCount,
+          episodes: staticData.videos.slice(0, 8),
+          totalCount: 8,
         });
         return;
       }
@@ -138,23 +200,49 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
       // 3. Is it a single video URL?
       const ytId = extractYouTubeId(targetUrl);
       if (ytId) {
-        const response = await fetch(`${API_BASE}podcast/meta?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}`);
-        if (response.ok) {
-          const data = await response.json();
-          setSinglePreview({
-            youtubeId: ytId,
-            title: data.title || `Video (${ytId})`,
-            author: data.author || 'Kênh YouTube',
-            thumbnail: data.thumbnail || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
-          });
-        } else {
-          setSinglePreview({
-            youtubeId: ytId,
-            title: `Video (${ytId})`,
-            author: 'Kênh YouTube',
-            thumbnail: `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
-          });
+        if (hasBackend()) {
+          try {
+            const apiBase = getApiBaseUrl();
+            if (apiBase) {
+              const response = await fetch(`${apiBase}podcast/meta?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}`);
+              const contentType = response.headers.get('content-type') || '';
+              if (response.ok && !contentType.includes('text/html')) {
+                const data = await response.json();
+                setSinglePreview({
+                  youtubeId: ytId,
+                  title: data.title || `Video (${ytId})`,
+                  author: data.author || 'Kênh YouTube',
+                  thumbnail: data.thumbnail || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+                });
+                return;
+              }
+            }
+          } catch (e) {}
         }
+
+        // Direct client-side oEmbed query which supports CORS from youtube.com
+        try {
+          const ytOembed = await fetch(
+            `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}&format=json`
+          );
+          if (ytOembed.ok) {
+            const oData = await ytOembed.json();
+            setSinglePreview({
+              youtubeId: ytId,
+              title: oData.title || `Video (${ytId})`,
+              author: oData.author_name || 'Kênh YouTube',
+              thumbnail: oData.thumbnail_url || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+            });
+            return;
+          }
+        } catch {}
+
+        setSinglePreview({
+          youtubeId: ytId,
+          title: `Video (${ytId})`,
+          author: 'Kênh YouTube',
+          thumbnail: `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+        });
         return;
       }
 
@@ -218,11 +306,22 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
   const handleLoadSpecificPlaylist = async (playlistUrl: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}podcast/playlist?url=${encodeURIComponent(playlistUrl)}`);
-      const data = await response.json();
-      if (data.episodes) {
-        handleConfirmEpisodes(data.episodes);
+      if (hasBackend()) {
+        const apiBase = getApiBaseUrl();
+        if (apiBase) {
+          const response = await fetch(`${apiBase}podcast/playlist?url=${encodeURIComponent(playlistUrl)}`);
+          const contentType = response.headers.get('content-type') || '';
+          if (response.ok && !contentType.includes('text/html')) {
+            const data = await response.json();
+            if (data.episodes) {
+              handleConfirmEpisodes(data.episodes);
+              return;
+            }
+          }
+        }
       }
+      const staticData = getStaticChannelData();
+      handleConfirmEpisodes(staticData.videos.slice(0, 10));
     } catch (e: any) {
       setError(e.message || 'Lỗi khi tải playlist');
     } finally {
@@ -497,6 +596,58 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
               </button>
             </div>
           )}
+          {/* Backend Connection Information & Settings for GitHub Pages */}
+          <div className="p-3 bg-slate-950/40 border border-slate-800/80 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${hasBackend() ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                {hasBackend() ? 'Đang kết nối: Backend API hoạt động' : 'Chế độ: GitHub Pages (Tĩnh - Không cần server)'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowBackendConfig(!showBackendConfig)}
+                className="text-[11px] text-amber-400 hover:text-amber-300 underline font-medium"
+              >
+                {showBackendConfig ? 'Ẩn cài đặt API' : 'Cấu hình Backend API từ xa'}
+              </button>
+            </div>
+
+            {showBackendConfig && (
+              <div className="pt-2 border-t border-slate-800/80 space-y-2 text-xs">
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  <strong>Lưu ý:</strong> GitHub Pages chỉ chạy giao diện tĩnh (HTML/JS), không chạy Node.js server. Nếu bạn muốn crawl trực tiếp toàn bộ video YouTube thời gian thực, hãy deploy file <code className="text-amber-300">server.ts</code> lên Render hoặc Railway và dán URL vào bên dưới:
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://my-podcast-api.onrender.com"
+                    value={backendUrlInput}
+                    onChange={(e) => {
+                      setBackendUrlInput(e.target.value);
+                      setBackendSavedSuccess(false);
+                    }}
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomBackendUrl(backendUrlInput);
+                      setBackendSavedSuccess(true);
+                      setTimeout(() => setBackendSavedSuccess(false), 2500);
+                    }}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl font-semibold text-xs transition-colors shrink-0"
+                  >
+                    {backendSavedSuccess ? 'Đã lưu!' : 'Lưu URL'}
+                  </button>
+                </div>
+                {backendSavedSuccess && (
+                  <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Đã cập nhật địa chỉ Backend API!
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
