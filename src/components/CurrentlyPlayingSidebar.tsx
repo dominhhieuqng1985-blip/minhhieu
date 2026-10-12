@@ -236,7 +236,7 @@ export const CurrentlyPlayingSidebar: React.FC<CurrentlyPlayingSidebarProps> = (
 
           return (
             <div
-              key={episode.id || `${idx}-${episode.youtubeId}`}
+              key={episode.id ? `${episode.id}-${idx}` : `${idx}-${episode.youtubeId}`}
               ref={isActive ? activeItemRef : undefined}
               onClick={() => onPlayEpisode(episode)}
               className={`p-2.5 flex items-center gap-3 cursor-pointer transition-all ${

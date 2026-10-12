@@ -220,9 +220,20 @@ async function main() {
 
   const finalLongVideos = Array.from(allVideosMap.values());
   const finalShorts = Array.from(allShortsMap.values());
-  const finalAllVideos = [...finalLongVideos, ...finalShorts].map((v, i) => ({
+  
+  // Deduplicate by youtubeId and assign strictly unique sequential IDs
+  const seenIds = new Set();
+  const dedupedAll = [];
+  for (const v of [...finalLongVideos, ...finalShorts]) {
+    if (!seenIds.has(v.youtubeId)) {
+      seenIds.add(v.youtubeId);
+      dedupedAll.push(v);
+    }
+  }
+
+  const finalAllVideos = dedupedAll.map((v, i) => ({
+    ...v,
     id: `mh-v${i + 1}`,
-    ...v
   }));
 
   console.log(`Tổng kết: ${finalLongVideos.length} video dài + ${finalShorts.length} shorts = ${finalAllVideos.length} video.`);

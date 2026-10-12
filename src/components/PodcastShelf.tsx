@@ -112,7 +112,7 @@ export const PodcastShelf: React.FC<PodcastShelfProps> = ({
 
           return (
             <div
-              key={ep.id}
+              key={`${ep.id}-${idx}`}
               className={`group relative bg-slate-900 rounded-2xl border transition-all duration-200 overflow-hidden flex flex-col ${
                 isActive
                   ? 'border-amber-500 shadow-lg shadow-amber-500/10 ring-1 ring-amber-500/40'

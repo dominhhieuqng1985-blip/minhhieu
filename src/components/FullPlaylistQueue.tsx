@@ -102,7 +102,7 @@ export const FullPlaylistQueue: React.FC<FullPlaylistQueueProps> = ({
 
           return (
             <div
-              key={ep.id}
+              key={`${ep.id}-${idx}`}
               className={`group p-3 sm:p-4 flex items-center justify-between gap-3 sm:gap-4 transition-all ${
                 isActive
                   ? 'bg-amber-500/10 border-l-4 border-amber-500'

@@ -175,7 +175,13 @@ export default function App() {
         const custom: PodcastEpisode[] = JSON.parse(stored);
         const defIds = new Set(DEFAULT_VIDEOS.map((v) => v.youtubeId));
         const extra = custom.filter((v) => !defIds.has(v.youtubeId));
-        return [...extra, ...DEFAULT_VIDEOS];
+        const combined = [...extra, ...DEFAULT_VIDEOS];
+        const seen = new Set<string>();
+        return combined.filter((v) => {
+          if (seen.has(v.youtubeId)) return false;
+          seen.add(v.youtubeId);
+          return true;
+        });
       }
     } catch {}
     return DEFAULT_VIDEOS;
