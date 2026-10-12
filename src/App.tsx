@@ -29,6 +29,7 @@ import {
   RefreshCw,
   Loader2,
   ArrowRight,
+  PlusCircle,
 } from 'lucide-react';
 import { PodcastEpisode, PodcastNote, PodcastSeries, PodcastPlaylist } from './types/podcast';
 import { Header } from './components/Header';
@@ -38,6 +39,7 @@ import { AIPodcastCompanion } from './components/AIPodcastCompanion';
 import { TimecodedNotesPanel } from './components/TimecodedNotesPanel';
 import { FullPlaylistQueue } from './components/FullPlaylistQueue';
 import { ConnectModal } from './components/ConnectModal';
+import { AddVideoModal } from './components/AddVideoModal';
 import { formatSeconds } from './utils/youtube';
 import {
   DEFAULT_CHANNEL_INFO,
@@ -147,6 +149,7 @@ export default function App() {
   const [activeNav, setActiveNav] = useState<string>('playlist');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
+  const [isAddVideoModalOpen, setIsAddVideoModalOpen] = useState<boolean>(false);
 
   // Player seeking orchestration
   const [seekTargetTime, setSeekTargetTime] = useState<number | null>(null);
@@ -162,24 +165,65 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // Helper: Merge default indexed videos with any user custom/newly saved videos from localStorage
+  const getMergedInitialVideos = (): PodcastEpisode[] => {
+    try {
+      const stored = localStorage.getItem('casttube_user_saved_videos');
+      if (stored) {
+        const custom: PodcastEpisode[] = JSON.parse(stored);
+        const defIds = new Set(DEFAULT_VIDEOS.map((v) => v.youtubeId));
+        const extra = custom.filter((v) => !defIds.has(v.youtubeId));
+        return [...extra, ...DEFAULT_VIDEOS];
+      }
+    } catch {}
+    return DEFAULT_VIDEOS;
+  };
+
   // Local Channel Data Loader (Used for static hosts like GitHub Pages)
   const applyLocalChannelData = () => {
+    const allVids = getMergedInitialVideos();
     setChannelInfo(DEFAULT_CHANNEL_INFO);
-    setChannelVideos(DEFAULT_VIDEOS);
+    setChannelVideos(allVids);
     setChannelPodcasts(DEFAULT_PODCASTS);
     setChannelPlaylists(DEFAULT_CHANNEL_PLAYLISTS);
     setPodcastSeries(DEFAULT_PODCAST_SERIES);
-    setActiveQueue(DEFAULT_VIDEOS);
-    if (DEFAULT_VIDEOS.length > 0) {
-      setCurrentEpisode(DEFAULT_VIDEOS[0]);
+    setActiveQueue(allVids);
+    if (allVids.length > 0) {
+      setCurrentEpisode(allVids[0]);
     }
     setVideoCounts({
-      all: DEFAULT_VIDEOS.length,
-      long: DEFAULT_VIDEOS.filter((v) => !v.isShort).length,
-      shorts: DEFAULT_VIDEOS.filter((v) => v.isShort).length,
+      all: allVids.length,
+      long: allVids.filter((v) => !v.isShort).length,
+      shorts: allVids.filter((v) => v.isShort).length,
     });
     const nowTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     setLastCheckedTime(nowTime);
+  };
+
+  // User manually adds a video or Shorts via URL
+  const handleAddCustomVideo = (newEp: PodcastEpisode) => {
+    setChannelVideos((prev) => {
+      const filtered = prev.filter((v) => v.youtubeId !== newEp.youtubeId);
+      const nextList = [newEp, ...filtered];
+      try {
+        const stored = localStorage.getItem('casttube_user_saved_videos');
+        const customList: PodcastEpisode[] = stored ? JSON.parse(stored) : [];
+        const nextCustom = [newEp, ...customList.filter((v) => v.youtubeId !== newEp.youtubeId)];
+        localStorage.setItem('casttube_user_saved_videos', JSON.stringify(nextCustom.slice(0, 50)));
+      } catch {}
+      return nextList;
+    });
+
+    setActiveQueue((prev) => [newEp, ...prev.filter((v) => v.youtubeId !== newEp.youtubeId)]);
+    setCurrentEpisode(newEp);
+
+    setVideoCounts((prev) => ({
+      all: prev.all + 1,
+      long: prev.long + (newEp.isShort ? 0 : 1),
+      shorts: prev.shorts + (newEp.isShort ? 1 : 0),
+    }));
+
+    showToast(`🎉 Đã thêm thành công: "${newEp.title}" vào kênh!`);
   };
 
   // AUTOMATIC INITIAL FETCH ON STARTUP:
@@ -192,7 +236,7 @@ export default function App() {
     if (!hasBackend()) {
       applyLocalChannelData();
       setIsLoadingChannel(false);
-      showToast(`Đã nạp toàn bộ 64 video & podcasts của kênh Minh Hiếu review phim.`);
+      showToast(`Đã nạp toàn bộ ${DEFAULT_VIDEOS.length} video chính thức của kênh Minh Hiếu review phim.`);
       return;
     }
 
@@ -300,93 +344,168 @@ export default function App() {
   };
 
   // CHECK AND AUTO-SYNC NEW VIDEOS FROM YOUTUBE:
-  // Detects if any new video or short was uploaded to YouTube
+  // Detects if any new video or short was uploaded to YouTube (via backend or client-side RSS)
   const checkForNewVideos = async (isManual = false) => {
     setIsCheckingUpdates(true);
 
-    if (!hasBackend()) {
-      setIsCheckingUpdates(false);
-      const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-      setLastCheckedTime(nowStr);
-      if (isManual) {
-        showToast('Kênh Minh Hiếu review phim đang ở trạng thái mới nhất (64 video & podcasts).');
+    // 1. Try Backend API if available
+    if (hasBackend()) {
+      try {
+        const apiBase = getApiBaseUrl();
+        if (apiBase) {
+          const res = await fetch(
+            `${apiBase}podcast/check-updates?url=https://www.youtube.com/@minhhieureviewphim&_nocache=${Date.now()}`
+          );
+          const contentType = res.headers.get('content-type') || '';
+          if (res.ok && !contentType.includes('text/html')) {
+            const data = await res.json();
+            if (data.success && Array.isArray(data.latestVideos)) {
+              const existingIds = new Set(channelVideos.map((v) => v.youtubeId));
+              const newlyFound = data.latestVideos.filter((v: any) => !existingIds.has(v.youtubeId));
+
+              if (newlyFound.length > 0) {
+                const formattedNew: PodcastEpisode[] = newlyFound.map((v: any, idx: number) => ({
+                  id: `new-${Date.now()}-${idx}-${v.youtubeId}`,
+                  youtubeId: v.youtubeId,
+                  title: v.title,
+                  channel: v.channel || channelInfo.name,
+                  category: 'tam-ly-doi-song',
+                  duration: v.duration || (v.isShort ? '00:60' : '03:30'),
+                  durationSeconds: v.isShort ? 60 : 210,
+                  thumbnail: v.thumbnail || `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`,
+                  description: `Video mới cập nhật từ kênh ${channelInfo.name}`,
+                  publishedDate: 'Mới tải lên',
+                  isShort: v.isShort,
+                }));
+
+                setChannelVideos((prev) => [...formattedNew, ...prev]);
+                if (activeTab === 'videos') {
+                  setActiveQueue((prev) => [...formattedNew, ...prev]);
+                }
+
+                const newLongs = formattedNew.filter((v) => !v.isShort).length;
+                const newShorts = formattedNew.filter((v) => v.isShort).length;
+
+                setVideoCounts((prev) => ({
+                  all: prev.all + formattedNew.length,
+                  long: prev.long + newLongs,
+                  shorts: prev.shorts + newShorts,
+                }));
+
+                try {
+                  const stored = localStorage.getItem('casttube_user_saved_videos');
+                  const customList = stored ? JSON.parse(stored) : [];
+                  localStorage.setItem('casttube_user_saved_videos', JSON.stringify([...formattedNew, ...customList].slice(0, 50)));
+                } catch {}
+
+                const alertMsg = `Đã phát hiện và nạp ${formattedNew.length} video mới: "${formattedNew[0].title}"!`;
+                setNewVideosAlert(alertMsg);
+                showToast(`🎉 ${alertMsg}`);
+                const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                setLastCheckedTime(nowStr);
+                setIsCheckingUpdates(false);
+                return;
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn('Backend API update check skipped, trying client-side fallback...');
       }
-      return;
     }
 
+    // 2. Client-Side Fallback: Check YouTube official RSS feed via CORS proxies
     try {
-      const apiBase = getApiBaseUrl();
-      if (!apiBase) {
-        setIsCheckingUpdates(false);
-        return;
+      const rssFeed = `https://www.youtube.com/feeds/videos.xml?channel_id=UCUr78N1iiRNyg_UoBgtPPhw&_nocache=${Date.now()}`;
+      const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(rssFeed)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rssFeed)}`,
+      ];
+
+      let xml = '';
+      for (const pUrl of proxies) {
+        try {
+          const controller = new AbortController();
+          const tId = setTimeout(() => controller.abort(), 3500);
+          const pRes = await fetch(pUrl, { signal: controller.signal });
+          clearTimeout(tId);
+          if (pRes.ok) {
+            const txt = await pRes.text();
+            if (txt && txt.includes('<entry>')) {
+              xml = txt;
+              break;
+            }
+          }
+        } catch {}
       }
-      const res = await fetch(
-        `${apiBase}podcast/check-updates?url=https://www.youtube.com/@minhhieureviewphim&_nocache=${Date.now()}`
-      );
-      const contentType = res.headers.get('content-type') || '';
-      if (!res.ok || contentType.includes('text/html')) {
-        throw new Error('Chế độ tĩnh GitHub Pages');
-      }
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Lỗi khi kiểm tra video mới');
-      }
 
-      const existingIds = new Set(channelVideos.map((v) => v.youtubeId));
-      const newlyFound = (data.latestVideos || []).filter((v: any) => !existingIds.has(v.youtubeId));
+      if (xml) {
+        const entries = xml.split('<entry>');
+        const existingIds = new Set(channelVideos.map((v) => v.youtubeId));
+        const foundNew: { id: string; title: string }[] = [];
 
-      const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-      setLastCheckedTime(nowStr);
-
-      if (newlyFound.length > 0) {
-        // Format newly found videos
-        const formattedNew: PodcastEpisode[] = newlyFound.map((v: any, idx: number) => ({
-          id: `new-${Date.now()}-${idx}-${v.youtubeId}`,
-          youtubeId: v.youtubeId,
-          title: v.title,
-          channel: v.channel || channelInfo.name,
-          category: 'phat-trien-ban-than',
-          duration: v.duration,
-          durationSeconds: v.isShort ? 60 : 600,
-          thumbnail: v.thumbnail,
-          description: `Video mới cập nhật từ kênh ${channelInfo.name}`,
-          publishedDate: 'Mới tải lên',
-          isShort: v.isShort,
-        }));
-
-        // Prepend new videos to channel videos
-        setChannelVideos((prev) => [...formattedNew, ...prev]);
-
-        // If on videos tab, prepend to active queue as well
-        if (activeTab === 'videos') {
-          setActiveQueue((prev) => [...formattedNew, ...prev]);
+        for (let i = 1; i < entries.length; i++) {
+          const e = entries[i];
+          const idM = e.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
+          const titleM = e.match(/<title>(.*?)<\/title>/);
+          if (idM && titleM && !existingIds.has(idM[1])) {
+            foundNew.push({ id: idM[1], title: titleM[1] });
+          }
         }
 
-        const newLongs = formattedNew.filter((v) => !v.isShort).length;
-        const newShorts = formattedNew.filter((v) => v.isShort).length;
+        if (foundNew.length > 0) {
+          const formattedRss: PodcastEpisode[] = foundNew.map((item, idx) => {
+            const isShort = item.title.toLowerCase().includes('#shorts') || item.title.toLowerCase().includes('video ngắn');
+            return {
+              id: `rss-${Date.now()}-${idx}-${item.id}`,
+              youtubeId: item.id,
+              title: item.title,
+              channel: 'Minh Hiếu review phim',
+              category: item.title.includes('đức phật') ? 'tam-ly-doi-song' : 'nghe-thuat-sang-tao',
+              duration: isShort ? '00:60' : '03:30',
+              durationSeconds: isShort ? 60 : 210,
+              thumbnail: `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
+              description: `Video mới cập nhật từ kênh Minh Hiếu review phim.`,
+              publishedDate: 'Vừa tải lên',
+              isShort,
+            };
+          });
 
-        setVideoCounts((prev) => ({
-          all: prev.all + formattedNew.length,
-          long: prev.long + newLongs,
-          shorts: prev.shorts + newShorts,
-        }));
+          setChannelVideos((prev) => [...formattedRss, ...prev]);
+          if (activeTab === 'videos') {
+            setActiveQueue((prev) => [...formattedRss, ...prev]);
+          }
 
-        const alertMsg = `Đã phát hiện và tự động nạp ${formattedNew.length} video mới: "${formattedNew[0].title}"!`;
-        setNewVideosAlert(alertMsg);
-        showToast(`🎉 ${alertMsg}`);
-      } else {
-        if (isManual) {
-          showToast(`✅ Kênh đã ở trạng thái mới nhất! Đã kiểm tra và chưa có video mới.`);
+          const newLongs = formattedRss.filter((v) => !v.isShort).length;
+          const newShorts = formattedRss.filter((v) => v.isShort).length;
+          setVideoCounts((prev) => ({
+            all: prev.all + formattedRss.length,
+            long: prev.long + newLongs,
+            shorts: prev.shorts + newShorts,
+          }));
+
+          try {
+            const stored = localStorage.getItem('casttube_user_saved_videos');
+            const customList = stored ? JSON.parse(stored) : [];
+            localStorage.setItem('casttube_user_saved_videos', JSON.stringify([...formattedRss, ...customList].slice(0, 50)));
+          } catch {}
+
+          const alertMsg = `Đã phát hiện và nạp ${formattedRss.length} video mới: "${formattedRss[0].title}"!`;
+          setNewVideosAlert(alertMsg);
+          showToast(`🎉 ${alertMsg}`);
+          const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          setLastCheckedTime(nowStr);
+          setIsCheckingUpdates(false);
+          return;
         }
       }
-    } catch (err: any) {
-      const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-      setLastCheckedTime(nowStr);
-      if (isManual) {
-        showToast('✅ Kênh đang ở trạng thái mới nhất!');
-      }
-    } finally {
-      setIsCheckingUpdates(false);
+    } catch {}
+
+    const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    setLastCheckedTime(nowStr);
+    setIsCheckingUpdates(false);
+    if (isManual) {
+      showToast(`✅ Đã kiểm tra: Kênh có đầy đủ ${channelVideos.length} video mới nhất!`);
     }
   };
 
@@ -757,6 +876,16 @@ export default function App() {
 
             {/* Official Subscribe Button, Check Updates & Auto-Play Toggle */}
             <div className="flex items-center gap-3 flex-wrap">
+              {/* Quick Add Video / Shorts Button */}
+              <button
+                onClick={() => setIsAddVideoModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
+                title="Dán link video hoặc Shorts vừa tải lên YouTube để thêm ngay vào kênh"
+              >
+                <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
+                <span>Thêm video mới</span>
+              </button>
+
               {/* Check & Auto-Sync New Videos Button */}
               <button
                 onClick={() => checkForNewVideos(true)}
@@ -1200,6 +1329,13 @@ export default function App() {
           }
         }}
         onSubscribeChannel={handleToggleSubscribe}
+      />
+
+      {/* Add Video Modal */}
+      <AddVideoModal
+        isOpen={isAddVideoModalOpen}
+        onClose={() => setIsAddVideoModalOpen(false)}
+        onAddVideo={handleAddCustomVideo}
       />
     </div>
   );

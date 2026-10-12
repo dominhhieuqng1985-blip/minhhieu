@@ -3,10 +3,12 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: ["main", "master"] # Chạy khi có code mới đẩy lên nhánh main hoặc master
+  schedule:
+    - cron: '0 */4 * * *' # Tự động chạy mỗi 4 tiếng để cập nhật video mới từ YouTube
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -28,6 +30,9 @@ jobs:
           
       - name: Install dependencies
         run: npm install
+
+      - name: Sync latest YouTube videos
+        run: node scripts/sync-channel.cjs
         
       - name: Build
         run: npm run build

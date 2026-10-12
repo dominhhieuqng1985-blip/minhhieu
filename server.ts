@@ -368,7 +368,7 @@ app.get('/api/podcast/playlist', async (req, res) => {
 });
 
 // Endpoint: Parse YouTube Channel (@handle/podcasts, @handle/playlists, @handle/videos, @handle)
-app.get('/api/podcast/channel', async (req, res) => {
+app.get(['/api/podcast/channel', '/minhhieu/channel', '/minhhieu/api/podcast/channel'], async (req, res) => {
   try {
     const rawUrl = req.query.url as string;
     if (!rawUrl) {
@@ -520,8 +520,8 @@ app.get('/api/podcast/channel', async (req, res) => {
   }
 });
 
-// Endpoint: Comprehensive Channel Fetch - Automatically fetches ALL 64+ Videos, Shorts, Podcasts & Playlists in 1 call
-app.get('/api/podcast/channel-full', async (req, res) => {
+// Endpoint: Comprehensive Channel Fetch - Automatically fetches ALL Videos, Shorts, Podcasts & Playlists in 1 call
+app.get(['/api/podcast/channel-full', '/minhhieu/channel-full', '/minhhieu/api/podcast/channel-full'], async (req, res) => {
   try {
     const rawUrl = (req.query.url as string) || 'https://www.youtube.com/@minhhieureviewphim';
     const channelMatch =
@@ -661,7 +661,7 @@ app.get('/api/podcast/channel-full', async (req, res) => {
 });
 
 // Endpoint: Lightweight Check for New YouTube Uploads (Auto-sync / polling)
-app.get('/api/podcast/check-updates', async (req, res) => {
+app.get(['/api/podcast/check-updates', '/minhhieu/check-updates', '/minhhieu/api/podcast/check-updates'], async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   try {
@@ -670,14 +670,17 @@ app.get('/api/podcast/check-updates', async (req, res) => {
       rawUrl.trim().match(/youtube\.com\/(@[^\/?&#]+)/i) || rawUrl.trim().match(/^(@[^\/?&#]+)/i);
     const handle = channelMatch ? channelMatch[1] : '@minhhieureviewphim';
 
-    // Fetch the latest videos and shorts from YouTube without cache
-    const [vRes, sRes] = await Promise.all([
+    // Fetch the latest videos and shorts from YouTube without cache, plus official RSS feed
+    const [vRes, sRes, rssRes] = await Promise.all([
       fetch(`https://www.youtube.com/${handle}/videos?nocache=${Date.now()}`, {
         headers: { ...YOUTUBE_HEADERS, 'Cache-Control': 'no-cache' },
       }),
       fetch(`https://www.youtube.com/${handle}/shorts?nocache=${Date.now()}`, {
         headers: { ...YOUTUBE_HEADERS, 'Cache-Control': 'no-cache' },
       }),
+      fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=UCUr78N1iiRNyg_UoBgtPPhw`, {
+        headers: { ...YOUTUBE_HEADERS, 'Cache-Control': 'no-cache' },
+      }).catch(() => null),
     ]);
 
     let latestVideos: any[] = [];
@@ -692,7 +695,33 @@ app.get('/api/podcast/check-updates', async (req, res) => {
       latestShorts = parseShortsBlocks(sText, 'Minh Hiếu review phim');
     }
 
-    const allLatest = [...latestVideos, ...latestShorts];
+    let allLatest = [...latestVideos, ...latestShorts];
+
+    // Merge in any newly uploaded video from RSS feed that may not have rendered in HTML yet
+    if (rssRes && rssRes.ok) {
+      const rssText = await rssRes.text();
+      const entries = rssText.split('<entry>');
+      for (let i = 1; i < entries.length; i++) {
+        const ent = entries[i];
+        const vidM = ent.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
+        const titleM = ent.match(/<title>(.*?)<\/title>/);
+        if (vidM && titleM) {
+          const vId = vidM[1];
+          if (!allLatest.some((x) => x.youtubeId === vId)) {
+            const isShort = titleM[1].toLowerCase().includes('#shorts') || titleM[1].toLowerCase().includes('video ngắn');
+            allLatest.unshift({
+              youtubeId: vId,
+              title: titleM[1],
+              channel: 'Minh Hiếu review phim',
+              duration: isShort ? '00:60' : '03:30',
+              thumbnail: `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`,
+              isShort,
+            });
+          }
+        }
+      }
+    }
+
     return res.json({
       success: true,
       handle,
