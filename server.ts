@@ -16,7 +16,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 app.use(express.json());
 
 // Endpoint: Podcast RSS Feed (studo.xml) for YouTube Studio & podcast players
-app.get(['/studo.xml', '/minhhieu/studo.xml', '/studio.xml', '/minhhieu/studio.xml'], (req, res) => {
+app.get(['/studo.xml', '/minhhieu/studo.xml', '/studio.xml', '/minhhieu/studio.xml', '/feed.xml', '/minhhieu/feed.xml', '/rss.xml', '/minhhieu/rss.xml'], (req, res) => {
   const studoPath = path.resolve(__dirname, 'public/studo.xml');
   res.setHeader('Content-Type', 'application/xml; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=300');

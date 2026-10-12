@@ -22,6 +22,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
       
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -39,8 +43,14 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/data/minhhieuChannelData.ts public/studo.xml public/studio.xml
-          git diff --staged --quiet || (git commit -m "chore(auto-sync): update YouTube videos & studo.xml [skip ci]" && git push) || echo "No changes or push skipped"
+          git add src/data/minhhieuChannelData.ts public/studo.xml public/studio.xml public/feed.xml public/rss.xml
+          if ! git diff --staged --quiet; then
+            echo "Phát hiện video mới hoặc cập nhật studo.xml! Đang lưu commit và đẩy lên GitHub..."
+            git commit -m "chore(auto-sync): update YouTube videos & studo.xml [skip ci]"
+            git push origin HEAD:${{ github.ref_name }} || echo "Push warning: Hãy kiểm tra quyền Workflow permissions (Read and write) trong Settings > Actions > General trên GitHub."
+          else
+            echo "Không có video mới nào từ YouTube, thư viện đã ở trạng thái mới nhất."
+          fi
         
       - name: Build
         run: npm run build

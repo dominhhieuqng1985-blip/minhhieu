@@ -32,6 +32,8 @@ import {
   PlusCircle,
   Rss,
   Copy,
+  Github,
+  HelpCircle,
 } from 'lucide-react';
 import { PodcastEpisode, PodcastNote, PodcastSeries, PodcastPlaylist } from './types/podcast';
 import { Header } from './components/Header';
@@ -42,6 +44,7 @@ import { TimecodedNotesPanel } from './components/TimecodedNotesPanel';
 import { FullPlaylistQueue } from './components/FullPlaylistQueue';
 import { ConnectModal } from './components/ConnectModal';
 import { AddVideoModal } from './components/AddVideoModal';
+import { GithubSyncModal } from './components/GithubSyncModal';
 import { formatSeconds } from './utils/youtube';
 import {
   DEFAULT_CHANNEL_INFO,
@@ -115,6 +118,7 @@ export default function App() {
   const [lastCheckedTime, setLastCheckedTime] = useState<string>('Vừa xong');
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(true);
   const [newVideosAlert, setNewVideosAlert] = useState<string | null>(null);
+  const [isGithubSyncModalOpen, setIsGithubSyncModalOpen] = useState<boolean>(false);
 
   // Top URL input for instant channel/playlist loading
   const [urlInput, setUrlInput] = useState<string>('https://www.youtube.com/@minhhieureviewphim');
@@ -991,6 +995,16 @@ export default function App() {
                 <span>{isCheckingUpdates ? 'Đang kiểm tra...' : 'Kiểm tra video mới'}</span>
               </button>
 
+              {/* GitHub Sync Guide & Status Button */}
+              <button
+                onClick={() => setIsGithubSyncModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
+                title="Xem hướng dẫn và kích hoạt đồng bộ tự động lên GitHub"
+              >
+                <Github className="w-3.5 h-3.5 text-amber-400" />
+                <span>Đồng bộ GitHub</span>
+              </button>
+
               {/* Autoplay Next Toggle */}
               <button
                 onClick={() => {
@@ -1088,6 +1102,15 @@ export default function App() {
                 <ExternalLink className="w-3.5 h-3.5" />
                 <span>Mở studo.xml</span>
               </a>
+
+              <button
+                onClick={() => setIsGithubSyncModalOpen(true)}
+                className="flex-1 md:flex-none px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                title="Xem hướng dẫn tự động đồng bộ video lên GitHub"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+                <span>Hướng dẫn</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1481,6 +1504,16 @@ export default function App() {
         isOpen={isAddVideoModalOpen}
         onClose={() => setIsAddVideoModalOpen(false)}
         onAddVideo={handleAddCustomVideo}
+      />
+
+      {/* GitHub Sync Status & Guide Modal */}
+      <GithubSyncModal
+        isOpen={isGithubSyncModalOpen}
+        onClose={() => setIsGithubSyncModalOpen(false)}
+        onTriggerCheck={() => checkForNewVideos(true)}
+        isChecking={isCheckingUpdates}
+        totalVideos={channelVideos.length}
+        lastCheckedTime={lastCheckedTime}
       />
     </div>
   );

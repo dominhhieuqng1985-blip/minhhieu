@@ -399,8 +399,12 @@ ${itemsXml}
 
   const studoPath = path.resolve(publicDir, 'studo.xml');
   const studioPath = path.resolve(publicDir, 'studio.xml');
+  const feedPath = path.resolve(publicDir, 'feed.xml');
+  const rssPath = path.resolve(publicDir, 'rss.xml');
   fs.writeFileSync(studoPath, studoXmlContent, 'utf8');
   fs.writeFileSync(studioPath, studoXmlContent, 'utf8');
+  fs.writeFileSync(feedPath, studoXmlContent, 'utf8');
+  fs.writeFileSync(rssPath, studoXmlContent, 'utf8');
   console.log(`✅ Đã tạo thành công file RSS Podcast ${studoPath} (${finalAllVideos.length} tập)!`);
   console.log(`URL trực tiếp trên GitHub Pages: ${feedUrl}`);
 }
