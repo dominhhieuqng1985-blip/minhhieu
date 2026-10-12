@@ -223,8 +223,9 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "durationSeconds": 879,
     "thumbnail": "https://i.ytimg.com/vi/NmUVqZoAcWk/hqdefault.jpg",
     "description": "Căn nhà bị khóa tập 2 - Kênh Minh Hiếu review phim.",
-    "publishedDate": "Mới cập nhật",
+    "publishedDate": "Video chính thức",
     "isShort": false,
+    "views": "3 lượt xem",
     "id": "mh-v11"
   },
   {
