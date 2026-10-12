@@ -30,6 +30,8 @@ import {
   Loader2,
   ArrowRight,
   PlusCircle,
+  Rss,
+  Copy,
 } from 'lucide-react';
 import { PodcastEpisode, PodcastNote, PodcastSeries, PodcastPlaylist } from './types/podcast';
 import { Header } from './components/Header';
@@ -338,6 +340,10 @@ export default function App() {
       console.warn('Backend API chưa sẵn sàng trên GitHub Pages, tự động nạp thư viện video kênh:', err);
       applyLocalChannelData();
       showToast(`Đã nạp ${DEFAULT_VIDEOS.length} video của kênh Minh Hiếu review phim.`);
+      // Tự động kiểm tra studo.xml cho GitHub Pages
+      setTimeout(() => {
+        checkForNewVideos(false);
+      }, 300);
     } finally {
       setIsLoadingChannel(false);
     }
@@ -414,7 +420,89 @@ export default function App() {
       }
     }
 
-    // 2. Client-Side Fallback: Check YouTube official RSS feed via CORS proxies
+    // 2. Client-Side Check: Check studo.xml directly on GitHub Pages (Zero CORS issues!)
+    try {
+      const studoUrls = ['./studo.xml', '/minhhieu/studo.xml'];
+      let xmlFeed = '';
+      for (const sUrl of studoUrls) {
+        try {
+          const res = await fetch(`${sUrl}?_nocache=${Date.now()}`);
+          if (res.ok) {
+            const txt = await res.text();
+            if (txt && txt.includes('<item>')) {
+              xmlFeed = txt;
+              break;
+            }
+          }
+        } catch {}
+      }
+
+      if (xmlFeed) {
+        const items = xmlFeed.split('<item>');
+        const existingIds = new Set(channelVideos.map((v) => v.youtubeId));
+        const foundFromXml: PodcastEpisode[] = [];
+
+        for (let i = 1; i < items.length; i++) {
+          const itemText = items[i];
+          const guidM = itemText.match(/<guid[^>]*>(.*?)<\/guid>/);
+          const titleM = itemText.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/);
+          const durM = itemText.match(/<itunes:duration>(.*?)<\/itunes:duration>/);
+          const imgM = itemText.match(/<itunes:image href="([^"]+)"/);
+          const descM = itemText.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
+
+          if (guidM && titleM && !existingIds.has(guidM[1].trim())) {
+            const yId = guidM[1].trim();
+            const t = titleM[1].trim();
+            const dur = durM ? durM[1].trim() : '03:30';
+            const isShort = t.toLowerCase().includes('#shorts') || dur === '00:60' || dur === '0:60';
+            foundFromXml.push({
+              id: `studo-${Date.now()}-${i}-${yId}`,
+              youtubeId: yId,
+              title: t,
+              channel: 'Minh Hiếu review phim',
+              category: t.includes('đức phật') ? 'tam-ly-doi-song' : 'nghe-thuat-sang-tao',
+              duration: dur,
+              durationSeconds: isShort ? 60 : 210,
+              thumbnail: imgM ? imgM[1] : `https://i.ytimg.com/vi/${yId}/hqdefault.jpg`,
+              description: descM ? descM[1].trim() : `Tập podcast từ kênh Minh Hiếu review phim`,
+              publishedDate: 'Mới cập nhật từ studo.xml',
+              isShort,
+            });
+          }
+        }
+
+        if (foundFromXml.length > 0) {
+          setChannelVideos((prev) => [...foundFromXml, ...prev]);
+          if (activeTab === 'videos') {
+            setActiveQueue((prev) => [...foundFromXml, ...prev]);
+          }
+
+          const newLongs = foundFromXml.filter((v) => !v.isShort).length;
+          const newShorts = foundFromXml.filter((v) => v.isShort).length;
+          setVideoCounts((prev) => ({
+            all: prev.all + foundFromXml.length,
+            long: prev.long + newLongs,
+            shorts: prev.shorts + newShorts,
+          }));
+
+          try {
+            const stored = localStorage.getItem('casttube_user_saved_videos');
+            const customList = stored ? JSON.parse(stored) : [];
+            localStorage.setItem('casttube_user_saved_videos', JSON.stringify([...foundFromXml, ...customList].slice(0, 50)));
+          } catch {}
+
+          const alertMsg = `Đã đồng bộ ${foundFromXml.length} video mới nhất từ studo.xml: "${foundFromXml[0].title}"!`;
+          setNewVideosAlert(alertMsg);
+          showToast(`🎉 ${alertMsg}`);
+          const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          setLastCheckedTime(nowStr);
+          setIsCheckingUpdates(false);
+          return;
+        }
+      }
+    } catch {}
+
+    // 3. Fallback: Check YouTube official RSS feed via CORS proxies
     try {
       const rssFeed = `https://www.youtube.com/feeds/videos.xml?channel_id=UCUr78N1iiRNyg_UoBgtPPhw&_nocache=${Date.now()}`;
       const proxies = [
@@ -945,6 +1033,57 @@ export default function App() {
               </button>
             </div>
           )}
+
+          {/* Podcast RSS Feed Section (studo.xml) */}
+          <div className="mt-3 p-4 bg-gradient-to-r from-amber-950/30 via-slate-950 to-slate-900 border border-amber-500/30 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 shrink-0 mt-0.5">
+                <Rss className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-500/15 px-2.5 py-0.5 rounded-md border border-amber-500/30">
+                    📡 Podcast RSS Feed (studo.xml)
+                  </span>
+                  <span className="text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Chuẩn YouTube Studio &amp; Podcast Apps
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                  URL nguồn cấp dữ liệu để lấy Podcast từ kênh YouTube hoặc nạp lên <strong className="text-white">YouTube Studio</strong> (Mục Tạo &gt; Podcast mới &gt; Gửi nguồn cấp dữ liệu RSS), Apple Podcasts, Spotify:
+                </p>
+                <div className="mt-1.5 flex items-center gap-2 text-xs font-mono text-amber-300/90 break-all bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+                  <span className="select-all">https://dominhhieuqng1985-blip.github.io/minhhieu/studo.xml</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText('https://dominhhieuqng1985-blip.github.io/minhhieu/studo.xml');
+                  showToast('📋 Đã sao chép liên kết studo.xml vào clipboard!');
+                }}
+                className="flex-1 md:flex-none px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center gap-1.5 shadow transition-all active:scale-95"
+                title="Sao chép link studo.xml"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Sao chép URL</span>
+              </button>
+
+              <a
+                href="./studo.xml"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 md:flex-none px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                title="Mở xem trực tiếp file studo.xml"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Mở studo.xml</span>
+              </a>
+            </div>
+          </div>
         </div>
 
         {/* Player Workspace */}

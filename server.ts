@@ -2,6 +2,7 @@ import express from 'express';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -13,6 +14,17 @@ const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json());
+
+// Endpoint: Podcast RSS Feed (studo.xml) for YouTube Studio & podcast players
+app.get(['/studo.xml', '/minhhieu/studo.xml', '/studio.xml', '/minhhieu/studio.xml'], (req, res) => {
+  const studoPath = path.resolve(__dirname, 'public/studo.xml');
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  if (fs.existsSync(studoPath)) {
+    return res.sendFile(studoPath);
+  }
+  return res.status(404).send('<!-- studo.xml not found -->');
+});
 
 // Support base prefix from Vite base: '/minhhieu/'
 app.use((req, _res, next) => {

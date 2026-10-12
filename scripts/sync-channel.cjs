@@ -316,6 +316,82 @@ export const DEFAULT_PODCASTS: PodcastEpisode[] = [
 
   fs.writeFileSync(dataPath, tsFileContent, 'utf8');
   console.log(`✅ Đã cập nhật thành công ${dataPath} với ${finalAllVideos.length} video thực tế của kênh!`);
+
+  // Generate Podcast RSS XML feed for studo.xml
+  const publicDir = path.resolve(__dirname, '../public');
+  if (!fs.existsSync(publicDir)) {
+    fs.mkdirSync(publicDir, { recursive: true });
+  }
+
+  const channelTitle = 'Minh Hiếu review phim';
+  const channelLink = 'https://dominhhieuqng1985-blip.github.io/minhhieu/';
+  const feedUrl = 'https://dominhhieuqng1985-blip.github.io/minhhieu/studo.xml';
+  const channelDesc = 'Kênh Podcast chính thức của Minh Hiếu review phim (@minhhieureviewphim). Tổng hợp các bộ phim Phật giáo ý nghĩa, truyện ma rùng rợn, bài học tâm lý cuộc sống và âm nhạc chọn lọc.';
+  const author = 'Minh Hiếu';
+  const email = 'dominhhieuqng1985@gmail.com';
+
+  const itemsXml = finalAllVideos.map((v, idx) => {
+    const pubDate = new Date(Date.now() - idx * 3600 * 1000 * 4).toUTCString();
+    const thumb = v.thumbnail || `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`;
+    const dur = v.duration || (v.isShort ? '00:60' : '03:30');
+    return `    <item>
+      <title><![CDATA[${v.title}]]></title>
+      <link>https://www.youtube.com/watch?v=${v.youtubeId}</link>
+      <guid isPermaLink="false">${v.youtubeId}</guid>
+      <pubDate>${pubDate}</pubDate>
+      <description><![CDATA[${v.description || v.title} - Kênh ${channelTitle}. Xem hoặc nghe video podcast tại https://www.youtube.com/watch?v=${v.youtubeId}]]></description>
+      <enclosure url="https://www.youtube.com/watch?v=${v.youtubeId}" length="15000000" type="video/mp4" />
+      <itunes:title><![CDATA[${v.title}]]></itunes:title>
+      <itunes:episodeType>full</itunes:episodeType>
+      <itunes:duration>${dur}</itunes:duration>
+      <itunes:image href="${thumb}" />
+      <itunes:author>${author}</itunes:author>
+      <itunes:summary><![CDATA[${v.title}]]></itunes:summary>
+      <itunes:explicit>false</itunes:explicit>
+    </item>`;
+  }).join('\n');
+
+  const studoXmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" 
+  xmlns:itunes="http://www.itunes.com/dtds/itunes-1.0.dtd"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>${channelTitle}</title>
+    <link>${channelLink}</link>
+    <atom:link href="${feedUrl}" rel="self" type="application/rss+xml"/>
+    <description>${channelDesc}</description>
+    <language>vi</language>
+    <copyright>© 2026 ${channelTitle}</copyright>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    <itunes:author>${author}</itunes:author>
+    <itunes:summary>${channelDesc}</itunes:summary>
+    <itunes:type>episodic</itunes:type>
+    <itunes:owner>
+      <itunes:name>${channelTitle}</itunes:name>
+      <itunes:email>${email}</itunes:email>
+    </itunes:owner>
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:category text="TV &amp; Film"/>
+    <itunes:category text="Religion &amp; Spirituality"/>
+    <itunes:category text="Society &amp; Culture"/>
+    <itunes:image href="${CHANNEL_AVATAR}"/>
+    <image>
+      <url>${CHANNEL_AVATAR}</url>
+      <title>${channelTitle}</title>
+      <link>${channelLink}</link>
+    </image>
+${itemsXml}
+  </channel>
+</rss>
+`;
+
+  const studoPath = path.resolve(publicDir, 'studo.xml');
+  const studioPath = path.resolve(publicDir, 'studio.xml');
+  fs.writeFileSync(studoPath, studoXmlContent, 'utf8');
+  fs.writeFileSync(studioPath, studoXmlContent, 'utf8');
+  console.log(`✅ Đã tạo thành công file RSS Podcast ${studoPath} (${finalAllVideos.length} tập)!`);
+  console.log(`URL trực tiếp trên GitHub Pages: ${feedUrl}`);
 }
 
 main().catch(console.error);
