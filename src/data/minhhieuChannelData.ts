@@ -180,7 +180,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Người phụ nữ mà đức phật cảm kích từ đấy lòng và biết ơn - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "9 lượt xem",
+    "views": "10 lượt xem",
     "id": "mh-v8"
   },
   {
@@ -195,7 +195,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Tăng đoàn của đề đà đạt đa đã quay về với tăng đoàn của đức phật - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "10 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v9"
   },
   {
@@ -230,14 +230,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "WjgrpSYEiJU",
-    "title": "Xuyên Không Về Cổ Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần",
+    "title": "Xuyên Không Về Cổ Đại L��m CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "1:37:19",
     "durationSeconds": 5839,
     "thumbnail": "https://i.ytimg.com/vi/WjgrpSYEiJU/hqdefault.jpg",
-    "description": "Xuyên Không Về Cổ Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần - Kênh Minh Hiếu review phim.",
+    "description": "Xuyên Không Về Cổ Đại L��m CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "3 lượt xem",
@@ -480,7 +480,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Rơi Xuống Vực Nhặt Được Thần Dược Trăm Năm,Chàng Trai Thức Tỉnh Công Pháp Vô Địch Chấn Động Tiên Môn - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "51 lượt xem",
+    "views": "52 lượt xem",
     "id": "mh-v28"
   },
   {
