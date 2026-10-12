@@ -230,14 +230,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "WjgrpSYEiJU",
-    "title": "Xuyên Không Về Cổ Đại L��m CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần",
+    "title": "Xuyên Không Về Cổ Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "1:37:19",
     "durationSeconds": 5839,
     "thumbnail": "https://i.ytimg.com/vi/WjgrpSYEiJU/hqdefault.jpg",
-    "description": "Xuyên Không Về Cổ Đại L��m CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần - Kênh Minh Hiếu review phim.",
+    "description": "Xuyên Không Về Cổ Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "3 lượt xem",
@@ -300,7 +300,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Thành Thư Sinh Nghèo,Dùng Kiến Thức Hiện Đại Đảo Ngược Cục Diện Khiến Cả Hoàng Tộc Nể Sợ - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "5 lượt xem",
+    "views": "6 lượt xem",
     "id": "mh-v16"
   },
   {
@@ -465,7 +465,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Giữa Hai Thế Giới, Cô Gái Đến Hiện Đại Làm Thuê Mang Lương Thực Thuốc Men Về Cứu Bà Nội - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "99 lượt xem",
+    "views": "101 lượt xem",
     "id": "mh-v27"
   },
   {
