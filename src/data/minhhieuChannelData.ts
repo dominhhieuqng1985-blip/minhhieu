@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "em giận anh chi vậy? 😂| ca khúc vui tươi, hờn dỗi vu vơ - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "4 lượt xem",
+    "views": "7 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -105,7 +105,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Tôm ơi là tôm - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "7 lượt xem",
+    "views": "8 lượt xem",
     "id": "mh-v3"
   },
   {
@@ -120,7 +120,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Bậu ơi anh muốn cưới rồi - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "7 lượt xem",
+    "views": "8 lượt xem",
     "id": "mh-v4"
   },
   {
@@ -135,19 +135,19 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thương hoài cô gái miệt vườn - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "8 lượt xem",
+    "views": "9 lượt xem",
     "id": "mh-v5"
   },
   {
     "youtubeId": "CbpHoTtUulQ",
-    "title": "🙏 ��ức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài Học Sâu Sắc Về Đạo Làm Con 🪷",
+    "title": "🙏 Đức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài Học Sâu Sắc Về Đạo Làm Con 🪷",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
-    "category": "nghe-thuat-sang-tao",
+    "category": "tam-ly-doi-song",
     "duration": "3:50",
     "durationSeconds": 230,
     "thumbnail": "https://i.ytimg.com/vi/CbpHoTtUulQ/hqdefault.jpg",
-    "description": "🙏 ��ức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài Học Sâu Sắc Về Đạo Làm Con 🪷 - Kênh Minh Hiếu review phim.",
+    "description": "🙏 Đức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài Học Sâu Sắc Về Đạo Làm Con 🪷 - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "2 lượt xem",
@@ -180,7 +180,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Đức phật quay lại hoàng cung khai thị cho cha trước khi cha qua đời - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "9 lượt xem",
+    "views": "10 lượt xem",
     "id": "mh-v8"
   },
   {
@@ -225,7 +225,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Chiều nay mình ta - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "6 lượt xem",
+    "views": "7 lượt xem",
     "id": "mh-v11"
   },
   {
@@ -514,21 +514,6 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "id": "mh-v30"
   },
   {
-    "youtubeId": "snMpQwqSNLI",
-    "title": "Nhặt Ve Chai Cứu Con Gái Thoi Thóp, Ông Bố Nhặt Rác Đào Ra Kho Báu Trăm Tỷ Khiến Thiên Kim Phải Lòng",
-    "channel": "Minh Hiếu review phim",
-    "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
-    "category": "nghe-thuat-sang-tao",
-    "duration": "2:17:53",
-    "durationSeconds": 8273,
-    "thumbnail": "https://i.ytimg.com/vi/snMpQwqSNLI/hqdefault.jpg",
-    "description": "Nhặt Ve Chai Cứu Con Gái Thoi Thóp, Ông Bố Nhặt Rác Đào Ra Kho Báu Trăm Tỷ Khiến Thiên Kim Phải Lòng - Kênh Minh Hiếu review phim.",
-    "publishedDate": "Video chính thức",
-    "isShort": false,
-    "views": "3 lượt xem",
-    "id": "mh-v31"
-  },
-  {
     "youtubeId": "sukb8JcMDvQ",
     "title": "Thiếu nữ thầm yêu ngài A Nan được đức phật cảm hóa",
     "channel": "Minh Hiếu review phim",
@@ -540,7 +525,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thiếu nữ thầm yêu ngài A Nan được đức phật cảm hóa - Kênh Minh Hiếu review phim.",
     "publishedDate": "Mới cập nhật",
     "isShort": false,
-    "id": "mh-v32"
+    "id": "mh-v31"
   },
   {
     "youtubeId": "f1nk0-rwyI4",
@@ -554,6 +539,21 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "🙏 Lần đầu Đức Phật trở về gặp cha sau khi thành đạo - Kênh Minh Hiếu review phim.",
     "publishedDate": "Mới cập nhật",
     "isShort": false,
+    "id": "mh-v32"
+  },
+  {
+    "youtubeId": "snMpQwqSNLI",
+    "title": "Nhặt Ve Chai Cứu Con Gái Thoi Thóp, Ông Bố Nhặt Rác Đào Ra Kho Báu Trăm Tỷ Khiến Thiên Kim Phải Lòng",
+    "channel": "Minh Hiếu review phim",
+    "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
+    "category": "nghe-thuat-sang-tao",
+    "duration": "2:17:53",
+    "durationSeconds": 8273,
+    "thumbnail": "https://i.ytimg.com/vi/snMpQwqSNLI/hqdefault.jpg",
+    "description": "Nhặt Ve Chai Cứu Con Gái Thoi Thóp, Ông Bố Nhặt Rác Đào Ra Kho Báu Trăm Tỷ Khiến Thiên Kim Phải Lòng - Kênh Minh Hiếu review phim.",
+    "publishedDate": "Video chính thức",
+    "isShort": false,
+    "views": "3 lượt xem",
     "id": "mh-v33"
   },
   {
