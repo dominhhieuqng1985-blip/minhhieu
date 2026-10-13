@@ -900,14 +900,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "CfhZWC1nfLQ",
-    "title": "Tập 2 căn nhà cuối con đường",
+    "title": "Tập 2 căn nhà cuối con đư��ng",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "00:60",
     "durationSeconds": 60,
     "thumbnail": "https://i.ytimg.com/vi/CfhZWC1nfLQ/hqdefault.jpg",
-    "description": "Shorts: Tập 2 căn nhà cuối con đường - Kênh Minh Hiếu review phim.",
+    "description": "Shorts: Tập 2 căn nhà cuối con đư��ng - Kênh Minh Hiếu review phim.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
     "id": "mh-v57"
