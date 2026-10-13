@@ -15,6 +15,17 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json());
 
+// Enable CORS for all API routes (allows GitHub Pages to call proxy endpoints)
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Endpoint: Podcast RSS Feed (studo.xml) for YouTube Studio & podcast players
 app.get(['/studo.xml', '/minhhieu/studo.xml', '/studio.xml', '/minhhieu/studio.xml', '/feed.xml', '/minhhieu/feed.xml', '/rss.xml', '/minhhieu/rss.xml'], (req, res) => {
   const studoPath = path.resolve(__dirname, 'public/studo.xml');

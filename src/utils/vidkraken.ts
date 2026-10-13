@@ -6,6 +6,7 @@ import {
 import { isStaticHost, getCustomBackendUrl } from './api';
 
 export const STORAGE_KEY_VIDKRAKEN_KEY = 'casttube_vidkraken_api_key';
+export const STORAGE_KEY_VIDKRAKEN_PROXY = 'casttube_vidkraken_proxy_url';
 export const STORAGE_KEY_VIDKRAKEN_HISTORY = 'casttube_vidkraken_download_history_v1';
 
 export interface VidKrakenBalanceItem {
@@ -112,25 +113,58 @@ export function setStoredVidKrakenKey(key: string): void {
 }
 
 /**
- * Resolve whether to call server proxy or direct / fallback endpoint
+ * Get configured VidKraken Proxy URL (e.g. Cloudflare Worker or CORS proxy)
+ */
+export function getStoredVidKrakenProxy(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem(STORAGE_KEY_VIDKRAKEN_PROXY)?.trim() || '';
+}
+
+/**
+ * Save custom VidKraken Proxy URL
+ */
+export function setStoredVidKrakenProxy(url: string): void {
+  if (typeof window === 'undefined') return;
+  const cleaned = url.trim().replace(/\/$/, '');
+  if (!cleaned) {
+    localStorage.removeItem(STORAGE_KEY_VIDKRAKEN_PROXY);
+  } else {
+    localStorage.setItem(STORAGE_KEY_VIDKRAKEN_PROXY, cleaned);
+  }
+}
+
+/**
+ * Resolve whether to call custom proxy, server proxy or direct endpoint
  */
 function resolveEndpoint(path: string): string {
+  // 1. User-configured custom VidKraken proxy (Cloudflare Worker or CORS proxy)
+  const userProxy = getStoredVidKrakenProxy();
+  if (userProxy) {
+    if (userProxy.includes('/api/v2')) {
+      return `${userProxy}${path}`;
+    }
+    return `${userProxy}/api/v2${path}`;
+  }
+
+  // 2. Custom backend URL (Express server deployed on Render, Railway, Fly.io, etc.)
   const customBackend = getCustomBackendUrl();
   if (customBackend) {
     return `${customBackend}/api/vidkraken${path}`;
   }
-  // If not static (e.g. running local Express server), use server proxy
+
+  // 3. If running with Node.js backend (local dev / cloud container), use server proxy
   if (!isStaticHost) {
     const base = import.meta.env.BASE_URL || '/';
     const normalized = base.endsWith('/') ? base : `${base}/`;
     return `${normalized}api/vidkraken${path}`;
   }
-  // On static GitHub Pages, call VidKraken directly
+
+  // 4. On static GitHub Pages without custom proxy, direct call to VidKraken
   return `${VIDKRAKEN_BASE_URL}${path}`;
 }
 
 /**
- * Robust fetcher that tries server proxy or direct endpoint
+ * Robust fetcher that tries server proxy, custom proxy, or direct endpoint
  */
 async function callVidKrakenApi<T>(
   path: string,
@@ -179,10 +213,18 @@ async function callVidKrakenApi<T>(
     const data = (await response.json()) as T;
     return data;
   } catch (error: any) {
-    // If running on static host (like GitHub Pages) and direct fetch hit network/CORS error:
-    if (isStaticHost && (error.name === 'TypeError' || error.message?.includes('fetch'))) {
-      // Fallback attempt: if direct request failed, try via query relay or informative message
-      console.warn('Direct fetch failed on static host, attempting fallback:', error);
+    const isCorsOrNetwork =
+      error.name === 'TypeError' ||
+      error.message?.includes('Failed to fetch') ||
+      error.message?.includes('NetworkError') ||
+      error.message?.includes('Provisional headers') ||
+      error.message?.includes('fetch');
+
+    // On static hosts like GitHub Pages, explain the CORS restriction clearly
+    if (isCorsOrNetwork && isStaticHost && !getStoredVidKrakenProxy() && !getCustomBackendUrl()) {
+      throw new Error(
+        'CORS_BLOCKED: Máy chủ VidKraken chặn yêu cầu từ trình duyệt trên GitHub Pages (Lỗi "Provisional headers are shown"). Để tải, bạn có thể: (1) Cài Cloudflare Worker Proxy miễn phí trong 1 phút, hoặc (2) Dùng tab GitHub Actions để tải tự động, hoặc (3) Chạy lệnh Terminal CLI.'
+      );
     }
     throw error;
   }
