@@ -90,7 +90,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "em giận anh chi vậy? 😂| ca khúc vui tươi, hờn dỗi vu vơ - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "7 lượt xem",
+    "views": "8 lượt xem",
     "id": "mh-v2"
   },
   {
@@ -120,7 +120,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Tôm ơi là tôm - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "8 lượt xem",
+    "views": "9 lượt xem",
     "id": "mh-v4"
   },
   {
@@ -135,7 +135,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Bậu ơi anh muốn cưới rồi - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "8 lượt xem",
+    "views": "10 lượt xem",
     "id": "mh-v5"
   },
   {
@@ -150,7 +150,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thương hoài cô gái miệt vườn - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "9 lượt xem",
+    "views": "13 lượt xem",
     "id": "mh-v6"
   },
   {
@@ -240,7 +240,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Chiều nay mình ta - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "7 lượt xem",
+    "views": "8 lượt xem",
     "id": "mh-v12"
   },
   {
@@ -300,7 +300,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Góc bếp bình yên - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "11 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v16"
   },
   {
@@ -495,7 +495,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Giữa Hai Thế Giới, Cô Gái Đến Hiện Đại Làm Thuê Mang Lương Thực Thuốc Men Về Cứu Bà Nội - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "103 lượt xem",
+    "views": "104 lượt xem",
     "id": "mh-v29"
   },
   {
