@@ -34,6 +34,7 @@ import {
   Copy,
   Github,
   HelpCircle,
+  Download,
 } from 'lucide-react';
 import { PodcastEpisode, PodcastNote, PodcastSeries, PodcastPlaylist } from './types/podcast';
 import { Header } from './components/Header';
@@ -45,6 +46,7 @@ import { FullPlaylistQueue } from './components/FullPlaylistQueue';
 import { ConnectModal } from './components/ConnectModal';
 import { AddVideoModal } from './components/AddVideoModal';
 import { GithubSyncModal } from './components/GithubSyncModal';
+import { VidKrakenDownloader } from './components/VidKrakenDownloader';
 import { formatSeconds } from './utils/youtube';
 import {
   DEFAULT_CHANNEL_INFO,
@@ -161,8 +163,8 @@ export default function App() {
   const [seekTargetTime, setSeekTargetTime] = useState<number | null>(null);
   const [playerCurrentSeconds, setPlayerCurrentSeconds] = useState<number>(0);
 
-  // Player companion tab: 'queue' (Danh sách phát bên phải) | 'ai' (Trợ lý AI) | 'notes' (Ghi chú)
-  const [playerSidebarTab, setPlayerSidebarTab] = useState<'queue' | 'ai' | 'notes'>('queue');
+  // Player companion tab: 'queue' (Danh sách phát) | 'ai' (Trợ lý AI) | 'notes' (Ghi chú) | 'download' (Tải VidKraken)
+  const [playerSidebarTab, setPlayerSidebarTab] = useState<'queue' | 'ai' | 'notes' | 'download'>('queue');
 
   // Toast feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -894,6 +896,9 @@ export default function App() {
           } else if (section === 'notes') {
             document.getElementById('player-workspace')?.scrollIntoView({ behavior: 'smooth' });
             setPlayerSidebarTab('notes');
+          } else if (section === 'downloader') {
+            document.getElementById('downloader-section')?.scrollIntoView({ behavior: 'smooth' });
+            setPlayerSidebarTab('download');
           } else {
             document.getElementById('playlist-section')?.scrollIntoView({ behavior: 'smooth' });
           }
@@ -1172,6 +1177,18 @@ export default function App() {
                   <Bookmark className="w-3.5 h-3.5" />
                   <span>Ghi chú ({notes.filter((n) => n.episodeId === currentEpisode.id).length})</span>
                 </button>
+                <button
+                  onClick={() => setPlayerSidebarTab('download')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                    playerSidebarTab === 'download'
+                      ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Tải tập này bằng VidKraken"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Tải Video/MP3</span>
+                </button>
               </div>
             </div>
 
@@ -1225,6 +1242,14 @@ export default function App() {
                     episode={currentEpisode}
                     onSeekToTime={handleSeek}
                   />
+                ) : playerSidebarTab === 'download' ? (
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+                    <VidKrakenDownloader
+                      currentEpisode={currentEpisode}
+                      onAddToQueue={handleAddCustomVideo}
+                      onShowToast={showToast}
+                    />
+                  </div>
                 ) : (
                   <TimecodedNotesPanel
                     episode={currentEpisode}
@@ -1458,6 +1483,15 @@ export default function App() {
               ))}
             </div>
           )}
+        </section>
+
+        {/* VidKraken Studio & Downloader Section */}
+        <section id="downloader-section" className="space-y-4 pt-6 border-t border-slate-800">
+          <VidKrakenDownloader
+            currentEpisode={currentEpisode}
+            onAddToQueue={handleAddCustomVideo}
+            onShowToast={showToast}
+          />
         </section>
       </main>
 

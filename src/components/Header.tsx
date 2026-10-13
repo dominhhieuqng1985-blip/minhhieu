@@ -69,6 +69,17 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             )}
           </button>
+          <button
+            onClick={() => onNavigate('downloader')}
+            className={`hover:text-slate-100 transition-colors whitespace-nowrap shrink-0 py-1 flex items-center gap-1.5 ${
+              activeSection === 'downloader' ? 'text-amber-400 font-semibold' : ''
+            }`}
+          >
+            <span>Tải Video / MP3</span>
+            <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              VidKraken
+            </span>
+          </button>
         </nav>
 
         {/* Zone 3: 1 primary action */}

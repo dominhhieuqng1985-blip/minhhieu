@@ -34,6 +34,51 @@ app.use((req, _res, next) => {
   next();
 });
 
+// VidKraken API v2 Proxy Endpoint (Direct forwarding with default user API key)
+const VIDKRAKEN_DEFAULT_KEY =
+  process.env.VIDKRAKEN_API_KEY || 'f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba';
+
+app.use(['/api/vidkraken', '/minhhieu/api/vidkraken'], async (req, res) => {
+  try {
+    let subPath = req.url;
+    if (subPath.startsWith('/minhhieu/api/vidkraken')) {
+      subPath = subPath.replace(/^\/minhhieu\/api\/vidkraken/, '');
+    } else if (subPath.startsWith('/api/vidkraken')) {
+      subPath = subPath.replace(/^\/api\/vidkraken/, '');
+    }
+    if (!subPath.startsWith('/')) subPath = '/' + subPath;
+
+    const targetUrl = `https://vidkraken.com/api/v2${subPath}`;
+    const authHeader = req.headers.authorization || `Bearer ${VIDKRAKEN_DEFAULT_KEY}`;
+
+    const headers: Record<string, string> = {
+      Authorization: authHeader,
+      'Content-Type': 'application/json',
+      'User-Agent': 'CastTube-VidKraken/1.0',
+    };
+
+    const fetchOptions: RequestInit = {
+      method: req.method,
+      headers,
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
+      fetchOptions.body = JSON.stringify(req.body);
+    }
+
+    const vkRes = await fetch(targetUrl, fetchOptions);
+    const contentType = vkRes.headers.get('content-type') || 'application/json';
+    const textData = await vkRes.text();
+
+    res.status(vkRes.status);
+    res.setHeader('Content-Type', contentType);
+    return res.send(textData);
+  } catch (error: any) {
+    console.error('VidKraken proxy error:', error);
+    return res.status(500).json({ error: error.message || 'Error proxying to VidKraken' });
+  }
+});
+
 // Initialize Google GenAI
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',

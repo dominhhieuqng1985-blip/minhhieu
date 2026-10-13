@@ -8,6 +8,7 @@
     "start": "tsx server.ts",
     "build": "node scripts/sync-channel.cjs && vite build",
     "sync": "node scripts/sync-channel.cjs",
+    "vidkraken": "node scripts/vidkraken-cli.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
