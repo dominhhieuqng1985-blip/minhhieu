@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "1 lượt xem",
+    "views": "2 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -450,7 +450,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới Làm Bốc Vác, Mang Cả Siêu Thị Hiện Đại Về Nuôi 8000 Quân Thống Nhất Biên Ải - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "5 lượt xem",
+    "views": "6 lượt xem",
     "id": "mh-v26"
   },
   {
@@ -480,7 +480,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Giữa Hai Thế Giới, Cô Gái Đến Hiện Đại Làm Thuê Mang Lương Thực Thuốc Men Về Cứu Bà Nội - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "105 lượt xem",
+    "views": "106 lượt xem",
     "id": "mh-v28"
   },
   {
@@ -900,14 +900,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "CfhZWC1nfLQ",
-    "title": "Tập 2 căn nhà cuối con đường, 15 lư���t xem – phát video ngắn",
+    "title": "Tập 2 căn nhà cuối con đường",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "00:60",
     "durationSeconds": 60,
     "thumbnail": "https://i.ytimg.com/vi/CfhZWC1nfLQ/hqdefault.jpg",
-    "description": "Shorts: Tập 2 căn nhà cuối con đường, 15 lư���t xem – phát video ngắn - Kênh Minh Hiếu review phim.",
+    "description": "Shorts: Tập 2 căn nhà cuối con đường - Kênh Minh Hiếu review phim.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
     "id": "mh-v57"
