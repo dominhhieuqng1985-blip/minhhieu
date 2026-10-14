@@ -454,21 +454,6 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "id": "mh-v26"
   },
   {
-    "youtubeId": "bMgyPch3IQs",
-    "title": "Xuyên Không 2 Thế Giới, Mang Theo Kho Hàng Hiện Đại Đổi Lương Thực Lấy Đất Đai, Thống Nhất Giang Sơn",
-    "channel": "Minh Hiếu review phim",
-    "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
-    "category": "nghe-thuat-sang-tao",
-    "duration": "1:52:24",
-    "durationSeconds": 6744,
-    "thumbnail": "https://i.ytimg.com/vi/bMgyPch3IQs/hqdefault.jpg",
-    "description": "Xuyên Không 2 Thế Giới, Mang Theo Kho Hàng Hiện Đại Đổi Lương Thực Lấy Đất Đai, Thống Nhất Giang Sơn - Kênh Minh Hiếu review phim.",
-    "publishedDate": "Video chính thức",
-    "isShort": false,
-    "views": "12 lượt xem",
-    "id": "mh-v27"
-  },
-  {
     "youtubeId": "KcmuoUKw1vc",
     "title": "Bị Tiên Đạo Phong Ấn 3000 Năm, Đại Đế Tái Xuất Nghịch Thiên Bắt Cả Thiên Hạ Quỳ Phục",
     "channel": "Minh Hiếu review phim",
@@ -481,7 +466,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "17 lượt xem",
-    "id": "mh-v28"
+    "id": "mh-v27"
   },
   {
     "youtubeId": "t69IZJFJ5gA",
@@ -496,7 +481,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "104 lượt xem",
-    "id": "mh-v29"
+    "id": "mh-v28"
   },
   {
     "youtubeId": "QvEYI_EeeUU",
@@ -510,7 +495,22 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Rơi Xuống Vực Nhặt Được Thần Dược Trăm Năm,Chàng Trai Thức Tỉnh Công Pháp Vô Địch Chấn Động Tiên Môn - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "52 lượt xem",
+    "views": "55 lượt xem",
+    "id": "mh-v29"
+  },
+  {
+    "youtubeId": "svnjOq0LBMU",
+    "title": "Xuyên Không Thành Hoàng Đế, 3 Ngày Sau 30 Vạn Phản Quân Công Thành, Anh Dùng Hóa Học Cứu Cả Đại Càn",
+    "channel": "Minh Hiếu review phim",
+    "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
+    "category": "nghe-thuat-sang-tao",
+    "duration": "2:19:04",
+    "durationSeconds": 8344,
+    "thumbnail": "https://i.ytimg.com/vi/svnjOq0LBMU/hqdefault.jpg",
+    "description": "Xuyên Không Thành Hoàng Đế, 3 Ngày Sau 30 Vạn Phản Quân Công Thành, Anh Dùng Hóa Học Cứu Cả Đại Càn - Kênh Minh Hiếu review phim.",
+    "publishedDate": "Video chính thức",
+    "isShort": false,
+    "views": "9 lượt xem",
     "id": "mh-v30"
   },
   {
@@ -542,18 +542,18 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "id": "mh-v32"
   },
   {
-    "youtubeId": "svnjOq0LBMU",
-    "title": "Xuyên Không Thành Hoàng Đế, 3 Ngày Sau 30 Vạn Phản Quân Công Thành, Anh Dùng Hóa Học Cứu Cả Đại Càn",
+    "youtubeId": "bMgyPch3IQs",
+    "title": "Xuyên Không 2 Thế Giới, Mang Theo Kho Hàng Hiện Đại Đổi Lương Thực Lấy Đất Đai, Thống Nhất Giang Sơn",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
-    "duration": "2:19:04",
-    "durationSeconds": 8344,
-    "thumbnail": "https://i.ytimg.com/vi/svnjOq0LBMU/hqdefault.jpg",
-    "description": "Xuyên Không Thành Hoàng Đế, 3 Ngày Sau 30 Vạn Phản Quân Công Thành, Anh Dùng Hóa Học Cứu Cả Đại Càn - Kênh Minh Hiếu review phim.",
+    "duration": "1:52:24",
+    "durationSeconds": 6744,
+    "thumbnail": "https://i.ytimg.com/vi/bMgyPch3IQs/hqdefault.jpg",
+    "description": "Xuyên Không 2 Thế Giới, Mang Theo Kho Hàng Hiện Đại Đổi Lương Thực Lấy Đất Đai, Thống Nhất Giang Sơn - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "9 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v33"
   },
   {
