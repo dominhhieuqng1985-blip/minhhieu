@@ -24,6 +24,7 @@ import {
   HelpCircle,
   Globe,
   Loader2,
+  ChevronRight,
 } from 'lucide-react';
 import {
   getStoredVidKrakenKey,
@@ -42,7 +43,11 @@ import {
   VidKrakenVideoInfoResult,
   VidKrakenDownloadJob,
   DownloadHistoryItem,
+  getStoredVidKrakenProxy,
+  setStoredVidKrakenProxy,
+  testVidKrakenConnection,
 } from '../utils/vidkraken';
+import { isStaticHost } from '../utils/api';
 import {
   DEFAULT_VIDKRAKEN_API_KEY,
   VIDKRAKEN_FORMATS,
@@ -101,6 +106,17 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
   const [history, setHistory] = useState<DownloadHistoryItem[]>([]);
   const [previewMediaUrl, setPreviewMediaUrl] = useState<string | null>(null);
 
+  // Proxy & GitHub Pages CORS State
+  const [proxyUrl, setProxyUrl] = useState<string>(getStoredVidKrakenProxy);
+  const [tempProxyUrl, setTempProxyUrl] = useState<string>(proxyUrl);
+  const [isProxyModalOpen, setIsProxyModalOpen] = useState<boolean>(false);
+  const [isTestingProxy, setIsTestingProxy] = useState<boolean>(false);
+  const [proxyTestResult, setProxyTestResult] = useState<{
+    success: boolean;
+    message: string;
+    latencyMs?: number;
+  } | null>(null);
+
   // Load initial account info and history
   useEffect(() => {
     setHistory(getSavedDownloadHistory());
@@ -109,6 +125,54 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, []);
+
+  // Save new Proxy URL
+  const handleSaveProxy = (urlToSave: string) => {
+    const trimmed = urlToSave.trim();
+    setStoredVidKrakenProxy(trimmed);
+    setProxyUrl(trimmed);
+    setTempProxyUrl(trimmed);
+    fetchAccountDetails(apiKey);
+    onShowToast(
+      trimmed
+        ? '🌐 Đã lưu cấu hình Proxy VidKraken thành công!'
+        : '🔄 Đã xóa proxy, quay lại gọi trực tiếp.'
+    );
+  };
+
+  // Test Proxy Connection
+  const handleTestProxyConnection = async (targetProxy?: string) => {
+    setIsTestingProxy(true);
+    setProxyTestResult(null);
+    try {
+      const url = targetProxy !== undefined ? targetProxy : proxyUrl;
+      const res = await testVidKrakenConnection(apiKey, url);
+      if (res.success) {
+        setProxyTestResult({
+          success: true,
+          message: `Kết nối thành công (${res.latencyMs}ms)! Chủ sở hữu: ${
+            res.account?.name || 'Hiếu Đỗ Minh'
+          }`,
+          latencyMs: res.latencyMs,
+        });
+        if (res.account) setAccountInfo(res.account);
+        onShowToast(`✅ Proxy phản hồi rất tốt (${res.latencyMs}ms)!`);
+      } else {
+        setProxyTestResult({
+          success: false,
+          message: res.error || 'Lỗi kiểm tra kết nối proxy',
+          latencyMs: res.latencyMs,
+        });
+      }
+    } catch (err: any) {
+      setProxyTestResult({
+        success: false,
+        message: err.message || 'Lỗi kiểm tra proxy',
+      });
+    } finally {
+      setIsTestingProxy(false);
+    }
+  };
 
   // Fetch account balances & details (GET /me)
   const fetchAccountDetails = async (keyToUse: string) => {
@@ -551,6 +615,48 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
             )}
           </div>
         </div>
+
+        {/* GitHub Pages CORS & Proxy Control Bar */}
+        <div className="mt-3.5 pt-3 border-t border-slate-800/60 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs bg-slate-950/40 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 p-4 rounded-b-2xl">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+              <Globe className="w-4 h-4 text-sky-400" />
+              Chế độ kết nối:
+            </span>
+            <span
+              className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold ${
+                proxyUrl
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                  : isStaticHost
+                  ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                  : 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
+              }`}
+            >
+              {proxyUrl
+                ? `Proxy Worker (${proxyUrl.replace(/^https?:\/\//, '').slice(0, 25)}...)`
+                : isStaticHost
+                ? 'GitHub Pages (Trực tiếp)'
+                : 'Server Proxy (Local / Dev)'}
+            </span>
+
+            {isStaticHost && !proxyUrl && (
+              <span className="text-[11px] text-amber-400/90 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                Nếu gặp lỗi "Provisional headers are shown", hãy dùng 1 trong 3 giải pháp bên dưới.
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsProxyModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 text-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 fill-current" />
+              <span>Khắc Phục Lỗi CORS &amp; Tải Trên GitHub</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Main Grid: Input & Options (Left) + Active Job / Preview (Right) */}
@@ -876,9 +982,91 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
             </div>
 
             {downloadError && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{downloadError}</span>
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-red-200">Không thể thực hiện yêu cầu tải:</p>
+                    <p className="leading-relaxed">{downloadError}</p>
+                  </div>
+                </div>
+
+                {/* If CORS blocked, show immediate 3-way solution card */}
+                {(downloadError.includes('CORS') ||
+                  downloadError.includes('Provisional headers') ||
+                  downloadError.includes('Failed to fetch')) && (
+                  <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-500/40 text-xs text-amber-200 space-y-3">
+                    <div className="flex items-center gap-2 font-bold text-amber-300">
+                      <Sparkles className="w-4 h-4" />
+                      <span>3 Giải Pháp Tải Thành Công 100% Trên GitHub Pages:</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                      {/* Solution 1: GitHub Actions */}
+                      <a
+                        href="https://github.com/dominhhieuqng1985-blip/minhhieu/actions/workflows/download-media.yml"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 rounded-lg bg-slate-900 border border-slate-700 hover:border-amber-400 text-left transition-colors flex flex-col justify-between group"
+                      >
+                        <div>
+                          <span className="font-bold text-white block group-hover:text-amber-300">
+                            1. Tải bằng GitHub Action
+                          </span>
+                          <span className="text-[11px] text-slate-400 mt-1 block">
+                            Chạy trên server Ubuntu của GitHub, lưu file tải vào Artifacts không bao giờ lỗi CORS.
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold text-amber-400 mt-2 flex items-center gap-1">
+                          <span>Mở Actions</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </span>
+                      </a>
+
+                      {/* Solution 2: Cloudflare Worker */}
+                      <button
+                        onClick={() => setIsProxyModalOpen(true)}
+                        className="p-3 rounded-lg bg-slate-900 border border-slate-700 hover:border-amber-400 text-left transition-colors flex flex-col justify-between group"
+                      >
+                        <div>
+                          <span className="font-bold text-white block group-hover:text-amber-300">
+                            2. Cài Cloudflare Worker
+                          </span>
+                          <span className="text-[11px] text-slate-400 mt-1 block">
+                            Miễn phí 100k lượt/ngày, chuyển tiếp CORS cho trình duyệt. Cài trong 1 phút.
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold text-amber-400 mt-2 flex items-center gap-1">
+                          <span>Xem code &amp; Nhập URL</span>
+                          <ChevronRight className="w-3 h-3" />
+                        </span>
+                      </button>
+
+                      {/* Solution 3: Terminal CLI */}
+                      <button
+                        onClick={() => {
+                          const cmd = `node scripts/vidkraken-cli.cjs download "${inputUrl || 'https://youtu.be/...'}" ${selectedFormat}`;
+                          navigator.clipboard.writeText(cmd);
+                          onShowToast('📋 Đã copy lệnh terminal tải video!');
+                        }}
+                        className="p-3 rounded-lg bg-slate-900 border border-slate-700 hover:border-amber-400 text-left transition-colors flex flex-col justify-between group"
+                      >
+                        <div>
+                          <span className="font-bold text-white block group-hover:text-amber-300">
+                            3. Chạy Terminal CLI
+                          </span>
+                          <span className="text-[11px] text-slate-400 mt-1 block font-mono">
+                            node scripts/vidkraken-cli.cjs...
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold text-amber-400 mt-2 flex items-center gap-1">
+                          <span>Copy lệnh CLI</span>
+                          <Copy className="w-3 h-3" />
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1124,6 +1312,249 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
           </div>
         </div>
       </div>
+
+      {/* GitHub Pages CORS & Cloudflare Worker Proxy Modal */}
+      {isProxyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-7 space-y-6">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    Khắc Phục Lỗi CORS &amp; Cấu Hình Proxy Tải Media
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Giải quyết triệt để lỗi "Provisional headers are shown" khi chạy trên GitHub Pages.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsProxyModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Why this happens explanation */}
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-1.5 leading-relaxed">
+              <span className="font-bold text-amber-400 flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                Nguyên nhân lỗi "Provisional headers are shown":
+              </span>
+              <p>
+                Máy chủ <code className="text-amber-300">vidkraken.com</code> không cho phép trình duyệt gửi yêu cầu trực tiếp từ tên miền <code className="text-amber-300">github.io</code> do chính sách bảo mật CORS. Bạn có thể chọn 1 trong 3 cách khắc phục hoàn toàn miễn phí dưới đây:
+              </p>
+            </div>
+
+            {/* Solution 1: Cloudflare Worker */}
+            <div className="space-y-3 p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-white flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-emerald-400" />
+                  <span>Cách 1: Dùng Cloudflare Worker Reverse Proxy (Khuyên dùng)</span>
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  100k lượt/ngày miễn phí
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Tạo 1 Worker miễn phí trên Cloudflare (mất ~1 phút), dán code có sẵn, sau đó dán URL Worker vào ô bên dưới:
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={tempProxyUrl}
+                  onChange={(e) => setTempProxyUrl(e.target.value)}
+                  placeholder="https://vidkraken-proxy.yourname.workers.dev"
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-amber-500"
+                />
+                <button
+                  onClick={() => handleSaveProxy(tempProxyUrl)}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-colors shrink-0"
+                >
+                  Lưu Proxy
+                </button>
+                <button
+                  onClick={() => handleTestProxyConnection(tempProxyUrl)}
+                  disabled={isTestingProxy}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition-colors shrink-0 flex items-center gap-1.5"
+                >
+                  {isTestingProxy ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
+                  )}
+                  <span>Kiểm tra</span>
+                </button>
+              </div>
+
+              {/* Ping Test Result */}
+              {proxyTestResult && (
+                <div
+                  className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                    proxyTestResult.success
+                      ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
+                      : 'bg-rose-500/15 border border-rose-500/30 text-rose-300'
+                  }`}
+                >
+                  {proxyTestResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  )}
+                  <span className="font-mono">{proxyTestResult.message}</span>
+                </div>
+              )}
+
+              {/* Button to copy pre-made Cloudflare Worker script */}
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-slate-400 text-[11px]">
+                  File mã nguồn đã có sẵn tại: <code className="text-slate-200">scripts/cloudflare-worker-proxy.js</code>
+                </span>
+                <button
+                  onClick={() => {
+                    const workerCode = `export default {
+  async fetch(request, env, ctx) {
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
+          "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Requested-With",
+          "Access-Control-Max-Age": "86400",
+        },
+      });
+    }
+    try {
+      const url = new URL(request.url);
+      let targetPath = url.pathname;
+      if (!targetPath.startsWith('/api/v2')) {
+        targetPath = '/api/v2' + targetPath;
+      }
+      const targetUrl = 'https://vidkraken.com' + targetPath + url.search;
+      const forwardHeaders = new Headers();
+      forwardHeaders.set('User-Agent', 'CastTube-Worker/1.0');
+      forwardHeaders.set('Content-Type', 'application/json');
+      const authHeader = request.headers.get('authorization') || 'Bearer f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba';
+      forwardHeaders.set('authorization', authHeader);
+
+      const fetchOptions = { method: request.method, headers: forwardHeaders };
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        const bodyText = await request.text();
+        if (bodyText) fetchOptions.body = bodyText;
+      }
+
+      const response = await fetch(targetUrl, fetchOptions);
+      const responseHeaders = new Headers(response.headers);
+      responseHeaders.set("Access-Control-Allow-Origin", "*");
+      responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+      responseHeaders.set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, X-Requested-With");
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
+      });
+    } catch (err) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+  },
+};`;
+                    navigator.clipboard.writeText(workerCode);
+                    onShowToast('📋 Đã sao chép toàn bộ mã nguồn Cloudflare Worker!');
+                  }}
+                  className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy mã Worker</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Solution 2: GitHub Actions Workflow */}
+            <div className="space-y-3 p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-white flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-sky-400" />
+                  <span>Cách 2: Chạy Tải Tự Động Qua GitHub Actions (Không Cần Cài Proxy)</span>
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                  Ổn định 100%
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Repository của bạn đã được cài sẵn workflow <code className="text-slate-200">.github/workflows/download-media.yml</code>. Bạn chỉ cần nhấn nút bên dưới để mở trang workflow, chọn Run workflow là file sẽ được tải thẳng về kho lưu trữ:
+              </p>
+
+              <div className="flex items-center gap-3">
+                <a
+                  href="https://github.com/dominhhieuqng1985-blip/minhhieu/actions/workflows/download-media.yml"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Mở Trang GitHub Actions Tải File</span>
+                </a>
+                <button
+                  onClick={() => {
+                    const params = `YouTube URL: ${inputUrl || 'https://www.youtube.com/watch?v=wWLTeDAW8g0'}\nFormat: ${selectedFormat}`;
+                    navigator.clipboard.writeText(params);
+                    onShowToast('📋 Đã copy thông số URL & Định dạng để dán vào GitHub Action!');
+                  }}
+                  className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy Thông Số</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Solution 3: Terminal CLI Command */}
+            <div className="space-y-3 p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
+              <span className="font-bold text-sm text-white flex items-center gap-2">
+                <HardDrive className="w-4 h-4 text-amber-400" />
+                <span>Cách 3: Chạy Lệnh CLI Trên Máy Tính Cá Nhân</span>
+              </span>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Mở Terminal tại thư mục dự án và chạy câu lệnh sau:
+              </p>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-amber-300 overflow-x-auto">
+                <span>node scripts/vidkraken-cli.cjs download "{inputUrl || 'https://youtu.be/...'}" {selectedFormat}</span>
+                <button
+                  onClick={() => {
+                    const cmd = `node scripts/vidkraken-cli.cjs download "${inputUrl || 'https://www.youtube.com/watch?v=wWLTeDAW8g0'}" ${selectedFormat}`;
+                    navigator.clipboard.writeText(cmd);
+                    onShowToast('📋 Đã sao chép lệnh terminal!');
+                  }}
+                  className="ml-3 p-1 text-slate-400 hover:text-white shrink-0"
+                  title="Sao chép lệnh"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-800">
+              <button
+                onClick={() => setIsProxyModalOpen(false)}
+                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

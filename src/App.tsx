@@ -47,6 +47,10 @@ import { ConnectModal } from './components/ConnectModal';
 import { AddVideoModal } from './components/AddVideoModal';
 import { GithubSyncModal } from './components/GithubSyncModal';
 import { VidKrakenDownloader } from './components/VidKrakenDownloader';
+import { DocumentConverterStudio } from './components/DocumentConverterStudio';
+import { TextToSpeechStudio } from './components/TextToSpeechStudio';
+import { AIVideoScriptStudio } from './components/AIVideoScriptStudio';
+import { AISongFolkStudio } from './components/AISongFolkStudio';
 import { formatSeconds } from './utils/youtube';
 import {
   DEFAULT_CHANNEL_INFO,
@@ -891,24 +895,40 @@ export default function App() {
         activeSection={activeNav}
         onNavigate={(section) => {
           setActiveNav(section);
-          if (section === 'player') {
-            document.getElementById('player-workspace')?.scrollIntoView({ behavior: 'smooth' });
-          } else if (section === 'notes') {
-            document.getElementById('player-workspace')?.scrollIntoView({ behavior: 'smooth' });
-            setPlayerSidebarTab('notes');
-          } else if (section === 'downloader') {
-            document.getElementById('downloader-section')?.scrollIntoView({ behavior: 'smooth' });
-            setPlayerSidebarTab('download');
-          } else {
-            document.getElementById('playlist-section')?.scrollIntoView({ behavior: 'smooth' });
-          }
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         onOpenConnectModal={() => setIsConnectModalOpen(true)}
         favoritesCount={favorites.length}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      {/* Render Dedicated Studio based on navigation, or Default Catalog View */}
+      {activeNav === 'converter' ? (
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+          <DocumentConverterStudio onShowToast={showToast} />
+        </main>
+      ) : activeNav === 'tts' ? (
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+          <TextToSpeechStudio onShowToast={showToast} />
+        </main>
+      ) : activeNav === 'video-ai' ? (
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+          <AIVideoScriptStudio onShowToast={showToast} />
+        </main>
+      ) : activeNav === 'song-ai' ? (
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+          <AISongFolkStudio onShowToast={showToast} />
+        </main>
+      ) : activeNav === 'downloader' ? (
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+          <VidKrakenDownloader
+            currentEpisode={currentEpisode}
+            onAddToQueue={handleAddCustomVideo}
+            onShowToast={showToast}
+          />
+        </main>
+      ) : (
+        /* Main Podcast Catalog & Player View */
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         {/* Instant URL Search & Channel Banner Header */}
         <div className="rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-7 shadow-2xl space-y-5">
           {/* Top URL Input: Allows pasting any link and auto-fetches */}
@@ -1494,6 +1514,7 @@ export default function App() {
           />
         </section>
       </main>
+      )}
 
       {/* Footer */}
       <footer className="mt-16 border-t border-slate-800/80 bg-slate-950 py-8 text-xs text-slate-400">

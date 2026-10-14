@@ -13,7 +13,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Enable CORS for all API routes (allows GitHub Pages to call proxy endpoints)
 app.use((req, res, next) => {
@@ -87,6 +88,51 @@ app.use(['/api/vidkraken', '/minhhieu/api/vidkraken'], async (req, res) => {
   } catch (error: any) {
     console.error('VidKraken proxy error:', error);
     return res.status(500).json({ error: error.message || 'Error proxying to VidKraken' });
+  }
+});
+
+// EverAI Text to Speech (TTS) Proxy Endpoints
+const EVERAI_DEFAULT_KEY = process.env.EVERAI_API_KEY || 'JZoMqN64fgxOuVcxViFyLj6YinIsiVbc0';
+
+app.post(['/api/everai/tts', '/minhhieu/api/everai/tts'], async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || `Bearer ${EVERAI_DEFAULT_KEY}`;
+    const payload = req.body;
+
+    const vkRes = await fetch('https://www.everai.vn/api/v1/tts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await vkRes.json();
+    return res.status(vkRes.status).json(data);
+  } catch (error: any) {
+    console.error('EverAI TTS POST error:', error);
+    return res.status(500).json({ status: 0, error_message: error.message || 'Lỗi kết nối EverAI TTS' });
+  }
+});
+
+app.get(['/api/everai/tts/:id', '/minhhieu/api/everai/tts/:id'], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const authHeader = req.headers.authorization || `Bearer ${EVERAI_DEFAULT_KEY}`;
+
+    const vkRes = await fetch(`https://www.everai.vn/api/v1/tts/${encodeURIComponent(id)}`, {
+      method: 'GET',
+      headers: {
+        Authorization: authHeader,
+      },
+    });
+
+    const data = await vkRes.json();
+    return res.status(vkRes.status).json(data);
+  } catch (error: any) {
+    console.error('EverAI TTS GET error:', error);
+    return res.status(500).json({ status: 0, error_message: error.message || 'Lỗi kiểm tra tiến trình EverAI TTS' });
   }
 });
 
@@ -947,6 +993,470 @@ Hãy trả lời câu hỏi của người nghe một cách sâu sắc, thực t
     return res.status(500).json({
       error: error.message || 'Lỗi khi tạo phân tích AI cho Podcast',
     });
+  }
+});
+
+// Endpoint 1: Multimodal OCR - Scanned PDF & Image to Word Text
+app.post(['/api/ai/ocr-doc', '/minhhieu/api/ai/ocr-doc'], async (req, res) => {
+  try {
+    const { imageBase64, mimeType = 'image/jpeg', fileName } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'imageBase64 is required' });
+    }
+
+    // Clean data URL prefix if present
+    const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
+
+    const prompt = `Bạn là chuyên gia OCR (Nhận dạng ký tự quang học) và phục chế tài liệu tiếng Việt hàng đầu.
+Nhiệm vụ của bạn: Quét toàn bộ hình ảnh tài liệu/trang PDF scan được cung cấp và chuyển đổi sang văn bản định dạng phong phú (Rich Text) tương thích hoàn hảo với Microsoft Word.
+Yêu cầu bắt buộc:
+1. Nhận diện chính xác 100% tiếng Việt có dấu, không bỏ sót từ ngữ, số liệu hay ký tự đặc biệt.
+2. Giữ nguyên cấu trúc nguyên bản: Tiêu đề (ĐẬM/TO), đề mục I, II, 1, 2, gạch đầu dòng, danh sách, và bảng biểu (dùng cú pháp bảng Markdown).
+3. Nếu là hợp đồng, văn bản hành chính, hóa đơn, bài báo hoặc tài liệu học thuật: Giữ trọn vẹn thể thức và dấu câu.
+4. Trả về kết quả văn bản sạch sẽ, sẵn sàng để xuất file Word (.docx / .doc).`;
+
+    let extractedText = '';
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: [
+          { text: prompt },
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: cleanBase64,
+            },
+          },
+        ],
+        config: {
+          temperature: 0.2,
+        },
+      });
+      extractedText = response.text || '';
+    } catch (err: any) {
+      console.error('Gemini OCR error:', err);
+      return res.status(500).json({ error: 'Không thể nhận dạng tài liệu: ' + (err.message || 'Lỗi xử lý') });
+    }
+
+    return res.json({
+      success: true,
+      fileName: fileName || 'tai-lieu-ocr',
+      text: extractedText,
+    });
+  } catch (error: any) {
+    console.error('OCR Route error:', error);
+    return res.status(500).json({ error: error.message || 'Lỗi máy chủ OCR' });
+  }
+});
+
+// Endpoint 2: AI Script & 3-Scene Video Storyboard Generator (10s each -> stitched to 30s)
+app.post(['/api/ai/generate-script-scenes', '/minhhieu/api/ai/generate-script-scenes'], async (req, res) => {
+  try {
+    const { topic, style = 'Review phim & Triết lý', aspectRatio = '9:16' } = req.body;
+    if (!topic) {
+      return res.status(400).json({ error: 'Topic is required' });
+    }
+
+    const systemInstruction = `Bạn là Nhà biên kịch & Đạo diễn Video ngắn chuyên nghiệp (Shorts, TikTok, Reels, YouTube).
+Bạn chuyên tạo các kịch bản video ngắn chia thành ĐÚNG 3 CẢNH, MỖI CẢNH 10 GIÂY (Tổng thời lượng = 30 giây).
+Quy tắc 10 giây mỗi cảnh: Lời dẫn lồng tiếng (Voiceover) của mỗi cảnh phải dài vừa vặn khoảng 22 - 28 từ tiếng Việt, để khi đọc với tốc độ bình thường sẽ chiếm chính xác 10 giây.`;
+
+    const userPrompt = `Chủ đề video: "${topic}"
+Phong cách: "${style}"
+Tỉ lệ khung hình: "${aspectRatio}" (9:16 dọc hoặc 16:9 ngang)
+
+Hãy tạo một kịch bản hoàn chỉnh gồm ĐÚNG 3 CẢNH theo cấu trúc kịch tính:
+- Cảnh 1 (0s - 10s): Giới thiệu hook kích thích tò mò, mở màn bối cảnh.
+- Cảnh 2 (10s - 20s): Cao trào kịch tính, bước ngoặt bất ngờ hoặc thử thách.
+- Cảnh 3 (20s - 30s): Đỉnh điểm kết quả, bài học sâu sắc và lời kêu gọi lắng đọng.
+
+Yêu cầu trả về DUY NHẤT một chuỗi JSON hợp lệ (không kèm markdown \`\`\`json ngoài trừ JSON nguyên bản) theo cấu trúc:
+{
+  "title": "Tên video cuốn hút",
+  "aspectRatio": "${aspectRatio}",
+  "totalDuration": 30,
+  "theme": "Chủ đề cốt lõi",
+  "scenes": [
+    {
+      "sceneNumber": 1,
+      "name": "Tên phân cảnh 1",
+      "duration": 10,
+      "timeRange": "00:00 - 00:10",
+      "narration": "Lời lồng tiếng tiếng Việt tự nhiên, khoảng 25 từ (đúng 10 giây)",
+      "subtitle": "Phụ đề nổi bật trên video",
+      "visualPrompt": "Prompt chi tiết bằng tiếng Anh mô tả khung cảnh nghệ thuật, ánh sáng cinematic, góc quay camera để tạo ảnh bằng AI",
+      "cameraMotion": "zoom-in"
+    },
+    {
+      "sceneNumber": 2,
+      "name": "Tên phân cảnh 2",
+      "duration": 10,
+      "timeRange": "00:10 - 00:20",
+      "narration": "Lời lồng tiếng cao trào tiếng Việt khoảng 25 từ (đúng 10 giây)",
+      "subtitle": "Phụ đề cao trào",
+      "visualPrompt": "Detailed cinematic prompt in English for Scene 2",
+      "cameraMotion": "pan-right"
+    },
+    {
+      "sceneNumber": 3,
+      "name": "Tên phân cảnh 3",
+      "duration": 10,
+      "timeRange": "00:20 - 00:30",
+      "narration": "Lời lồng tiếng kết thúc lắng đọng tiếng Việt khoảng 25 từ (đúng 10 giây)",
+      "subtitle": "Phụ đề kết luận ý nghĩa",
+      "visualPrompt": "Detailed cinematic prompt in English for Scene 3",
+      "cameraMotion": "zoom-out"
+    }
+  ]
+}`;
+
+    let jsonResult: any = null;
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: userPrompt,
+        config: {
+          systemInstruction,
+          temperature: 0.7,
+        },
+      });
+
+      const rawText = response.text || '';
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (match) {
+        jsonResult = JSON.parse(match[0]);
+      }
+    } catch (err: any) {
+      console.warn('Gemini script generation fallback:', err);
+    }
+
+    if (!jsonResult || !jsonResult.scenes || jsonResult.scenes.length !== 3) {
+      // High quality structured fallback
+      jsonResult = {
+        title: topic,
+        aspectRatio,
+        totalDuration: 30,
+        theme: style,
+        scenes: [
+          {
+            sceneNumber: 1,
+            name: 'Mở màn & Bối cảnh',
+            duration: 10,
+            timeRange: '00:00 - 00:10',
+            narration: `Bước chân vào thế giới của "${topic}", nơi mọi quy luật thông thường dường như bị đảo lộn hoàn toàn.`,
+            subtitle: `Bí ẩn khởi đầu: ${topic}`,
+            visualPrompt: `Cinematic establishing shot of ${topic}, dramatic atmospheric lighting, 8k resolution, photorealistic, epic mood`,
+            cameraMotion: 'zoom-in',
+          },
+          {
+            sceneNumber: 2,
+            name: 'Cao trào kịch tính',
+            duration: 10,
+            timeRange: '00:10 - 00:20',
+            narration: 'Khi mọi hy vọng tưởng chừng vụt tắt, một bí mật kinh ngạc được hé lộ khiến tất cả phải sững sờ.',
+            subtitle: 'Bước ngoặt kịch tính bất ngờ',
+            visualPrompt: `Intense dramatic scene related to ${topic}, dynamic motion, high contrast, cinematic masterpiece`,
+            cameraMotion: 'pan-right',
+          },
+          {
+            sceneNumber: 3,
+            name: 'Kết thúc & Ý nghĩa',
+            duration: 10,
+            timeRange: '00:20 - 00:30',
+            narration: 'Chiến thắng không thuộc về kẻ mạnh nhất, mà thuộc về người giữ trọn niềm tin và sự thiện lương sâu thẳm.',
+            subtitle: 'Chân lý thấu suốt lòng người',
+            visualPrompt: `Inspiring cinematic conclusion, golden hour rays, peaceful and profound emotion, 8k wallpaper`,
+            cameraMotion: 'zoom-out',
+          },
+        ],
+      };
+    }
+
+    return res.json(jsonResult);
+  } catch (error: any) {
+    console.error('Script scenes error:', error);
+    return res.status(500).json({ error: error.message || 'Lỗi tạo kịch bản' });
+  }
+});
+
+// Endpoint 3: AI Image Generation / Prompt Enhancer
+app.post(['/api/ai/generate-image', '/minhhieu/api/ai/generate-image'], async (req, res) => {
+  try {
+    const { prompt, aspectRatio = '9:16' } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ error: 'Prompt is required' });
+    }
+
+    // Generate optimized visual English prompt for pristine imagery
+    let optimizedPrompt = prompt;
+    try {
+      const resp = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: `Translate and refine this image prompt into an English high-detail digital art prompt with cinematic lighting, vivid colors, photorealistic texture: "${prompt}". Return ONLY the refined English prompt text in 1 line.`,
+        config: { temperature: 0.5 },
+      });
+      if (resp.text) optimizedPrompt = resp.text.trim();
+    } catch {}
+
+    const seed = Math.floor(Math.random() * 1000000);
+    const width = aspectRatio === '9:16' ? 720 : 1280;
+    const height = aspectRatio === '9:16' ? 1280 : 720;
+    const encoded = encodeURIComponent(optimizedPrompt.slice(0, 300));
+    const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
+
+    return res.json({
+      imageUrl,
+      prompt: optimizedPrompt,
+      aspectRatio,
+    });
+  } catch (error: any) {
+    console.error('Generate image error:', error);
+    return res.status(500).json({ error: error.message || 'Lỗi tạo ảnh AI' });
+  }
+});
+
+// Endpoint 4: AI Song & Lyrics Studio - Sáng tác Ca Khúc Dân Ca Miền Tây Nam Bộ
+app.post(['/api/ai/generate-song', '/minhhieu/api/ai/generate-song'], async (req, res) => {
+  try {
+    const {
+      prompt,
+      style = 'Dân ca miền Tây Nam Bộ',
+      vocalType = 'Nữ miền Nam ngọt ngào',
+      customLyrics = '',
+    } = req.body;
+
+    const systemInstruction = `Bạn là Nhạc sĩ & Soạn giả chuyên nghiệp hàng đầu về Dân Ca Nam Bộ, Đờn Ca Tài Tử, Tân Cổ Giao Duyên và Nhạc Trữ Tình Quê Hương Miền Tây.
+Bạn am hiểu sâu sắc các điệu lý (Lý Qua Cầu, Lý Chim Quyên, Lý Cây Bông, Lý Mỹ Hưng, Lý Con Khỉ, Lý Đất Giồng...), câu hò sông nước, điệu đờn kìm, đờn tranh, sáo trúc và câu vọng cổ ngọt ngào da diết.
+Ngôn từ: Mộc mạc, thấm đượm tình quê sông nước miền Tây, dòng Cửu Long, cây bần, mái xuồng ba lá, bông điên điển, câu hò mẹ ru.`;
+
+    const userPrompt = customLyrics
+      ? `Người dùng có sẵn đoạn lời sau:\n"${customLyrics}"\nPhong cách yêu cầu: "${style}".\nHãy biên soạn thành bài hát hoàn chỉnh mang đậm âm sắc "${style}", bổ sung câu hò rao, điệu lý và cấu trúc trình diễn chuẩn xác.`
+      : `Hãy sáng tác một ca khúc hoàn chỉnh theo phong cách mặc định: "${style}".
+Chủ đề / Cảm hứng: "${prompt || 'Tình quê miền Tây sông nước, câu hò bến đò xưa'}"
+Giọng ca phù hợp: "${vocalType}".
+
+Hãy trả về định dạng JSON DUY NHẤT:
+{
+  "title": "Tên bài hát đậm chất Nam Bộ",
+  "style": "${style}",
+  "musicalKey": "Điệu Hò / Điệu Oán / Điệu Bắc (ví dụ: Điệu Nam Ai, Giọng Rê thứ Dm)",
+  "tempo": "Vừa phải, tha thiết (Chậm rãi, nhịp 2/4 hoặc 4/4)",
+  "instruments": ["Đàn kìm", "Đàn tranh", "Sáo trúc", "Guitar phím lõm"],
+  "introHò": "Câu hò mở đầu ngọt ngào (Hò ơ...)",
+  "verses": [
+    {
+      "section": "Câu Rao & Hò",
+      "lyrics": "Hò... ơ... Gió đưa gió đẩy về rẫy ăn còng...",
+      "chords": "Dm - Am - Dm"
+    },
+    {
+      "section": "Đoạn 1 (Lời 1)",
+      "lyrics": "4-6 câu thơ lục bát hoặc câu hát mộc mạc",
+      "chords": "Dm - F - C - Dm"
+    },
+    {
+      "section": "Điệu Lý Nam Bộ",
+      "lyrics": "Điệu lý vui tươi hoặc xao xuyến (ví dụ Lý Qua Cầu hoặc Lý Bông Trang)",
+      "chords": "Gm - C - F - Dm"
+    },
+    {
+      "section": "Đoạn 2 (Lời 2)",
+      "lyrics": "4-6 câu tâm tình da diết",
+      "chords": "Bb - C - Am - Dm"
+    },
+    {
+      "section": "Điệp khúc (Chorus)",
+      "lyrics": "Điệp khúc cao trào dạt dào tình quê",
+      "chords": "F - C - Gm - Dm"
+    },
+    {
+      "section": "Lời Kết (Outro)",
+      "lyrics": "Câu hát ngân dài lắng đọng",
+      "chords": "Am - Dm"
+    }
+  ],
+  "fullLyricsText": "Toàn bộ lời bài hát sắp xếp liền mạch để sao chép hoặc in ấn",
+  "storyMeaning": "1-2 câu giải thích ý nghĩa tâm tình đằng sau ca khúc"
+}`;
+
+    let songData: any = null;
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: userPrompt,
+        config: {
+          systemInstruction,
+          temperature: 0.75,
+        },
+      });
+
+      const rawText = response.text || '';
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (match) {
+        songData = JSON.parse(match[0]);
+      }
+    } catch (err: any) {
+      console.warn('Song generation error:', err);
+    }
+
+    if (!songData || !songData.title) {
+      songData = {
+        title: 'Thương Nhớ Miền Tây',
+        style: 'Dân ca miền Tây Nam Bộ',
+        musicalKey: 'Điệu Nam Ai - Cung Oán (Rê thứ Dm)',
+        tempo: 'Chậm rãi, tha thiết (Nhịp 4/4)',
+        instruments: ['Đàn kìm', 'Đàn tranh', 'Sáo trúc', 'Guitar phím lõm'],
+        introHò: 'Hò... ơ... Gió thổi ngọn bần, bần run bần rụng... Chớ em thương ai nhớ ai, mà đứng tựa mạn đò... ơ...',
+        verses: [
+          {
+            section: 'Câu Rao & Hò Mở Đầu',
+            lyrics: 'Hò... ơ... Gió đưa ngọn bần, mây chiều giăng lối sông Tiền.\nBến xưa ai đợi, bến xưa ai đợi cho lòng xao xuyến đầy vơi.',
+            chords: 'Dm - Am - Dm',
+          },
+          {
+            section: 'Đoạn 1 (Lời 1)',
+            lyrics: 'Về lại miền Tây nghe phù sa reo trên đồng lúa\nMùa nước nổi năm nao con đò nhỏ rước đưa\nCây cầu khỉ chênh vênh mẹ gánh rau trưa nắng đổ\nThương quá câu hò, ngọt ngào câu hát quê hương.',
+            chords: 'Dm - F - C - Dm',
+          },
+          {
+            section: 'Điệu Lý Nam Bộ (Lý Mỹ Hưng)',
+            lyrics: 'Bìm bịp kêu nước lớn ròng trôi\nThương người em gái mắt trong nụ cười\nNguyện cùng nhau sắt son trọn đời\nDù qua bao nổi trôi, phù sa ơi vẫn thắm nồng.',
+            chords: 'Gm - C - F - Dm',
+          },
+          {
+            section: 'Điệp khúc',
+            lyrics: 'Ơi miền Tây, hạt gạo thơm lừng trên cánh đồng bát ngát\nTiếng đờn kìm buông lơi, ru ai giấc ngủ êm đềm\nĐi xa rồi lòng vẫn nhớ hoài miền Tây!',
+            chords: 'F - C - Gm - Dm',
+          },
+          {
+            section: 'Lời Kết (Outro)',
+            lyrics: 'Gió ru dòng sông êm ả trôi về biển lớn... Miền Tây ơi thương trọn một đời!',
+            chords: 'Am - Dm',
+          },
+        ],
+        fullLyricsText: `[HÒ MỞ ĐẦU]\nHò... ơ... Gió đưa ngọn bần, mây chiều giăng lối sông Tiền...\nBến xưa ai đợi, bến xưa ai đợi cho lòng xao xuyến đầy vơi...\n\n[LỜI 1]\nVề lại miền Tây nghe phù sa reo trên đồng lúa\nMùa nước nổi năm nao con đò nhỏ rước đưa\nCây cầu khỉ chênh vênh mẹ gánh rau trưa nắng đổ\nThương quá câu hò, ngọt ngào câu hát quê hương.\n\n[ĐIỆU LÝ NAM BỘ]\nBìm bịp kêu nước lớn ròng trôi\nThương người em gái mắt trong nụ cười\nNguyện cùng nhau sắt son trọn đời\nDù qua bao nổi trôi, phù sa ơi vẫn thắm nồng.\n\n[ĐIỆP KHÚC]\nƠi miền Tây, hạt gạo thơm lừng trên cánh đồng bát ngát\nTiếng đờn kìm buông lơi, ru ai giấc ngủ êm đềm\nĐi xa rồi lòng vẫn nhớ hoài miền Tây!\n\n[LỜI KẾT]\nGió ru dòng sông êm ả trôi về biển lớn... Miền Tây ơi thương trọn một đời!`,
+        storyMeaning: 'Khắc họa bức tranh quê hương Nam Bộ thanh bình, chở nặng ân tình mẹ cha và kỷ niệm thời thơ ấu bên dòng sông phù sa.',
+      };
+    }
+
+    return res.json(songData);
+  } catch (error: any) {
+    console.error('Song route error:', error);
+    return res.status(500).json({ error: error.message || 'Lỗi sáng tác bài hát' });
+  }
+});
+
+// Endpoint 5: Cảm nhận lời theo ảnh (Vision to Song / Lyrics)
+app.post(['/api/ai/lyrics-from-image', '/minhhieu/api/ai/lyrics-from-image'], async (req, res) => {
+  try {
+    const { imageBase64, mimeType = 'image/jpeg', userPrompt = '', style = 'Dân ca miền Tây Nam Bộ' } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'imageBase64 is required' });
+    }
+
+    const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
+
+    const prompt = `Bạn là Nghệ sĩ & Nhạc sĩ Dân ca Nam Bộ tài hoa.
+Người dùng gửi cho bạn một bức ảnh. Hãy nhìn thật sâu vào bức ảnh này:
+1. Quan sát cảnh vật, màu sắc, ánh sáng, con người, thiên nhiên hoặc khoảnh khắc trong ảnh.
+2. Cảm nhận tâm trạng, rung cảm, nỗi nhớ và cái tình ẩn giấu bên trong bức ảnh ("Cảm nhận lời theo ảnh").
+3. Sáng tác một bài ca dao / lời bài hát hoàn chỉnh theo phong cách "${style}" (Dân ca miền Tây Nam Bộ, điệu hò, câu lý, vọng cổ).
+Yêu cầu người dùng gửi kèm (nếu có): "${userPrompt}".
+
+Trả về DUY NHẤT một chuỗi JSON hợp lệ:
+{
+  "title": "Tên bài hát xuất thần từ bức ảnh",
+  "imagePerception": "2-3 câu mô tả cảm nhận nghệ thuật và hồn của bức ảnh",
+  "style": "${style}",
+  "introHò": "Câu hò hoặc câu rao mở màn tương ứng bức ảnh",
+  "verses": [
+    {
+      "section": "Đoạn 1 (Tức cảnh sinh tình)",
+      "lyrics": "Các câu hát gắn liền chi tiết trong ảnh",
+      "chords": "Dm - C - Dm"
+    },
+    {
+      "section": "Điệu Lý Dân Ca",
+      "lyrics": "Điệu lý mộc mạc Nam Bộ",
+      "chords": "Gm - C - Dm"
+    },
+    {
+      "section": "Đoạn 2 (Tâm sự & Nỗi niềm)",
+      "lyrics": "Nỗi lòng sâu lắng",
+      "chords": "Bb - C - Dm"
+    },
+    {
+      "section": "Điệp khúc",
+      "lyrics": "Điệp khúc da diết",
+      "chords": "F - C - Gm - Dm"
+    },
+    {
+      "section": "Lời Kết",
+      "lyrics": "Câu kết lắng đọng",
+      "chords": "Am - Dm"
+    }
+  ],
+  "fullLyricsText": "Toàn bộ lời bài hát trình bày đẹp mắt"
+}`;
+
+    let result: any = null;
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: [
+          { text: prompt },
+          {
+            inlineData: {
+              mimeType,
+              data: cleanBase64,
+            },
+          },
+        ],
+        config: {
+          temperature: 0.75,
+        },
+      });
+
+      const raw = response.text || '';
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) {
+        result = JSON.parse(match[0]);
+      }
+    } catch (err: any) {
+      console.warn('Gemini vision lyrics error:', err);
+    }
+
+    if (!result || !result.title) {
+      result = {
+        title: 'Bức Họa Đồng Quê',
+        imagePerception: 'Bức ảnh gợi lên sự tĩnh lặng mộc mạc của quê hương, nơi bóng chiều buông trên dòng sông và vạt áo bạc màu phảng phất tình người ấm áp.',
+        style: 'Dân ca miền Tây Nam Bộ',
+        introHò: 'Hò... ơ... Trông về bến nước con sông, mênh mông cánh lục bình trôi chớ ai hoài thương ai...',
+        verses: [
+          {
+            section: 'Đoạn 1 (Tức cảnh sinh tình)',
+            lyrics: 'Nhìn bức hình lòng nghe xao xuyến mãi\nMây chiều trôi che khuất ánh hoàng hôn\nCon đò nhỏ nằm nghiêng bên bờ vắng\nCó tiếng ai cười ấm cả vạt quê.',
+            chords: 'Dm - C - Dm',
+          },
+          {
+            section: 'Điệu Lý Nam Bộ',
+            lyrics: 'Ơi lý qua cầu, ai bắc cầu tre\nCho em qua suối, cho người về thăm quê\nPhù sa lắng đọng tình đằm thắm\nMuôn thuở nghĩa tình không nhạt phai.',
+            chords: 'Gm - C - Dm',
+          },
+          {
+            section: 'Điệp khúc',
+            lyrics: 'Trời quê hương muôn đời trong sáng\nNhư nụ cười trên bức ảnh thân thương\nĐi muôn phương lòng luôn nhớ mãi\nMiền Tây dấu yêu đậm nghĩa thâm tình!',
+            chords: 'F - C - Gm - Dm',
+          },
+        ],
+        fullLyricsText: `[CÂU HÒ]\nHò... ơ... Trông về bến nước con sông, mênh mông cánh lục bình trôi chớ ai hoài thương ai...\n\n[ĐOẠN 1]\nNhìn bức hình lòng nghe xao xuyến mãi\nMây chiều trôi che khuất ánh hoàng hôn\nCon đò nhỏ nằm nghiêng bên bờ vắng\nCó tiếng ai cười ấm cả vạt quê.\n\n[ĐIỆU LÝ NAM BỘ]\nƠi lý qua cầu, ai bắc cầu tre\nCho em qua suối, cho người về thăm quê\nPhù sa lắng đọng tình đằm thắm\nMuôn thuở nghĩa tình không nhạt phai.\n\n[ĐIỆP KHÚC]\nTrời quê hương muôn đời trong sáng\nNhư nụ cười trên bức ảnh thân thương\nĐi muôn phương lòng luôn nhớ mãi\nMiền Tây dấu yêu đậm nghĩa thâm tình!`,
+      };
+    }
+
+    return res.json(result);
+  } catch (error: any) {
+    console.error('Vision lyrics error:', error);
+    return res.status(500).json({ error: error.message || 'Lỗi cảm nhận lời theo ảnh' });
   }
 });
 

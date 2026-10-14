@@ -218,15 +218,74 @@ async function callVidKrakenApi<T>(
       error.message?.includes('Failed to fetch') ||
       error.message?.includes('NetworkError') ||
       error.message?.includes('Provisional headers') ||
+      error.message?.includes('provisional header') ||
       error.message?.includes('fetch');
 
     // On static hosts like GitHub Pages, explain the CORS restriction clearly
     if (isCorsOrNetwork && isStaticHost && !getStoredVidKrakenProxy() && !getCustomBackendUrl()) {
       throw new Error(
-        'CORS_BLOCKED: Máy chủ VidKraken chặn yêu cầu từ trình duyệt trên GitHub Pages (Lỗi "Provisional headers are shown"). Để tải, bạn có thể: (1) Cài Cloudflare Worker Proxy miễn phí trong 1 phút, hoặc (2) Dùng tab GitHub Actions để tải tự động, hoặc (3) Chạy lệnh Terminal CLI.'
+        'CORS_BLOCKED: Trình duyệt Chrome chặn yêu cầu trực tiếp đến vidkraken.com trên GitHub Pages (Lỗi "Provisional headers are shown"). Vui lòng xem 3 giải pháp bên dưới: (1) Cài Cloudflare Worker Proxy miễn phí 1 phút, hoặc (2) Tải trực tiếp qua GitHub Actions, hoặc (3) Dùng Terminal CLI.'
       );
     }
     throw error;
+  }
+}
+
+/**
+ * Test VidKraken API connection with latency and CORS check
+ */
+export async function testVidKrakenConnection(
+  apiKey?: string,
+  testProxyUrl?: string
+): Promise<{ success: boolean; latencyMs: number; account?: VidKrakenAccountInfo; error?: string }> {
+  const start = Date.now();
+  try {
+    let endpoint = resolveEndpoint('/me');
+    if (testProxyUrl) {
+      const cleanProxy = testProxyUrl.trim().replace(/\/$/, '');
+      endpoint = cleanProxy.includes('/api/v2') ? `${cleanProxy}/me` : `${cleanProxy}/api/v2/me`;
+    }
+
+    const key = apiKey || getStoredVidKrakenKey();
+    const res = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const latencyMs = Date.now() - start;
+
+    if (!res.ok) {
+      const errText = await res.text();
+      return {
+        success: false,
+        latencyMs,
+        error: `Máy chủ phản hồi HTTP ${res.status}: ${errText.slice(0, 200)}`,
+      };
+    }
+
+    const data = (await res.json()) as VidKrakenAccountInfo;
+    return {
+      success: true,
+      latencyMs,
+      account: data,
+    };
+  } catch (err: any) {
+    const latencyMs = Date.now() - start;
+    const isCors =
+      err.name === 'TypeError' ||
+      err.message?.includes('Failed to fetch') ||
+      err.message?.includes('Provisional headers');
+
+    return {
+      success: false,
+      latencyMs,
+      error: isCors
+        ? 'Lỗi CORS / Provisional headers are shown: Trình duyệt chặn kết nối cross-origin. Hãy dùng Cloudflare Worker Proxy hoặc GitHub Actions.'
+        : err.message || 'Không thể kết nối đến máy chủ.',
+    };
   }
 }
 

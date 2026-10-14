@@ -66,8 +66,8 @@ export default {
       // Thêm header CORS vào kết quả trả về cho trình duyệt
       const responseHeaders = new Headers(response.headers);
       responseHeaders.set("Access-Control-Allow-Origin", "*");
-      responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      responseHeaders.set("Access-Control-Allow-Headers": "Authorization, Content-Type");
+      responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+      responseHeaders.set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, X-Requested-With");
 
       return new Response(response.body, {
         status: response.status,
