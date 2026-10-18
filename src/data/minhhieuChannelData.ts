@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "12 lượt xem",
+    "views": "13 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -900,14 +900,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "OILEwjXxeRY",
-    "title": "Tập 3 căn nhà cuối con đường",
+    "title": "Tập 3 căn nhà cuối con đường, 16 lư��t xem – phát video ngắn",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "00:60",
     "durationSeconds": 60,
     "thumbnail": "https://i.ytimg.com/vi/OILEwjXxeRY/hqdefault.jpg",
-    "description": "Shorts: Tập 3 căn nhà cuối con đường - Kênh Minh Hiếu review phim.",
+    "description": "Shorts: Tập 3 căn nhà cuối con đường, 16 lư��t xem – phát video ngắn - Kênh Minh Hiếu review phim.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
     "id": "mh-v57"
