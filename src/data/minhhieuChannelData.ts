@@ -90,7 +90,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "15 lượt xem",
+    "views": "16 lượt xem",
     "id": "mh-v2"
   },
   {
@@ -170,14 +170,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "CbpHoTtUulQ",
-    "title": "🙏 Đức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài Học Sâu Sắc Về Đạo Làm Con 🪷",
+    "title": "🙏 Đức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài Học Sâu Sắc V�� Đạo Làm Con 🪷",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
     "category": "tam-ly-doi-song",
     "duration": "3:50",
     "durationSeconds": 230,
     "thumbnail": "https://i.ytimg.com/vi/CbpHoTtUulQ/hqdefault.jpg",
-    "description": "🙏 Đức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài Học Sâu Sắc Về Đạo Làm Con 🪷 - Kênh Minh Hiếu review phim.",
+    "description": "🙏 Đức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài Học Sâu Sắc V�� Đạo Làm Con 🪷 - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "2 lượt xem",
