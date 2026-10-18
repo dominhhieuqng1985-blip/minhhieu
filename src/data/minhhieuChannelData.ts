@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "13 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -508,8 +508,9 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "durationSeconds": 8344,
     "thumbnail": "https://i.ytimg.com/vi/svnjOq0LBMU/hqdefault.jpg",
     "description": "Xuyên Không Thành Hoàng Đế, 3 Ngày Sau 30 Vạn Phản Quân Công Thành, Anh Dùng Hóa Học Cứu Cả Đại Càn - Kênh Minh Hiếu review phim.",
-    "publishedDate": "Mới cập nhật",
+    "publishedDate": "Video chính thức",
     "isShort": false,
+    "views": "9 lượt xem",
     "id": "mh-v30"
   },
   {
