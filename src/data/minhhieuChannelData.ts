@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Cổ Đại Dùng Kiến Thức Hiện Đại Chế Tạo Thần Khí, Khiến Cả Hoàng Tộc Phải Quỳ Phục - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "1 lượt xem",
+    "views": "4 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -90,7 +90,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "17 lượt xem",
+    "views": "22 lượt xem",
     "id": "mh-v2"
   },
   {
@@ -345,7 +345,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Thành Thư Sinh Nghèo,Dùng Kiến Thức Hiện Đại Đảo Ngược Cục Diện Khiến Cả Hoàng Tộc Nể Sợ - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "8 lượt xem",
+    "views": "9 lượt xem",
     "id": "mh-v19"
   },
   {
@@ -480,7 +480,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Bị Tiên Đạo Phong Ấn 3000 Năm, Đại Đế Tái Xuất Nghịch Thiên Bắt Cả Thiên Hạ Quỳ Phục - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "18 lượt xem",
+    "views": "19 lượt xem",
     "id": "mh-v28"
   },
   {
