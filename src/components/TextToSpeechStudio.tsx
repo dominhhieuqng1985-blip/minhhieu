@@ -30,6 +30,10 @@ import {
   Trash2,
   Settings,
   Plus,
+  Server,
+  AlertTriangle,
+  Cloud,
+  HelpCircle,
 } from 'lucide-react';
 import {
   EVERAI_VOICES,
@@ -46,10 +50,13 @@ import {
   deleteCustomVoice,
   getAllEverAiVoices,
   EverAiTtsHistoryItem,
+  EverAiCorsError,
   DEFAULT_EVERAI_API_KEY,
   STORAGE_KEY_EVERAI_HISTORY,
 } from '../utils/everai';
+import { hasBackend, isStaticHost, getCustomBackendUrl } from '../utils/api';
 import { VoiceManagerModal } from './VoiceManagerModal';
+import { EverAiProxyModal } from './EverAiProxyModal';
 
 interface TextToSpeechStudioProps {
   initialText?: string;
@@ -99,6 +106,10 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
   // Custom Voices State (persisted permanently in localStorage)
   const [customVoices, setCustomVoices] = useState<EverAiVoice[]>([]);
   const [isVoiceManagerOpen, setIsVoiceManagerOpen] = useState<boolean>(false);
+
+  // Backend Proxy Modal for GitHub Pages & 405 CORS Resolution
+  const [isProxyModalOpen, setIsProxyModalOpen] = useState<boolean>(false);
+  const [lastCorsError, setLastCorsError] = useState<boolean>(false);
 
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -198,6 +209,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
 
     setIsGenerating(true);
+    setLastCorsError(false);
     setGenerationProgress(5);
     setGenerationStatusText('Đang gửi yêu cầu tạo audio đến máy chủ EverAI...');
     setGeneratedAudioUrl('');
@@ -265,6 +277,9 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
           }
         } catch (pollErr: any) {
           console.warn('Poll error:', pollErr);
+          if (pollErr instanceof EverAiCorsError || pollErr.isCorsBlocked) {
+            setLastCorsError(true);
+          }
           if (attempts > 40) {
             if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
             setIsGenerating(false);
@@ -275,7 +290,20 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
     } catch (err: any) {
       console.error('EverAI create error:', err);
       setIsGenerating(false);
-      onShowToast(`❌ Lỗi EverAI: ${err.message || 'Không thể tạo audio'}`);
+      const isCors =
+        err instanceof EverAiCorsError ||
+        err.isCorsBlocked ||
+        err.message?.includes('405') ||
+        err.message?.includes('CORS') ||
+        err.message?.includes('OPTIONS') ||
+        err.message?.includes('Failed to fetch');
+
+      if (isCors) {
+        setLastCorsError(true);
+        onShowToast('⚠️ Lỗi 405 Method Not Allowed (OPTIONS CORS): Cần kết nối Backend Proxy hoặc chuyển sang Web Speech.');
+      } else {
+        onShowToast(`❌ Lỗi EverAI: ${err.message || 'Không thể tạo audio'}`);
+      }
     }
   };
 
@@ -396,14 +424,51 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
         {/* API Key & Custom Voice Bar for EverAI */}
         {engineMode === 'everai' && (
           <div className="mt-6 pt-5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-4 text-xs">
-            <div className="flex items-center gap-2 text-slate-300">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>API Endpoint: <code className="text-indigo-300 bg-slate-950/60 px-2 py-0.5 rounded border border-slate-800">https://www.everai.vn/api/v1/tts</code></span>
+            <div className="flex flex-wrap items-center gap-2.5 text-slate-300">
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>
+                Backend:{' '}
+                <code className="text-indigo-300 bg-slate-950/60 px-2 py-0.5 rounded border border-slate-800 font-mono text-[11px]">
+                  {getCustomBackendUrl() ? `${getCustomBackendUrl()}/api/everai/tts` : hasBackend() ? '/api/everai/tts (Node.js)' : 'https://www.everai.vn/api/v1/tts'}
+                </code>
+              </span>
               <span className="text-slate-500">•</span>
-              <span className="text-emerald-400 font-medium">Đã kết nối Token người dùng</span>
+              {hasBackend() ? (
+                <button
+                  type="button"
+                  onClick={() => setIsProxyModalOpen(true)}
+                  className="px-2.5 py-0.5 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 hover:bg-emerald-900/60 text-[11px] font-semibold flex items-center gap-1 transition-all"
+                  title="Nhấn để cấu hình hoặc kiểm tra Backend"
+                >
+                  <Server className="w-3 h-3 text-emerald-400" />
+                  <span>Backend Proxy: Đã kết nối</span>
+                </button>
+              ) : isStaticHost ? (
+                <button
+                  type="button"
+                  onClick={() => setIsProxyModalOpen(true)}
+                  className="px-2.5 py-0.5 rounded-lg bg-amber-950/70 border border-amber-600/80 text-amber-300 hover:bg-amber-900/70 text-[11px] font-bold flex items-center gap-1 transition-all shadow-sm shadow-amber-500/20 animate-pulse"
+                  title="Trình duyệt trên GitHub Pages bị lỗi 405 OPTIONS khi gọi trực tiếp EverAI. Nhấn để kết nối proxy."
+                >
+                  <AlertTriangle className="w-3 h-3 text-amber-400" />
+                  <span>Cần Proxy GitHub Pages (Sửa 405)</span>
+                </button>
+              ) : (
+                <span className="text-emerald-400 font-medium">Đã kết nối Token</span>
+              )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsProxyModalOpen(true)}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs flex items-center gap-1.5 border border-slate-700 transition-all"
+                title="Khắc phục lỗi 405 OPTIONS và cấu hình Backend URL cho GitHub Pages"
+              >
+                <Server className="w-3.5 h-3.5 text-amber-400" />
+                <span>Cấu Hình Backend Proxy</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setIsVoiceManagerOpen(true)}
@@ -419,7 +484,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
                 className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1.5 underline underline-offset-4"
               >
                 <Key className="w-3.5 h-3.5" />
-                <span>{showApiKeyInput ? 'Ẩn cấu hình Key' : 'Tùy chỉnh Token'}</span>
+                <span>{showApiKeyInput ? 'Ẩn Key' : 'Tùy chỉnh Key'}</span>
               </button>
             </div>
           </div>
@@ -543,6 +608,48 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
           <div className="rounded-3xl bg-slate-900 border border-slate-800 p-5 shadow-xl space-y-4">
             {engineMode === 'everai' ? (
               <div className="space-y-3">
+                {/* 405 OPTIONS CORS Alert Banner */}
+                {lastCorsError && (
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-950/70 via-slate-900 to-amber-950/40 border border-amber-500/70 flex flex-col gap-3 text-xs shadow-xl animate-in fade-in">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <div className="font-bold text-amber-300 text-xs flex items-center gap-2">
+                          <span>Phát hiện lỗi 405 Method Not Allowed (OPTIONS Preflight)</span>
+                          <span className="px-1.5 py-0.2 bg-red-500/20 text-red-300 rounded text-[10px] font-mono">
+                            CORS Blocked
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300 leading-relaxed">
+                          Do máy chủ EverAI không hỗ trợ phương thức <strong>OPTIONS</strong> từ trình duyệt trên GitHub Pages. Hãy kết nối máy chủ <strong>Backend Proxy</strong> hoặc chuyển sang <strong>Giọng Đọc Trình Duyệt Web Speech</strong> để sử dụng ngay.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-500/20">
+                      <button
+                        type="button"
+                        onClick={() => setIsProxyModalOpen(true)}
+                        className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all"
+                      >
+                        <Server className="w-3.5 h-3.5" />
+                        <span>⚙️ Mở Cấu Hình Backend Proxy / Cloudflare</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEngineMode('browser');
+                          setLastCorsError(false);
+                          onShowToast('🎙️ Đã chuyển sang Giọng Đọc Trình Duyệt Web Speech (Không cần server)!');
+                        }}
+                        className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs flex items-center gap-1.5 transition-all"
+                      >
+                        <Mic className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Dùng Ngay Web Speech (Miễn phí)</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <button
                   onClick={handleGenerateEverAiSpeech}
                   disabled={isGenerating || !text.trim()}
@@ -1042,6 +1149,17 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
         onDeleteVoice={handleDeleteCustomVoice}
         onSelectVoice={(id) => setSelectedEverAiVoice(id)}
         currentSelectedVoiceId={selectedEverAiVoice}
+        onShowToast={onShowToast}
+      />
+
+      {/* EverAI Backend & Proxy Modal for GitHub Pages */}
+      <EverAiProxyModal
+        isOpen={isProxyModalOpen}
+        onClose={() => setIsProxyModalOpen(false)}
+        onSwitchToWebSpeech={() => {
+          setEngineMode('browser');
+          setLastCorsError(false);
+        }}
         onShowToast={onShowToast}
       />
     </div>

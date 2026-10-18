@@ -329,6 +329,66 @@ export function setStoredEverAiKey(key: string): void {
 }
 
 /**
+ * Custom error class to clearly indicate browser CORS preflight (OPTIONS -> 405) issues on GitHub Pages
+ */
+export class EverAiCorsError extends Error {
+  isCorsBlocked: boolean = true;
+  isGithubPages: boolean = true;
+  constructor(message?: string) {
+    super(
+      message ||
+        'Lỗi CORS (405 OPTIONS): Máy chủ EverAI không hỗ trợ gọi trực tiếp từ trình duyệt trên GitHub Pages. Trình duyệt gửi request OPTIONS (preflight) và bị từ chối 405 Method Not Allowed. Vui lòng kết nối Backend Proxy hoặc chuyển sang Giọng Đọc Trình Duyệt Web Speech.'
+    );
+    this.name = 'EverAiCorsError';
+  }
+}
+
+/**
+ * Ping test a remote backend or proxy URL for connectivity
+ */
+export async function testEverAiBackendConnection(rawUrl: string): Promise<{
+  ok: boolean;
+  message: string;
+  details?: any;
+}> {
+  const cleanUrl = rawUrl.trim().replace(/\/+$/, '');
+  if (!cleanUrl) {
+    return { ok: false, message: 'Vui lòng nhập URL Backend' };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const healthUrl = cleanUrl.endsWith('/api') ? `${cleanUrl}/health` : `${cleanUrl}/api/health`;
+
+    const res = await fetch(healthUrl, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      return {
+        ok: true,
+        message: 'Kết nối máy chủ Backend thành công! Sẵn sàng chuyển tiếp request EverAI.',
+        details: data,
+      };
+    }
+
+    return {
+      ok: false,
+      message: `Máy chủ phản hồi HTTP ${res.status}. Vui lòng kiểm tra lại URL.`,
+    };
+  } catch (err: any) {
+    return {
+      ok: false,
+      message: `Không thể kết nối (${err.message || 'Lỗi mạng hoặc CORS'}). Đảm bảo backend đã bật CORS và đang online.`,
+    };
+  }
+}
+
+/**
  * Submit TTS generation request according to EverAI API v1.6 specification
  */
 export async function createEverAiTtsJob(params: {
@@ -361,7 +421,7 @@ export async function createEverAiTtsJob(params: {
     generate_srt: !!params.generateSrt,
   };
 
-  // Determine endpoint: proxy through local backend if available, or direct call to everai.vn
+  // Determine endpoint: proxy through local/custom backend if available, or direct call to everai.vn
   const customBackend = getCustomBackendUrl();
   let endpoint = 'https://www.everai.vn/api/v1/tts';
 
@@ -371,6 +431,8 @@ export async function createEverAiTtsJob(params: {
     const cleanBase = apiBase.replace(/\/+$/, '');
     endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/everai/tts` : `${cleanBase}/api/everai/tts`;
   }
+
+  const isCallingDirectEverAi = endpoint === 'https://www.everai.vn/api/v1/tts';
 
   let res: Response;
   try {
@@ -382,52 +444,33 @@ export async function createEverAiTtsJob(params: {
       },
       body: JSON.stringify(bodyPayload),
     });
+  } catch (networkErr: any) {
+    // If calling directly to EverAI on static host (GitHub Pages), the browser sends OPTIONS preflight
+    // which EverAI rejects with 405 Method Not Allowed, causing fetch to throw TypeError
+    if (isCallingDirectEverAi && isStaticHost) {
+      throw new EverAiCorsError();
+    }
 
-    // If proxy returned 404 or 405 (such as GitHub Pages static server refusing POST), attempt direct call to everai.vn
-    if ((res.status === 404 || res.status === 405) && endpoint !== 'https://www.everai.vn/api/v1/tts') {
-      try {
-        const directRes = await fetch('https://www.everai.vn/api/v1/tts', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${key}`,
-          },
-          body: JSON.stringify(bodyPayload),
-        });
-        if (directRes.ok) {
-          res = directRes;
-        }
-      } catch {
-        // Continue with original response if direct call hits CORS
-      }
-    }
-  } catch (directErr) {
-    // If backend route fails or on static pages, attempt direct call to everai.vn
-    if (endpoint !== 'https://www.everai.vn/api/v1/tts') {
-      try {
-        res = await fetch('https://www.everai.vn/api/v1/tts', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${key}`,
-          },
-          body: JSON.stringify(bodyPayload),
-        });
-      } catch {
-        throw new Error('Không thể kết nối đến máy chủ EverAI TTS. Vui lòng kiểm tra kết nối mạng hoặc API Key.');
-      }
-    } else {
-      throw new Error('Không thể kết nối trực tiếp đến EverAI TTS. Trình duyệt có thể đang chặn CORS hoặc mạng gặp sự cố.');
-    }
+    // If calling a proxy backend failed, check if we can fall back or alert user
+    throw new Error(
+      `Không thể kết nối đến máy chủ (${networkErr.message || 'Lỗi mạng'}). Vui lòng kiểm tra lại URL Backend hoặc mạng Internet.`
+    );
   }
 
+  // Handle HTTP errors
   if (!res.ok) {
+    if (res.status === 405) {
+      throw new EverAiCorsError(
+        'Lỗi 405 Method Not Allowed: Máy chủ EverAI từ chối kiểm tra trước (OPTIONS) từ trình duyệt trên GitHub Pages. Vui lòng cấu hình Backend Proxy để chuyển tiếp POST từ máy chủ.'
+      );
+    }
+
     const errText = await res.text();
     let errorMessage = '';
     if (errText.trim().startsWith('<') || errText.includes('405 Not Allowed') || errText.includes('<html')) {
       errorMessage =
         res.status === 405
-          ? 'Máy chủ tĩnh GitHub Pages không hỗ trợ nhận POST. Ứng dụng đã chuyển sang chế độ gọi trực tiếp EverAI API hoặc giọng đọc trình duyệt Web Speech.'
+          ? 'Máy chủ không hỗ trợ nhận POST trực tiếp. Vui lòng kết nối Backend Proxy hoặc dùng Giọng Đọc Web Speech.'
           : `Máy chủ phản hồi mã lỗi HTTP ${res.status}.`;
     } else {
       try {
@@ -481,6 +524,8 @@ export async function pollEverAiTtsJob(
       : `${cleanBase}/api/everai/tts/${encodeURIComponent(requestId)}`;
   }
 
+  const isCallingDirectEverAi = endpoint.startsWith('https://www.everai.vn');
+
   let res: Response;
   try {
     res = await fetch(endpoint, {
@@ -489,35 +534,17 @@ export async function pollEverAiTtsJob(
         Authorization: `Bearer ${key}`,
       },
     });
-
-    if ((res.status === 404 || res.status === 405) && endpoint !== `https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`) {
-      try {
-        const directRes = await fetch(`https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${key}`,
-          },
-        });
-        if (directRes.ok) {
-          res = directRes;
-        }
-      } catch {}
+  } catch (pollErr: any) {
+    if (isCallingDirectEverAi && isStaticHost) {
+      throw new EverAiCorsError();
     }
-  } catch {
-    // Fallback direct call
-    if (endpoint !== `https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`) {
-      res = await fetch(`https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${key}`,
-        },
-      });
-    } else {
-      throw new Error('Chưa lấy được trạng thái audio từ EverAI.');
-    }
+    throw new Error(`Chưa lấy được trạng thái audio: ${pollErr.message || 'Mất kết nối'}`);
   }
 
   if (!res.ok) {
+    if (res.status === 405) {
+      throw new EverAiCorsError();
+    }
     throw new Error(`HTTP ${res.status}: Chưa lấy được trạng thái audio`);
   }
 

@@ -151,6 +151,18 @@ app.get(['/api/everai/tts/:id', '/minhhieu/api/everai/tts/:id', '/api/api/everai
   }
 });
 
+// EverAI & Server Health Check Endpoint (for testing backend connectivity from GitHub Pages)
+app.get(['/api/health', '/api/everai/health', '/minhhieu/api/health', '/minhhieu/api/everai/health'], (_req, res) => {
+  return res.json({
+    status: 'ok',
+    success: true,
+    service: 'CastTube EverAI Proxy & Podcast Backend',
+    everaiReady: true,
+    hasApiKey: !!process.env.EVERAI_API_KEY || !!EVERAI_DEFAULT_KEY,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Initialize Google GenAI
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',
