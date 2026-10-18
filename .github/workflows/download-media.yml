@@ -38,7 +38,7 @@ jobs:
         run: |
           node scripts/vidkraken-cli.cjs me
         env:
-          VIDKRAKEN_API_KEY: ${{ secrets.VIDKRAKEN_API_KEY || 'f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba' }}
+          VIDKRAKEN_API_KEY: ${{ secrets.VIDKRAKEN_API_KEY || '276b76d3-a265-447d-8d32-1bcf2258290c' }}
 
       - name: Tiến hành tải Video / Audio
         id: download_step
