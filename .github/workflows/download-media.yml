@@ -13,11 +13,11 @@ on:
         default: 'audio-mp3'
         type: choice
         options:
-          - audio-mp3
+          - 720 
           - 1080
-          - 720
           - 480
           - 360
+          - audio-mp3
           - audio-aac
           - audio
 
@@ -48,7 +48,7 @@ jobs:
           node ../scripts/vidkraken-cli.cjs download "${{ github.event.inputs.youtube_url }}" "${{ github.event.inputs.format }}"
           ls -la
         env:
-          VIDKRAKEN_API_KEY: ${{ secrets.VIDKRAKEN_API_KEY || 'f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba' }}
+          VIDKRAKEN_API_KEY: ${{ secrets.VIDKRAKEN_API_KEY || '276b76d3-a265-447d-8d32-1bcf2258290c' }}
 
       - name: Lưu trữ File đã tải lên GitHub Artifacts
         uses: actions/upload-artifact@v4
