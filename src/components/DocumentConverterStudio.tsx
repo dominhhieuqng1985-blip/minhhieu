@@ -372,7 +372,9 @@ th { background-color: #f2f2f2; font-weight: bold; }
       // Step 1: Send base64 PDF directly to Gemini Multimodal Document Parser
       try {
         const apiBase = getApiBaseUrl();
-        const res = await fetch(`${apiBase}api/ai/ocr-doc`, {
+        const cleanBase = (apiBase || '/api/').replace(/\/+$/, '');
+        const endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/ai/ocr-doc` : `${cleanBase}/api/ai/ocr-doc`;
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -467,7 +469,9 @@ th { background-color: #f2f2f2; font-weight: bold; }
 
     try {
       const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}api/ai/ocr-doc`, {
+      const cleanBase = (apiBase || '/api/').replace(/\/+$/, '');
+      const endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/ai/ocr-doc` : `${cleanBase}/api/ai/ocr-doc`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

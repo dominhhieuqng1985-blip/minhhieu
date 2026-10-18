@@ -359,10 +359,11 @@ export async function createEverAiTtsJob(params: {
   };
 
   // Determine endpoint: proxy through local backend if available, or direct call
-  let endpoint = `${apiBase}api/everai/tts`;
+  const cleanBase = (apiBase || '/').replace(/\/+$/, '');
+  let endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/everai/tts` : `${cleanBase}/api/everai/tts`;
   const customBackend = getCustomBackendUrl();
   if (customBackend) {
-    endpoint = `${customBackend}/api/everai/tts`;
+    endpoint = `${customBackend.replace(/\/+$/, '')}/api/everai/tts`;
   }
 
   let res: Response;
@@ -375,6 +376,25 @@ export async function createEverAiTtsJob(params: {
       },
       body: JSON.stringify(bodyPayload),
     });
+
+    // If proxy returned 404, attempt direct call to everai.vn
+    if (res.status === 404) {
+      try {
+        const directRes = await fetch('https://www.everai.vn/api/v1/tts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${key}`,
+          },
+          body: JSON.stringify(bodyPayload),
+        });
+        if (directRes.ok) {
+          res = directRes;
+        }
+      } catch {
+        // Continue with original response if direct call hits CORS
+      }
+    }
   } catch (directErr) {
     // If backend route fails or on static pages, attempt direct call to everai.vn
     try {
@@ -431,10 +451,13 @@ export async function pollEverAiTtsJob(
   const key = apiKey || getStoredEverAiKey();
   const apiBase = getApiBaseUrl();
 
-  let endpoint = `${apiBase}api/everai/tts/${encodeURIComponent(requestId)}`;
+  const cleanBase = (apiBase || '/').replace(/\/+$/, '');
+  let endpoint = cleanBase.endsWith('/api')
+    ? `${cleanBase}/everai/tts/${encodeURIComponent(requestId)}`
+    : `${cleanBase}/api/everai/tts/${encodeURIComponent(requestId)}`;
   const customBackend = getCustomBackendUrl();
   if (customBackend) {
-    endpoint = `${customBackend}/api/everai/tts/${encodeURIComponent(requestId)}`;
+    endpoint = `${customBackend.replace(/\/+$/, '')}/api/everai/tts/${encodeURIComponent(requestId)}`;
   }
 
   let res: Response;
@@ -445,6 +468,20 @@ export async function pollEverAiTtsJob(
         Authorization: `Bearer ${key}`,
       },
     });
+
+    if (res.status === 404) {
+      try {
+        const directRes = await fetch(`https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${key}`,
+          },
+        });
+        if (directRes.ok) {
+          res = directRes;
+        }
+      } catch {}
+    }
   } catch {
     // Fallback direct call
     res = await fetch(`https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`, {

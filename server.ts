@@ -38,10 +38,13 @@ app.get(['/studo.xml', '/minhhieu/studo.xml', '/studio.xml', '/minhhieu/studio.x
   return res.status(404).send('<!-- studo.xml not found -->');
 });
 
-// Support base prefix from Vite base: '/minhhieu/'
+// Support base prefix from Vite base: '/minhhieu/' and normalize duplicate /api/api
 app.use((req, _res, next) => {
   if (req.url.startsWith('/minhhieu/api')) {
     req.url = req.url.replace(/^\/minhhieu\/api/, '/api');
+  }
+  if (req.url.startsWith('/api/api/')) {
+    req.url = req.url.replace(/^\/api\/api\//, '/api/');
   }
   next();
 });
@@ -94,7 +97,7 @@ app.use(['/api/vidkraken', '/minhhieu/api/vidkraken'], async (req, res) => {
 // EverAI Text to Speech (TTS) Proxy Endpoints
 const EVERAI_DEFAULT_KEY = process.env.EVERAI_API_KEY || 'JZoMqN64fgxOuVcxViFyLj6YinIsiVbc0';
 
-app.post(['/api/everai/tts', '/minhhieu/api/everai/tts'], async (req, res) => {
+app.post(['/api/everai/tts', '/minhhieu/api/everai/tts', '/api/api/everai/tts', '/minhhieu/api/api/everai/tts'], async (req, res) => {
   try {
     const authHeader = req.headers.authorization || `Bearer ${EVERAI_DEFAULT_KEY}`;
     const payload = req.body;
@@ -108,7 +111,13 @@ app.post(['/api/everai/tts', '/minhhieu/api/everai/tts'], async (req, res) => {
       body: JSON.stringify(payload),
     });
 
-    const data = await vkRes.json();
+    const textData = await vkRes.text();
+    let data: any;
+    try {
+      data = JSON.parse(textData);
+    } catch {
+      data = { status: vkRes.ok ? 1 : 0, error_message: textData || `HTTP ${vkRes.status}` };
+    }
     return res.status(vkRes.status).json(data);
   } catch (error: any) {
     console.error('EverAI TTS POST error:', error);
@@ -116,7 +125,7 @@ app.post(['/api/everai/tts', '/minhhieu/api/everai/tts'], async (req, res) => {
   }
 });
 
-app.get(['/api/everai/tts/:id', '/minhhieu/api/everai/tts/:id'], async (req, res) => {
+app.get(['/api/everai/tts/:id', '/minhhieu/api/everai/tts/:id', '/api/api/everai/tts/:id', '/minhhieu/api/api/everai/tts/:id'], async (req, res) => {
   try {
     const { id } = req.params;
     const authHeader = req.headers.authorization || `Bearer ${EVERAI_DEFAULT_KEY}`;
@@ -128,7 +137,13 @@ app.get(['/api/everai/tts/:id', '/minhhieu/api/everai/tts/:id'], async (req, res
       },
     });
 
-    const data = await vkRes.json();
+    const textData = await vkRes.text();
+    let data: any;
+    try {
+      data = JSON.parse(textData);
+    } catch {
+      data = { status: vkRes.ok ? 1 : 0, error_message: textData || `HTTP ${vkRes.status}` };
+    }
     return res.status(vkRes.status).json(data);
   } catch (error: any) {
     console.error('EverAI TTS GET error:', error);

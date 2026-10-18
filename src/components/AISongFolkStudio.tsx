@@ -140,7 +140,9 @@ export const AISongFolkStudio: React.FC<AISongFolkStudioProps> = ({ onShowToast 
           return;
         }
 
-        const res = await fetch(`${apiBase}api/ai/lyrics-from-image`, {
+        const cleanBase = (apiBase || '/api/').replace(/\/+$/, '');
+        const endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/ai/lyrics-from-image` : `${cleanBase}/api/ai/lyrics-from-image`;
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -159,7 +161,9 @@ export const AISongFolkStudio: React.FC<AISongFolkStudioProps> = ({ onShowToast 
         }
       } else {
         // Mode 'prompt' or 'custom'
-        const res = await fetch(`${apiBase}api/ai/generate-song`, {
+        const cleanBase = (apiBase || '/api/').replace(/\/+$/, '');
+        const endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/ai/generate-song` : `${cleanBase}/api/ai/generate-song`;
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

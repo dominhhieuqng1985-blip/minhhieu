@@ -362,7 +362,9 @@ export const AIVideoScriptStudio: React.FC<AIVideoScriptStudioProps> = ({ onShow
     setIsGenerating(true);
     try {
       const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}api/ai/generate-script-scenes`, {
+      const cleanBase = (apiBase || '/api/').replace(/\/+$/, '');
+      const endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/ai/generate-script-scenes` : `${cleanBase}/api/ai/generate-script-scenes`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -422,9 +424,11 @@ export const AIVideoScriptStudio: React.FC<AIVideoScriptStudioProps> = ({ onShow
   // Generate AI images for all 3 scenes
   const triggerImageGeneration = async (scenes: SceneItem[]) => {
     const apiBase = getApiBaseUrl();
+    const cleanBase = (apiBase || '/api/').replace(/\/+$/, '');
+    const endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/ai/generate-image` : `${cleanBase}/api/ai/generate-image`;
     scenes.forEach(async (sc, idx) => {
       try {
-        const res = await fetch(`${apiBase}api/ai/generate-image`, {
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -452,7 +456,9 @@ export const AIVideoScriptStudio: React.FC<AIVideoScriptStudioProps> = ({ onShow
     onShowToast(`🎨 Đang tạo ảnh AI cho Cảnh ${sceneIndex + 1}...`);
     try {
       const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}api/ai/generate-image`, {
+      const cleanBase = (apiBase || '/api/').replace(/\/+$/, '');
+      const endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/ai/generate-image` : `${cleanBase}/api/ai/generate-image`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
