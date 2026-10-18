@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "12 lượt xem",
+    "views": "11 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -215,14 +215,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "sFx3g_fZAcY",
-    "title": "Tăng đoàn của đề đà đạt đa đã quay về với tăng đoàn của đức phật",
+    "title": "Tăng đoàn của đề đà đạt đa đ�� quay về với tăng đoàn của đức phật",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
     "category": "tam-ly-doi-song",
     "duration": "4:39",
     "durationSeconds": 279,
     "thumbnail": "https://i.ytimg.com/vi/sFx3g_fZAcY/hqdefault.jpg",
-    "description": "Tăng đoàn của đề đà đạt đa đã quay về với tăng đoàn của đức phật - Kênh Minh Hiếu review phim.",
+    "description": "Tăng đoàn của đề đà đạt đa đ�� quay về với tăng đoàn của đức phật - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "12 lượt xem",

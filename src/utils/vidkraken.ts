@@ -197,17 +197,21 @@ async function callVidKrakenApi<T>(
 
     if (!response.ok) {
       const errText = await response.text();
-      let parsedError: any;
-      try {
-        parsedError = JSON.parse(errText);
-      } catch {
-        parsedError = { message: errText };
+      let errorMessage = '';
+      if (errText.trim().startsWith('<') || errText.includes('405 Not Allowed') || errText.includes('<html')) {
+        errorMessage =
+          response.status === 405
+            ? 'Máy chủ tĩnh GitHub Pages không hỗ trợ API POST trực tiếp. Vui lòng sử dụng Custom Cloudflare Proxy hoặc GitHub Actions để tải.'
+            : `Máy chủ phản hồi mã HTTP ${response.status}.`;
+      } else {
+        try {
+          const parsedError = JSON.parse(errText);
+          errorMessage = parsedError.message || parsedError.error || `Lỗi VidKraken HTTP ${response.status}`;
+        } catch {
+          errorMessage = errText.slice(0, 150);
+        }
       }
-      throw new Error(
-        parsedError.message ||
-          parsedError.error ||
-          `Lỗi VidKraken HTTP ${response.status}: ${response.statusText}`
-      );
+      throw new Error(errorMessage || `Lỗi VidKraken HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = (await response.json()) as T;

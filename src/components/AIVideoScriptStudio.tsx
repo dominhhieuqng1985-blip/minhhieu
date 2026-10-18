@@ -362,7 +362,61 @@ export const AIVideoScriptStudio: React.FC<AIVideoScriptStudioProps> = ({ onShow
     setIsGenerating(true);
     try {
       const apiBase = getApiBaseUrl();
-      const cleanBase = (apiBase || '/api/').replace(/\/+$/, '');
+
+      // If on static GitHub Pages without backend, generate scenes client-side
+      if (!apiBase) {
+        await new Promise((r) => setTimeout(r, 600));
+        const clientScenes: SceneItem[] = [
+          {
+            sceneNumber: 1,
+            name: 'Mở Đầu: Giới thiệu & Khơi gợi tò mò',
+            duration: 10,
+            timeRange: '00:00 - 00:10',
+            narration: `Chào mừng bạn đến với câu chuyện "${topic}". Có những bài học cuộc đời chỉ thực sự thấm thía khi ta từng trải qua thăng trầm...`,
+            subtitle: 'Khởi đầu hành trình với những bài học cuộc đời sâu sắc',
+            visualPrompt: `Cinematic wide angle landscape, storytelling ambiance, ${topic}`,
+            cameraMotion: 'zoom-in',
+            imageUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80',
+          },
+          {
+            sceneNumber: 2,
+            name: 'Cao Trào: Thử thách & Bước ngoặt',
+            duration: 10,
+            timeRange: '00:10 - 00:20',
+            narration: `Biến cố ập đến không phải để quật ngã chúng ta, mà để thử thách bản lĩnh và lòng kiên định. Giữ vững la bàn tâm trí là chìa khóa vượt qua mọi bão giông...`,
+            subtitle: 'Bản lĩnh đối diện và vượt qua nghịch cảnh',
+            visualPrompt: `Dramatic emotional lighting, cinematic shadows, ${topic}`,
+            cameraMotion: 'pan-right',
+            imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80',
+          },
+          {
+            sceneNumber: 3,
+            name: 'Kết Thúc: Đúc kết bài học & Hành động',
+            duration: 10,
+            timeRange: '00:20 - 00:30',
+            narration: `Khép lại câu chuyện, hãy nhớ rằng: sự thanh thản trong tâm hồn luôn quý giá hơn mọi hào quang nhất thời. Cảm ơn bạn đã lắng nghe và đồng hành.`,
+            subtitle: 'Sự an yên trong tâm hồn là giá trị quý giá nhất',
+            visualPrompt: `Warm golden hour sunset, serene atmosphere, ${topic}`,
+            cameraMotion: 'zoom-out',
+            imageUrl: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&auto=format&fit=crop&q=80',
+          },
+        ];
+
+        setScriptData({
+          title: topic,
+          aspectRatio,
+          totalDuration: 30,
+          theme: storyStyle,
+          scenes: clientScenes,
+        });
+
+        handleRestart();
+        onShowToast('✨ Đã tạo kịch bản 3 Cảnh (Chuẩn 10s mỗi cảnh) thành công!');
+        setIsGenerating(false);
+        return;
+      }
+
+      const cleanBase = apiBase.replace(/\/+$/, '');
       const endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/ai/generate-script-scenes` : `${cleanBase}/api/ai/generate-script-scenes`;
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -424,7 +478,8 @@ export const AIVideoScriptStudio: React.FC<AIVideoScriptStudioProps> = ({ onShow
   // Generate AI images for all 3 scenes
   const triggerImageGeneration = async (scenes: SceneItem[]) => {
     const apiBase = getApiBaseUrl();
-    const cleanBase = (apiBase || '/api/').replace(/\/+$/, '');
+    if (!apiBase) return; // Skip POST on static GitHub Pages to avoid 405 error
+    const cleanBase = apiBase.replace(/\/+$/, '');
     const endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/ai/generate-image` : `${cleanBase}/api/ai/generate-image`;
     scenes.forEach(async (sc, idx) => {
       try {
@@ -453,10 +508,28 @@ export const AIVideoScriptStudio: React.FC<AIVideoScriptStudioProps> = ({ onShow
   // Regenerate single image for a specific scene
   const handleRegenerateSceneImage = async (sceneIndex: number) => {
     const targetScene = scriptData.scenes[sceneIndex];
-    onShowToast(`🎨 Đang tạo ảnh AI cho Cảnh ${sceneIndex + 1}...`);
+    onShowToast(`🎨 Đang tạo ảnh cho Cảnh ${sceneIndex + 1}...`);
     try {
       const apiBase = getApiBaseUrl();
-      const cleanBase = (apiBase || '/api/').replace(/\/+$/, '');
+      if (!apiBase) {
+        // High quality thematic rotation on static hosting without server POST
+        const thematicImgs = [
+          'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800&auto=format&fit=crop&q=80',
+          'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80',
+          'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&auto=format&fit=crop&q=80',
+          'https://images.unsplash.com/photo-1511497584788-87676104235f?w=800&auto=format&fit=crop&q=80',
+        ];
+        const nextImg = thematicImgs[(sceneIndex + Date.now()) % thematicImgs.length];
+        setScriptData((prev) => {
+          const updated = [...prev.scenes];
+          updated[sceneIndex] = { ...updated[sceneIndex], imageUrl: nextImg };
+          return { ...prev, scenes: updated };
+        });
+        onShowToast(`✅ Đã cập nhật ảnh đẹp cho Cảnh ${sceneIndex + 1}!`);
+        return;
+      }
+
+      const cleanBase = apiBase.replace(/\/+$/, '');
       const endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/ai/generate-image` : `${cleanBase}/api/ai/generate-image`;
       const res = await fetch(endpoint, {
         method: 'POST',

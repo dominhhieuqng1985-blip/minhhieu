@@ -358,12 +358,15 @@ export async function createEverAiTtsJob(params: {
     generate_srt: !!params.generateSrt,
   };
 
-  // Determine endpoint: proxy through local backend if available, or direct call
-  const cleanBase = (apiBase || '/').replace(/\/+$/, '');
-  let endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/everai/tts` : `${cleanBase}/api/everai/tts`;
+  // Determine endpoint: proxy through local backend if available, or direct call to everai.vn
   const customBackend = getCustomBackendUrl();
+  let endpoint = 'https://www.everai.vn/api/v1/tts';
+
   if (customBackend) {
     endpoint = `${customBackend.replace(/\/+$/, '')}/api/everai/tts`;
+  } else if (apiBase) {
+    const cleanBase = apiBase.replace(/\/+$/, '');
+    endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/everai/tts` : `${cleanBase}/api/everai/tts`;
   }
 
   let res: Response;
@@ -377,8 +380,8 @@ export async function createEverAiTtsJob(params: {
       body: JSON.stringify(bodyPayload),
     });
 
-    // If proxy returned 404, attempt direct call to everai.vn
-    if (res.status === 404) {
+    // If proxy returned 404 or 405 (such as GitHub Pages static server refusing POST), attempt direct call to everai.vn
+    if ((res.status === 404 || res.status === 405) && endpoint !== 'https://www.everai.vn/api/v1/tts') {
       try {
         const directRes = await fetch('https://www.everai.vn/api/v1/tts', {
           method: 'POST',
@@ -397,29 +400,41 @@ export async function createEverAiTtsJob(params: {
     }
   } catch (directErr) {
     // If backend route fails or on static pages, attempt direct call to everai.vn
-    try {
-      res = await fetch('https://www.everai.vn/api/v1/tts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify(bodyPayload),
-      });
-    } catch {
-      throw new Error('Không thể kết nối đến máy chủ EverAI TTS. Vui lòng kiểm tra kết nối mạng hoặc thử lại.');
+    if (endpoint !== 'https://www.everai.vn/api/v1/tts') {
+      try {
+        res = await fetch('https://www.everai.vn/api/v1/tts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${key}`,
+          },
+          body: JSON.stringify(bodyPayload),
+        });
+      } catch {
+        throw new Error('Không thể kết nối đến máy chủ EverAI TTS. Vui lòng kiểm tra kết nối mạng hoặc API Key.');
+      }
+    } else {
+      throw new Error('Không thể kết nối trực tiếp đến EverAI TTS. Trình duyệt có thể đang chặn CORS hoặc mạng gặp sự cố.');
     }
   }
 
   if (!res.ok) {
     const errText = await res.text();
-    let parsed: any;
-    try {
-      parsed = JSON.parse(errText);
-    } catch {
-      parsed = { error_message: errText };
+    let errorMessage = '';
+    if (errText.trim().startsWith('<') || errText.includes('405 Not Allowed') || errText.includes('<html')) {
+      errorMessage =
+        res.status === 405
+          ? 'Máy chủ tĩnh GitHub Pages không hỗ trợ nhận POST. Ứng dụng đã chuyển sang chế độ gọi trực tiếp EverAI API hoặc giọng đọc trình duyệt Web Speech.'
+          : `Máy chủ phản hồi mã lỗi HTTP ${res.status}.`;
+    } else {
+      try {
+        const parsed = JSON.parse(errText);
+        errorMessage = parsed.error_message || parsed.detail || parsed.message || `Lỗi EverAI HTTP ${res.status}`;
+      } catch {
+        errorMessage = errText.slice(0, 150);
+      }
     }
-    throw new Error(parsed.error_message || parsed.detail || `Lỗi EverAI HTTP ${res.status}`);
+    throw new Error(errorMessage || `Lỗi EverAI HTTP ${res.status}`);
   }
 
   const data = await res.json();
@@ -451,13 +466,16 @@ export async function pollEverAiTtsJob(
   const key = apiKey || getStoredEverAiKey();
   const apiBase = getApiBaseUrl();
 
-  const cleanBase = (apiBase || '/').replace(/\/+$/, '');
-  let endpoint = cleanBase.endsWith('/api')
-    ? `${cleanBase}/everai/tts/${encodeURIComponent(requestId)}`
-    : `${cleanBase}/api/everai/tts/${encodeURIComponent(requestId)}`;
   const customBackend = getCustomBackendUrl();
+  let endpoint = `https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`;
+
   if (customBackend) {
     endpoint = `${customBackend.replace(/\/+$/, '')}/api/everai/tts/${encodeURIComponent(requestId)}`;
+  } else if (apiBase) {
+    const cleanBase = apiBase.replace(/\/+$/, '');
+    endpoint = cleanBase.endsWith('/api')
+      ? `${cleanBase}/everai/tts/${encodeURIComponent(requestId)}`
+      : `${cleanBase}/api/everai/tts/${encodeURIComponent(requestId)}`;
   }
 
   let res: Response;
@@ -469,7 +487,7 @@ export async function pollEverAiTtsJob(
       },
     });
 
-    if (res.status === 404) {
+    if ((res.status === 404 || res.status === 405) && endpoint !== `https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`) {
       try {
         const directRes = await fetch(`https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`, {
           method: 'GET',
@@ -484,12 +502,16 @@ export async function pollEverAiTtsJob(
     }
   } catch {
     // Fallback direct call
-    res = await fetch(`https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${key}`,
-      },
-    });
+    if (endpoint !== `https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`) {
+      res = await fetch(`https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${key}`,
+        },
+      });
+    } else {
+      throw new Error('Chưa lấy được trạng thái audio từ EverAI.');
+    }
   }
 
   if (!res.ok) {
