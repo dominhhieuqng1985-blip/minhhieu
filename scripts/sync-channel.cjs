@@ -14,13 +14,30 @@ const YOUTUBE_HEADERS = {
 };
 
 function fetchText(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, { headers: YOUTUBE_HEADERS }, (res) => {
-      let data = '';
-      res.on('data', (c) => (data += c));
-      res.on('end', () => resolve(data));
-      res.on('error', reject);
-    }).on('error', reject);
+  return new Promise((resolve) => {
+    try {
+      const req = https.get(url, { headers: YOUTUBE_HEADERS, timeout: 15000 }, (res) => {
+        let data = '';
+        res.on('data', (c) => (data += c));
+        res.on('end', () => resolve(data));
+        res.on('error', (err) => {
+          console.warn(`Lỗi nhận dữ liệu từ ${url}:`, err.message);
+          resolve('');
+        });
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        console.warn(`Hết hạn chờ (timeout) khi kết nối tới ${url}`);
+        resolve('');
+      });
+      req.on('error', (err) => {
+        console.warn(`Lỗi kết nối mạng tới ${url}:`, err.message);
+        resolve('');
+      });
+    } catch (e) {
+      console.warn(`Ngoại lệ khi gọi ${url}:`, e.message);
+      resolve('');
+    }
   });
 }
 
