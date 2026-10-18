@@ -125,6 +125,37 @@ async function downloadVideo(url, format = 'audio') {
         console.log(`   - Định dạng: ${statusData.actualFormat || statusData.format}`);
         console.log(`   - Dung lượng: ${statusData.fileSize ? (statusData.fileSize / (1024 * 1024)).toFixed(2) + ' MB' : 'N/A'}`);
         console.log(`   - LIÊN KẾT TẢI: ${statusData.downloadUrl}`);
+
+        if (statusData.downloadUrl) {
+          try {
+            const rawTitle = statusData.title || 'video';
+            const cleanTitle = rawTitle
+              .replace(/https?:\/\/\S+/gi, '')
+              .replace(/[|•–—\-_/\\:;*?"<>!@#$%^&*()+=[\]{}~`']/g, ' ')
+              .replace(/\s+/g, '_')
+              .replace(/_+/g, '_')
+              .replace(/^_|_$/g, '')
+              .slice(0, 65);
+            const fmt = (statusData.actualFormat || statusData.format || format).toLowerCase();
+            const ext = fmt.includes('mp3') || fmt.includes('audio') ? 'mp3' : fmt.includes('aac') ? 'm4a' : 'mp4';
+            const filename = `minhhieu_${cleanTitle}_${fmt}.${ext}`;
+            console.log(`💾 Đang tự động lưu file về máy: ${filename}...`);
+
+            const fileRes = await fetch(statusData.downloadUrl);
+            if (fileRes.ok && fileRes.body) {
+              const fs = require('fs');
+              const fileStream = fs.createWriteStream(filename);
+              const { Readable } = require('stream');
+              await new Promise((resolve, reject) => {
+                Readable.fromWeb(fileRes.body).pipe(fileStream).on('finish', resolve).on('error', reject);
+              });
+              console.log(`✅ Đã tải file về máy thành công: ${filename}`);
+            }
+          } catch (writeErr) {
+            console.warn('⚠️ Không thể tự động ghi file ra đĩa:', writeErr.message);
+          }
+        }
+
         return statusData;
       }
       if (statusData.status === 'FAILED') {

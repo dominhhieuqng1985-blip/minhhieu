@@ -437,3 +437,191 @@ export function clearDownloadHistory(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(STORAGE_KEY_VIDKRAKEN_HISTORY);
 }
+
+export const STORAGE_KEY_VIDKRAKEN_AUTO_DOWNLOAD = 'casttube_vidkraken_auto_download';
+export const STORAGE_KEY_VIDKRAKEN_ACTIVE_JOB = 'casttube_vidkraken_active_job_v1';
+
+export function getStoredAutoDownload(): boolean {
+  if (typeof window === 'undefined') return true;
+  const val = localStorage.getItem(STORAGE_KEY_VIDKRAKEN_AUTO_DOWNLOAD);
+  if (val === null) return true; // Default auto download enabled
+  return val === 'true';
+}
+
+export function setStoredAutoDownload(enabled: boolean): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY_VIDKRAKEN_AUTO_DOWNLOAD, String(enabled));
+}
+
+export interface StoredActiveJob {
+  jobId: string;
+  youtubeUrl: string;
+  title: string;
+  format: string;
+  startedAt: number;
+}
+
+export function getStoredActiveJob(): StoredActiveJob | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_VIDKRAKEN_ACTIVE_JOB);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredActiveJob;
+    // Expire stored active job after 2 hours
+    if (Date.now() - parsed.startedAt > 2 * 3600 * 1000) {
+      localStorage.removeItem(STORAGE_KEY_VIDKRAKEN_ACTIVE_JOB);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredActiveJob(job: StoredActiveJob | null): void {
+  if (typeof window === 'undefined') return;
+  if (!job) {
+    localStorage.removeItem(STORAGE_KEY_VIDKRAKEN_ACTIVE_JOB);
+  } else {
+    localStorage.setItem(STORAGE_KEY_VIDKRAKEN_ACTIVE_JOB, JSON.stringify(job));
+  }
+}
+
+/**
+ * Detect episode tag from title (e.g. "Tập 12", "Ep 05", "Phần 2", etc.)
+ */
+export function extractEpisodeTag(title?: string): string {
+  if (!title) return '';
+  const tapMatch = title.match(/(?:t[ậa]p|ep(?:isode)?\.?)\s*([0-9]+)/i);
+  if (tapMatch && tapMatch[1]) {
+    const num = parseInt(tapMatch[1], 10);
+    return `tap_${num < 10 ? '0' + num : num}`;
+  }
+  const phanMatch = title.match(/(?:ph[ầa]n|p\.?)\s*([0-9]+)/i);
+  if (phanMatch && phanMatch[1]) {
+    const num = parseInt(phanMatch[1], 10);
+    return `phan_${num < 10 ? '0' + num : num}`;
+  }
+  return '';
+}
+
+/**
+ * Clean title for safe cross-platform filesystem filename
+ */
+export function sanitizeTitleForFileName(rawTitle?: string): string {
+  if (!rawTitle) return 'video';
+  let clean = rawTitle
+    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/#\S+/gi, '')
+    .replace(/[|•–—\-_/\\:;*?"<>!@#$%^&*()+=[\]{}~`']/g, ' ')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+
+  if (clean.length > 70) {
+    clean = clean.slice(0, 70);
+    const lastUnderscore = clean.lastIndexOf('_');
+    if (lastUnderscore > 30) {
+      clean = clean.slice(0, lastUnderscore);
+    }
+  }
+
+  return clean || 'video';
+}
+
+/**
+ * Build professional Minh Hiếu standard filename:
+ * minhhieu_[tap_XX_]tieu_de_[dinh_dang].[ext]
+ */
+export function buildMinhHieuDownloadFileName(
+  title?: string,
+  format?: VidKrakenFormat | string,
+  explicitEpisode?: string | number
+): string {
+  const epTag = explicitEpisode
+    ? typeof explicitEpisode === 'number'
+      ? `tap_${explicitEpisode < 10 ? '0' + explicitEpisode : explicitEpisode}`
+      : String(explicitEpisode).trim().toLowerCase().replace(/\s+/g, '_')
+    : extractEpisodeTag(title);
+
+  const cleanTitle = sanitizeTitleForFileName(title);
+
+  let formatSuffix = '';
+  let ext = 'mp4';
+
+  const fmt = (format || '1080').toLowerCase();
+  if (fmt.includes('1080')) {
+    formatSuffix = '1080p';
+    ext = 'mp4';
+  } else if (fmt.includes('720')) {
+    formatSuffix = '720p';
+    ext = 'mp4';
+  } else if (fmt.includes('480')) {
+    formatSuffix = '480p';
+    ext = 'mp4';
+  } else if (fmt.includes('360')) {
+    formatSuffix = '360p';
+    ext = 'mp4';
+  } else if (fmt.includes('aac')) {
+    formatSuffix = 'audio_aac';
+    ext = 'm4a';
+  } else if (fmt.includes('audio') || fmt.includes('mp3')) {
+    formatSuffix = 'audio';
+    ext = 'mp3';
+  } else {
+    formatSuffix = fmt;
+    ext = 'mp4';
+  }
+
+  const parts = ['minhhieu'];
+  if (epTag) parts.push(epTag);
+  if (cleanTitle) parts.push(cleanTitle);
+  if (formatSuffix) parts.push(formatSuffix);
+
+  return `${parts.join('_')}.${ext}`;
+}
+
+/**
+ * Trigger file download directly using streaming pipe if backend available,
+ * or direct link fallback
+ */
+export function triggerMinhHieuDownload(downloadUrl: string, filename: string): void {
+  if (typeof window === 'undefined' || !downloadUrl) return;
+
+  const base = import.meta.env.BASE_URL || '/';
+  const normalized = base.endsWith('/') ? base : `${base}/`;
+
+  // If backend exists, use the streaming attachment pipe which guarantees:
+  // 1. Browser shows native download dialog/bar directly
+  // 2. Browser never opens the in-tab media player
+  // 3. Exact filename minhhieu_... is respected
+  if (!isStaticHost || getCustomBackendUrl()) {
+    const customBackend = getCustomBackendUrl();
+    const endpointBase = customBackend ? `${customBackend}/api/vidkraken-stream` : `${normalized}api/vidkraken-stream`;
+    const fullStreamUrl = `${endpointBase}?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
+
+    const a = document.createElement('a');
+    a.href = fullStreamUrl;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (document.body.contains(a)) document.body.removeChild(a);
+    }, 1500);
+    return;
+  }
+
+  // Fallback for purely static host without backend
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = filename;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    if (document.body.contains(a)) document.body.removeChild(a);
+  }, 1500);
+}
