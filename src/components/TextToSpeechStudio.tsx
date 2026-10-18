@@ -26,6 +26,10 @@ import {
   ExternalLink,
   ShieldCheck,
   Zap,
+  PlusCircle,
+  Trash2,
+  Settings,
+  Plus,
 } from 'lucide-react';
 import {
   EVERAI_VOICES,
@@ -37,10 +41,15 @@ import {
   setStoredEverAiKey,
   getSavedEverAiHistory,
   saveEverAiHistoryItem,
+  getCustomVoices,
+  saveCustomVoice,
+  deleteCustomVoice,
+  getAllEverAiVoices,
   EverAiTtsHistoryItem,
   DEFAULT_EVERAI_API_KEY,
   STORAGE_KEY_EVERAI_HISTORY,
 } from '../utils/everai';
+import { VoiceManagerModal } from './VoiceManagerModal';
 
 interface TextToSpeechStudioProps {
   initialText?: string;
@@ -87,12 +96,17 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
   const [isBrowserSpeaking, setIsBrowserSpeaking] = useState<boolean>(false);
   const [isBrowserPaused, setIsBrowserPaused] = useState<boolean>(false);
 
+  // Custom Voices State (persisted permanently in localStorage)
+  const [customVoices, setCustomVoices] = useState<EverAiVoice[]>([]);
+  const [isVoiceManagerOpen, setIsVoiceManagerOpen] = useState<boolean>(false);
+
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load history & browser voices
+  // Load history, custom voices & browser voices
   useEffect(() => {
     setAudioHistory(getSavedEverAiHistory());
+    setCustomVoices(getCustomVoices());
 
     const updateBrowserVoices = () => {
       if (typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -153,6 +167,27 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
     },
   ];
 
+  // Combined voice list (custom voices first, then system voices)
+  const allEverAiVoices = [...customVoices, ...EVERAI_VOICES];
+  const currentVoiceObj =
+    allEverAiVoices.find((v) => v.id.toLowerCase() === selectedEverAiVoice.toLowerCase()) ||
+    allEverAiVoices.find((v) => v.id === selectedEverAiVoice);
+
+  // Custom Voice Management Handlers
+  const handleSaveCustomVoice = (voiceData: Partial<EverAiVoice> & { id: string; name: string }) => {
+    const updated = saveCustomVoice(voiceData);
+    setCustomVoices(updated);
+    setSelectedEverAiVoice(voiceData.id.trim());
+  };
+
+  const handleDeleteCustomVoice = (id: string) => {
+    const updated = deleteCustomVoice(id);
+    setCustomVoices(updated);
+    if (selectedEverAiVoice.toLowerCase() === id.trim().toLowerCase()) {
+      setSelectedEverAiVoice(updated[0]?.id || EVERAI_VOICES[0].id);
+    }
+  };
+
   // 1. Generate Voice via EverAI API
   const handleGenerateEverAiSpeech = async () => {
     if (!text.trim()) {
@@ -205,7 +240,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
             setGeneratedAudioUrl(statusResult.audioLink);
             if (statusResult.srtLink) setGeneratedSrtUrl(statusResult.srtLink);
 
-            const voiceObj = EVERAI_VOICES.find((v) => v.id === selectedEverAiVoice);
+            const voiceObj = allEverAiVoices.find((v) => v.id === selectedEverAiVoice);
             const historyItem: EverAiTtsHistoryItem = {
               id: Date.now().toString(),
               requestId: job.requestId,
@@ -311,8 +346,6 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
     }
   };
 
-  const currentVoiceObj = EVERAI_VOICES.find((v) => v.id === selectedEverAiVoice);
-
   return (
     <div className="space-y-6">
       {/* Studio Header Banner */}
@@ -360,7 +393,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
           </div>
         </div>
 
-        {/* API Key Bar for EverAI */}
+        {/* API Key & Custom Voice Bar for EverAI */}
         {engineMode === 'everai' && (
           <div className="mt-6 pt-5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-4 text-xs">
             <div className="flex items-center gap-2 text-slate-300">
@@ -370,13 +403,25 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
               <span className="text-emerald-400 font-medium">Đã kết nối Token người dùng</span>
             </div>
 
-            <button
-              onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-              className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1.5 underline underline-offset-4"
-            >
-              <Key className="w-3.5 h-3.5" />
-              <span>{showApiKeyInput ? 'Ẩn cấu hình Key' : 'Tùy chỉnh Bearer Token cá nhân'}</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsVoiceManagerOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition-all border border-indigo-400/30"
+              >
+                <Sliders className="w-3.5 h-3.5 text-amber-300" />
+                <span>Cài Đặt Giọng Nói ({customVoices.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1.5 underline underline-offset-4"
+              >
+                <Key className="w-3.5 h-3.5" />
+                <span>{showApiKeyInput ? 'Ẩn cấu hình Key' : 'Tùy chỉnh Token'}</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -631,14 +676,36 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
               <div className="space-y-4">
                 {/* Voice Selection */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-300">
-                    Mã Giọng Đọc (voice_code):
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-300">
+                      Mã Giọng Đọc (voice_code):
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsVoiceManagerOpen(true)}
+                      className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1.5 transition-colors group"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
+                      <span>+ Cài giọng mới / Quản lý ({customVoices.length})</span>
+                    </button>
+                  </div>
+
                   <select
                     value={selectedEverAiVoice}
                     onChange={(e) => setSelectedEverAiVoice(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-indigo-500"
                   >
+                    {/* User's Permanently Saved Custom Voices */}
+                    {customVoices.length > 0 && (
+                      <optgroup label={`⭐ Giọng Nói Tùy Chỉnh Của Bạn (${customVoices.length} giọng đã lưu vĩnh viễn)`}>
+                        {customVoices.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            ⭐ [Tùy chỉnh] {v.name} ({v.gender} - {v.region}) - {v.id}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+
                     <optgroup label="🌟 Giọng Kênh Minh Hiếu & Đạo Lý (Special)">
                       {EVERAI_VOICES.filter((v) => v.isSpecial).map((v) => (
                         <option key={v.id} value={v.id}>
@@ -673,18 +740,77 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
 
                   {/* Active Voice Card */}
                   {currentVoiceObj && (
-                    <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1 text-xs">
-                      <div className="flex justify-between font-bold text-slate-200">
-                        <span className="text-amber-400">{currentVoiceObj.name}</span>
-                        <span className="text-[11px] text-slate-400">{currentVoiceObj.cost}</span>
+                    currentVoiceObj.isCustom ? (
+                      <div className="p-3.5 rounded-xl bg-gradient-to-br from-indigo-950/90 to-purple-950/80 border border-indigo-500/40 space-y-2 text-xs shadow-inner">
+                        <div className="flex items-start justify-between font-bold text-slate-200">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <span className="text-amber-300 font-bold">{currentVoiceObj.name}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              Đã lưu vĩnh viễn
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn giọng "${currentVoiceObj.name}" (${currentVoiceObj.id})?`)) {
+                                handleDeleteCustomVoice(currentVoiceObj.id);
+                                onShowToast(`🗑️ Đã xóa giọng "${currentVoiceObj.name}"!`);
+                              }
+                            }}
+                            className="text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-950/60 hover:bg-rose-900/60 border border-rose-800/60 transition-colors shrink-0"
+                            title="Xóa vĩnh viễn giọng này"
+                          >
+                            <Trash2 className="w-3 h-3 text-rose-400" />
+                            <span>Xóa giọng</span>
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 text-[11px]">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-900/90 text-blue-300 border border-slate-700/60 font-medium">
+                            {currentVoiceObj.gender === 'Nữ' || currentVoiceObj.gender === 'Female' ? '👩 Nữ' : '👨 Nam'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-slate-900/90 text-slate-300 border border-slate-700/60">
+                            📍 {currentVoiceObj.region}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-slate-900/90 text-slate-300 border border-slate-700/60">
+                            🌐 {currentVoiceObj.language}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300/90 leading-relaxed">
+                          {currentVoiceObj.description}
+                        </p>
+                        <div className="pt-1 text-[11px] text-slate-400 font-mono flex items-center justify-between border-t border-indigo-500/20">
+                          <span>voice_code: <span className="text-amber-400 font-bold select-all">{currentVoiceObj.id}</span></span>
+                          <button
+                            type="button"
+                            onClick={() => setIsVoiceManagerOpen(true)}
+                            className="text-[11px] text-indigo-300 hover:text-white underline underline-offset-2 font-sans"
+                          >
+                            Quản lý tất cả
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-[11px] text-slate-400 leading-relaxed">
-                        {currentVoiceObj.description}
-                      </p>
-                      <div className="pt-1 text-[10px] text-slate-500 font-mono">
-                        voice_code: <span className="text-indigo-400">{currentVoiceObj.id}</span>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5 text-xs">
+                        <div className="flex justify-between font-bold text-slate-200">
+                          <span className="text-amber-400">{currentVoiceObj.name}</span>
+                          <span className="text-[11px] text-slate-400">{currentVoiceObj.cost}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          {currentVoiceObj.description}
+                        </p>
+                        <div className="pt-1 text-[10px] text-slate-500 font-mono flex items-center justify-between">
+                          <span>voice_code: <span className="text-indigo-400">{currentVoiceObj.id}</span></span>
+                          <button
+                            type="button"
+                            onClick={() => setIsVoiceManagerOpen(true)}
+                            className="text-[11px] text-indigo-400 hover:text-indigo-300 font-sans font-medium"
+                          >
+                            + Cài giọng mới
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )
                   )}
                 </div>
 
@@ -906,6 +1032,18 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
           )}
         </div>
       </div>
+
+      {/* Voice Manager Modal */}
+      <VoiceManagerModal
+        isOpen={isVoiceManagerOpen}
+        onClose={() => setIsVoiceManagerOpen(false)}
+        customVoices={customVoices}
+        onSaveVoice={handleSaveCustomVoice}
+        onDeleteVoice={handleDeleteCustomVoice}
+        onSelectVoice={(id) => setSelectedEverAiVoice(id)}
+        currentSelectedVoiceId={selectedEverAiVoice}
+        onShowToast={onShowToast}
+      />
     </div>
   );
 };

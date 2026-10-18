@@ -3,16 +3,19 @@ import { getApiBaseUrl, isStaticHost, getCustomBackendUrl } from './api';
 export const DEFAULT_EVERAI_API_KEY = 'JZoMqN64fgxOuVcxViFyLj6YinIsiVbc0';
 export const STORAGE_KEY_EVERAI_KEY = 'casttube_everai_api_key';
 export const STORAGE_KEY_EVERAI_HISTORY = 'casttube_everai_history_v1';
+export const STORAGE_KEY_CUSTOM_VOICES = 'casttube_custom_everai_voices_v1';
 
 export interface EverAiVoice {
   id: string;
   name: string;
-  gender: 'Nam' | 'Nữ' | 'Male' | 'Female';
+  gender: 'Nam' | 'Nữ' | 'Male' | 'Female' | string;
   region: string;
   language: string;
   description: string;
   cost: string;
   isSpecial?: boolean;
+  isCustom?: boolean;
+  createdAt?: string;
 }
 
 export const EVERAI_MODELS = [
@@ -559,3 +562,81 @@ export function saveEverAiHistoryItem(item: EverAiTtsHistoryItem): void {
     localStorage.setItem(STORAGE_KEY_EVERAI_HISTORY, JSON.stringify(updated));
   } catch {}
 }
+
+/**
+ * Lấy danh sách các giọng nói tùy chỉnh được lưu vĩnh viễn trong localStorage
+ */
+export function getCustomVoices(): EverAiVoice[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_VOICES);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Thêm mới hoặc cập nhật giọng nói tùy chỉnh và lưu vĩnh viễn vào localStorage
+ */
+export function saveCustomVoice(voice: Partial<EverAiVoice> & { id: string; name: string }): EverAiVoice[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const list = getCustomVoices();
+    const cleanId = voice.id.trim();
+    if (!cleanId) return list;
+
+    const existingIndex = list.findIndex((v) => v.id.toLowerCase() === cleanId.toLowerCase());
+    const voiceToSave: EverAiVoice = {
+      id: cleanId,
+      name: voice.name.trim() || cleanId,
+      gender: (voice.gender as any) || 'Nam',
+      region: voice.region?.trim() || 'Tùy chỉnh',
+      language: voice.language?.trim() || 'Việt Nam',
+      description:
+        voice.description?.trim() ||
+        `Giọng đọc AI tùy chỉnh EverAI (Mã: ${cleanId})`,
+      cost: voice.cost || '1000 credits',
+      isCustom: true,
+      createdAt: voice.createdAt || new Date().toISOString(),
+    };
+
+    let updated: EverAiVoice[];
+    if (existingIndex >= 0) {
+      updated = [...list];
+      updated[existingIndex] = voiceToSave;
+    } else {
+      updated = [voiceToSave, ...list];
+    }
+
+    localStorage.setItem(STORAGE_KEY_CUSTOM_VOICES, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return getCustomVoices();
+  }
+}
+
+/**
+ * Xóa vĩnh viễn giọng nói tùy chỉnh khỏi localStorage
+ */
+export function deleteCustomVoice(id: string): EverAiVoice[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const list = getCustomVoices();
+    const cleanId = id.trim().toLowerCase();
+    const updated = list.filter((v) => v.id.trim().toLowerCase() !== cleanId);
+    localStorage.setItem(STORAGE_KEY_CUSTOM_VOICES, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return getCustomVoices();
+  }
+}
+
+/**
+ * Lấy tất cả giọng đọc bao gồm giọng tùy chỉnh của người dùng (ưu tiên đầu danh sách) và giọng mặc định
+ */
+export function getAllEverAiVoices(): EverAiVoice[] {
+  const custom = getCustomVoices();
+  return [...custom, ...EVERAI_VOICES];
+}
+
