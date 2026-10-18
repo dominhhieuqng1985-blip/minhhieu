@@ -25,12 +25,6 @@ import {
   Globe,
   Loader2,
   ChevronRight,
-  Zap,
-  Check,
-  Timer,
-  ChevronDown,
-  ChevronUp,
-  FileText,
 } from 'lucide-react';
 import {
   getStoredVidKrakenKey,
@@ -52,14 +46,6 @@ import {
   getStoredVidKrakenProxy,
   setStoredVidKrakenProxy,
   testVidKrakenConnection,
-  buildMinhHieuDownloadFileName,
-  triggerMinhHieuDownload,
-  getStoredAutoDownload,
-  setStoredAutoDownload,
-  getStoredActiveJob,
-  setStoredActiveJob,
-  extractEpisodeTag,
-  StoredActiveJob,
 } from '../utils/vidkraken';
 import { isStaticHost } from '../utils/api';
 import {
@@ -110,21 +96,11 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
   const [endTimeInput, setEndTimeInput] = useState<string>('');
   const [languageInput, setLanguageInput] = useState<string>('');
 
-  // Auto-Download & Episode Title Customization (User Requirements: auto-download + minhhieu_tiêu_đề + tập)
-  const [isAutoDownload, setIsAutoDownload] = useState<boolean>(getStoredAutoDownload);
-  const [customEpisode, setCustomEpisode] = useState<string>('');
-  const [customTitleOverride, setCustomTitleOverride] = useState<string>('');
-  const [isAdvancedNamingOpen, setIsAdvancedNamingOpen] = useState<boolean>(false);
-  const [isPreviewPlayerOpen, setIsPreviewPlayerOpen] = useState<boolean>(false);
-
   // Active Download Job State (POST /download & GET /download/:jobId)
   const [activeJob, setActiveJob] = useState<VidKrakenDownloadJob | null>(null);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
-  const [resumableJob, setResumableJob] = useState<StoredActiveJob | null>(null);
   const pollingRef = useRef<any>(null);
-  const elapsedTimerRef = useRef<any>(null);
 
   // Download History
   const [history, setHistory] = useState<DownloadHistoryItem[]>([]);
@@ -141,19 +117,12 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
     latencyMs?: number;
   } | null>(null);
 
-  // Load initial account info, history, and check for resumable background jobs
+  // Load initial account info and history
   useEffect(() => {
     setHistory(getSavedDownloadHistory());
     fetchAccountDetails(apiKey);
-
-    const savedJob = getStoredActiveJob();
-    if (savedJob) {
-      setResumableJob(savedJob);
-    }
-
     return () => {
-      if (pollingRef.current) clearTimeout(pollingRef.current);
-      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+      if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, []);
 
@@ -253,13 +222,6 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
         thumbnail: currentEpisode.thumbnail,
       });
       setEndTimeInput(String(parseDurationToSeconds(currentEpisode.duration)));
-
-      // Auto-extract episode number if present in episode title
-      const detectedEp = extractEpisodeTag(currentEpisode.title);
-      if (detectedEp) {
-        setCustomEpisode(detectedEp.replace('tap_', '').replace('phan_', ''));
-      }
-
       onShowToast(`🎯 Đã chọn tập: "${currentEpisode.title}"`);
     } else {
       onShowToast('⚠️ Chưa có tập nào đang phát!');
@@ -333,15 +295,6 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
         if (d.duration) {
           setEndTimeInput(String(d.duration));
         }
-
-        // Auto extract episode tag
-        if (d.title) {
-          const detectedEp = extractEpisodeTag(d.title);
-          if (detectedEp) {
-            setCustomEpisode(detectedEp.replace('tap_', '').replace('phan_', ''));
-          }
-        }
-
         onShowToast('✅ Đã nhận diện thông tin video thành công!');
       } else {
         // Fallback: Use oEmbed or extracted info so user is never blocked
@@ -374,124 +327,6 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
     }
   };
 
-  // Adaptive polling engine: handles long-running 1080p conversions, network hiccups, and auto-download
-  const startPollingJob = (
-    pollJobId: string,
-    targetUrl: string,
-    targetTitle: string,
-    fmt: VidKrakenFormat
-  ) => {
-    setIsDownloading(true);
-    setDownloadError(null);
-    setElapsedSeconds(0);
-
-    if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
-    elapsedTimerRef.current = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
-    }, 1000);
-
-    if (pollingRef.current) clearTimeout(pollingRef.current);
-
-    // Save active job to localStorage so user can resume anytime if needed
-    setStoredActiveJob({
-      jobId: pollJobId,
-      youtubeUrl: targetUrl,
-      title: targetTitle,
-      format: fmt,
-      startedAt: Date.now(),
-    });
-    setResumableJob(null);
-
-    let pollCount = 0;
-    let consecutiveErrors = 0;
-
-    const pollStep = async () => {
-      pollCount++;
-      try {
-        const statusRes = await checkDownloadStatus(pollJobId, apiKey);
-        consecutiveErrors = 0;
-        setActiveJob(statusRes);
-
-        if (statusRes.status === 'COMPLETED') {
-          setIsDownloading(false);
-          if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
-          setStoredActiveJob(null);
-          setResumableJob(null);
-
-          // Refresh account quota in background
-          fetchAccountDetails(apiKey);
-
-          // Build clean Minh Hieu filename with episode tag
-          const rawTitle = customTitleOverride.trim() || statusRes.title || targetTitle || 'video';
-          const finalFilename = buildMinhHieuDownloadFileName(
-            rawTitle,
-            statusRes.actualFormat || statusRes.format || fmt,
-            customEpisode.trim() || undefined
-          );
-
-          // Add to download history
-          const historyItem: DownloadHistoryItem = {
-            id: 'hist-' + Date.now(),
-            jobId: statusRes.jobId,
-            title: rawTitle,
-            youtubeUrl: targetUrl,
-            downloadUrl: statusRes.downloadUrl || '',
-            format: (statusRes.actualFormat || statusRes.format || fmt) as VidKrakenFormat,
-            duration: statusRes.duration || videoInfo?.duration || 0,
-            fileSize: statusRes.fileSize,
-            completedAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-          };
-          saveDownloadHistoryItem(historyItem);
-          setHistory(getSavedDownloadHistory());
-
-          // AUTO-DOWNLOAD: Trigger immediate file saving without opening video player tab
-          if (isAutoDownload && statusRes.downloadUrl) {
-            triggerMinhHieuDownload(statusRes.downloadUrl, finalFilename);
-            onShowToast(`🎉 Đã xử lý xong! Đang tự động tải về "${finalFilename}"...`);
-          } else {
-            onShowToast(`🎉 Đã xử lý xong! File "${finalFilename}" đã sẵn sàng.`);
-          }
-          return;
-        }
-
-        if (statusRes.status === 'FAILED') {
-          setIsDownloading(false);
-          if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
-          setStoredActiveJob(null);
-          setResumableJob(null);
-          setDownloadError(statusRes.error || statusRes.message || 'Quá trình tải thất bại trên máy chủ VidKraken');
-          return;
-        }
-
-        // Allow up to 600 polls (~25 minutes) - avoids timeout for 1080p long duration videos
-        if (pollCount > 600) {
-          setIsDownloading(false);
-          if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
-          setDownloadError(`Thời gian xử lý vượt quá 25 phút. Bạn có thể kiểm tra lại sau với mã Job: ${pollJobId}`);
-          return;
-        }
-      } catch (pollErr: any) {
-        consecutiveErrors++;
-        console.warn(`Poll error (attempt ${consecutiveErrors}/10):`, pollErr);
-        // Tolerate up to 10 consecutive network glitches/timeouts for long jobs
-        if (consecutiveErrors >= 10) {
-          setIsDownloading(false);
-          if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
-          setDownloadError(
-            `Tạm thời gián đoạn kết nối với máy chủ. Bạn có thể bấm "Tiếp tục kiểm tra Job" để nhận file (Job ID: ${pollJobId})`
-          );
-          return;
-        }
-      }
-
-      // Adaptive delay: 2s for first 15s, 3s for first 90s, 4s for long 1080p remuxing
-      const nextDelay = pollCount < 8 ? 2000 : pollCount < 30 ? 3000 : 4000;
-      pollingRef.current = setTimeout(pollStep, nextDelay);
-    };
-
-    pollingRef.current = setTimeout(pollStep, 1500);
-  };
-
   // Submit Download Request (POST /download -> Polling GET /download/{jobId})
   const handleStartDownload = async () => {
     const targetUrl = (videoInfo?.url || inputUrl).trim();
@@ -502,7 +337,7 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
 
     setIsDownloading(true);
     setDownloadError(null);
-    if (pollingRef.current) clearTimeout(pollingRef.current);
+    if (pollingRef.current) clearInterval(pollingRef.current);
 
     try {
       const params: any = {
@@ -524,26 +359,61 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
       // Step 1: POST /download
       const initialJob = await submitDownload(params, apiKey);
       setActiveJob(initialJob);
-      const targetTitle = customTitleOverride.trim() || videoInfo?.title || 'YouTube Video';
-      onShowToast(`🚀 Đã gửi yêu cầu tải (${selectedFormat}). Bắt đầu xử lý...`);
+      onShowToast(`🚀 Đã gửi yêu cầu tải (${selectedFormat}). Đang xử lý...`);
 
-      // Step 2: Start adaptive polling engine
-      startPollingJob(initialJob.jobId, targetUrl, targetTitle, selectedFormat);
+      // Step 2: Poll GET /download/{jobId} every 1.5 seconds
+      const pollJobId = initialJob.jobId;
+      let pollCount = 0;
+
+      pollingRef.current = setInterval(async () => {
+        pollCount++;
+        try {
+          const statusRes = await checkDownloadStatus(pollJobId, apiKey);
+          setActiveJob(statusRes);
+
+          if (statusRes.status === 'COMPLETED') {
+            clearInterval(pollingRef.current);
+            setIsDownloading(false);
+            onShowToast('🎉 Tải hoàn tất! Liên kết tải đã sẵn sàng.');
+
+            // Refresh account quota in background
+            fetchAccountDetails(apiKey);
+
+            // Add to download history
+            const historyItem: DownloadHistoryItem = {
+              id: 'hist-' + Date.now(),
+              jobId: statusRes.jobId,
+              title: statusRes.title || videoInfo?.title || 'Video YouTube',
+              youtubeUrl: targetUrl,
+              downloadUrl: statusRes.downloadUrl || '',
+              format: (statusRes.actualFormat || statusRes.format || selectedFormat) as VidKrakenFormat,
+              duration: statusRes.duration || videoInfo?.duration || 0,
+              fileSize: statusRes.fileSize,
+              completedAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            };
+            saveDownloadHistoryItem(historyItem);
+            setHistory(getSavedDownloadHistory());
+          } else if (statusRes.status === 'FAILED') {
+            clearInterval(pollingRef.current);
+            setIsDownloading(false);
+            setDownloadError(statusRes.error || statusRes.message || 'Quá trình tải thất bại trên máy chủ VidKraken');
+          }
+
+          // Timeout protection: stop polling after 5 minutes (200 checks)
+          if (pollCount > 200) {
+            clearInterval(pollingRef.current);
+            setIsDownloading(false);
+            setDownloadError('Thời gian xử lý quá lâu. Bạn có thể kiểm tra lại sau với mã Job: ' + pollJobId);
+          }
+        } catch (pollErr: any) {
+          console.warn('Poll error:', pollErr);
+        }
+      }, 1500);
     } catch (err: any) {
       console.error('Download start error:', err);
       setIsDownloading(false);
       setDownloadError(err.message || 'Lỗi khi bắt đầu tải');
     }
-  };
-
-  // Resume a background or interrupted job
-  const handleResumeStoredJob = () => {
-    if (!resumableJob) return;
-    const targetUrl = resumableJob.youtubeUrl;
-    const targetTitle = resumableJob.title;
-    const fmt = (resumableJob.format || selectedFormat) as VidKrakenFormat;
-    onShowToast(`🔄 Đang tiếp tục theo dõi Job: ${resumableJob.jobId.slice(0, 10)}...`);
-    startPollingJob(resumableJob.jobId, targetUrl, targetTitle, fmt);
   };
 
   // Add downloaded track to CastTube playlist
@@ -1090,120 +960,6 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
               />
             </div>
 
-            {/* Episode & Title Naming (Minh Hieu standard prefix: minhhieu_tap_XX_tieu_de) */}
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-xs font-bold text-white">Định danh tập &amp; Tiêu đề lưu tệp</span>
-                </div>
-                <span className="text-[10px] text-amber-300 font-mono bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                  Tiền tố: minhhieu_
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <div className="sm:col-span-1">
-                  <label className="text-[11px] text-slate-400 block mb-1">
-                    Tập số / Ký hiệu:
-                  </label>
-                  <input
-                    type="text"
-                    value={customEpisode}
-                    onChange={(e) => setCustomEpisode(e.target.value)}
-                    placeholder="VD: 12, P.01..."
-                    className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white font-mono focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] text-slate-400 block mb-1">
-                    Tiêu đề hiển thị (tuỳ chỉnh):
-                  </label>
-                  <input
-                    type="text"
-                    value={customTitleOverride}
-                    onChange={(e) => setCustomTitleOverride(e.target.value)}
-                    placeholder={videoInfo?.title ? videoInfo.title.slice(0, 45) + '...' : 'Để trống sẽ lấy tự động từ video'}
-                    className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              {/* Live Filename Preview */}
-              <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2 text-xs">
-                <div className="min-w-0 flex-1">
-                  <span className="text-[10px] text-slate-400 block font-medium">Tên tệp lưu vào máy:</span>
-                  <span className="text-[11px] font-mono text-emerald-400 font-bold truncate block">
-                    📁 {buildMinhHieuDownloadFileName(
-                      customTitleOverride.trim() || videoInfo?.title || 'video',
-                      selectedFormat,
-                      customEpisode.trim() || undefined
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              {/* Auto-Download Checkbox Toggle */}
-              <label className="flex items-center gap-2 pt-1 text-xs text-slate-200 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={isAutoDownload}
-                  onChange={(e) => {
-                    setIsAutoDownload(e.target.checked);
-                    setStoredAutoDownload(e.target.checked);
-                    onShowToast(
-                      e.target.checked
-                        ? '⚡ Đã BẬT tự động tải về máy khi xử lý xong!'
-                        : '⏸️ Đã TẮT tự động tải về (bạn sẽ bấm nút tải thủ công).'
-                    );
-                  }}
-                  className="rounded bg-slate-900 border-slate-700 text-amber-500 focus:ring-0 w-4 h-4"
-                />
-                <div className="flex items-center gap-1.5 font-medium">
-                  <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                  <span>Tự động tải về máy ngay khi xử lý xong (Không mở tab phát video)</span>
-                </div>
-              </label>
-            </div>
-
-            {/* 1080p Full HD & High-Capacity Processing Stability Guide */}
-            {selectedFormat === '1080' ? (
-              <div className="p-3 rounded-xl bg-sky-950/20 border border-sky-500/30 text-xs space-y-1.5">
-                <div className="flex items-center gap-2 font-bold text-sky-300">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Tối ưu tải Video 1080p Full HD ổn định &amp; nhanh chóng:</span>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  • YouTube lưu riêng biệt luồng hình 1080p và tiếng 128k. Máy chủ VidKraken sẽ tải cả 2 luồng và dùng FFmpeg ghép nối mượt mà nhất.
-                </p>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  • Quá trình với video dài (trên 30 phút) có thể mất 2-4 phút. Hệ thống tự duy trì kết nối chống timeout, không làm gián đoạn và tự động lưu file về máy ngay khi sẵn sàng.
-                </p>
-                <div className="pt-1 flex items-center justify-between">
-                  <span className="text-[10px] text-amber-300 font-medium">Bạn đang cần tải cực nhanh trong 30 giây?</span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFormat('720')}
-                    className="px-2 py-0.5 rounded bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-[11px] font-semibold transition-colors"
-                  >
-                    Chuyển sang 720p HD (Nhanh gấp 3)
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>💡 Định dạng {selectedFormat.toUpperCase()} xử lý cực nhanh, tối ưu dung lượng và băng thông.</span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedFormat('1080')}
-                  className="text-amber-400 hover:underline font-semibold ml-2 shrink-0"
-                >
-                  Chọn 1080p FHD
-                </button>
-              </div>
-            )}
-
             {/* Start Download Button */}
             <div className="pt-2">
               <button
@@ -1214,7 +970,7 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                 {isDownloading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                    <span>Đang gửi yêu cầu và xử lý tải... ({formatDurationSeconds(elapsedSeconds)})</span>
+                    <span>Đang gửi yêu cầu và xử lý tải...</span>
                   </>
                 ) : (
                   <>
@@ -1318,38 +1074,6 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
 
         {/* Right Column: Live Status & Download Tracker (lg:col-span-5) */}
         <div className="lg:col-span-5 space-y-5">
-          {/* Resumable Background Job Banner (If an earlier 1080p job was ongoing) */}
-          {resumableJob && !isDownloading && (
-            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 space-y-2.5 shadow-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 font-bold text-amber-300">
-                  <Sparkles className="w-4 h-4" />
-                  <span>Phát hiện tiến trình tải dang dở:</span>
-                </div>
-                <button
-                  onClick={() => {
-                    setStoredActiveJob(null);
-                    setResumableJob(null);
-                    onShowToast('Đã bỏ qua tác vụ cũ');
-                  }}
-                  className="text-[10px] text-slate-400 hover:text-white underline"
-                >
-                  Bỏ qua
-                </button>
-              </div>
-              <p className="text-xs text-slate-300 line-clamp-1 font-medium">
-                {resumableJob.title} ({resumableJob.format})
-              </p>
-              <button
-                onClick={handleResumeStoredJob}
-                className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Tiếp tục theo dõi tiến trình &amp; Tự động tải về máy</span>
-              </button>
-            </div>
-          )}
-
           {/* Active Job Tracker */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
             <div className="flex items-center justify-between">
@@ -1395,33 +1119,18 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                   </div>
                 </div>
 
-                {/* Live Progress Bar with Stopwatch Timer */}
-                <div className="space-y-2">
+                {/* Live Progress Bar */}
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-300 font-medium flex items-center gap-1.5">
-                      {activeJob.status === 'IN_QUEUE' && '⏳ Đang chờ máy chủ xếp hàng...'}
-                      {activeJob.status === 'IN_PROGRESS' && (
-                        activeJob.progress?.stage?.includes('download')
-                          ? '⚡ Đang tải dữ liệu từ YouTube...'
-                          : activeJob.progress?.stage?.includes('convert') || activeJob.progress?.stage?.includes('mux')
-                          ? '🎞️ Đang ghép video & âm thanh (FFmpeg Muxing)...'
-                          : '⚡ Đang xử lý chuyển đổi video...'
-                      )}
-                      {activeJob.status === 'COMPLETED' && '✅ Xử lý hoàn tất!'}
+                      {activeJob.status === 'IN_QUEUE' && '⏳ Đang chờ máy chủ xử lý...'}
+                      {activeJob.status === 'IN_PROGRESS' && '⚡ Đang tải & chuyển mã...'}
+                      {activeJob.status === 'COMPLETED' && '✅ Tải xong!'}
                       {activeJob.status === 'FAILED' && '❌ Lỗi xử lý'}
                     </span>
-
-                    <div className="flex items-center gap-2">
-                      {isDownloading && (
-                        <span className="flex items-center gap-1 text-[11px] font-mono text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                          <Timer className="w-3 h-3 text-amber-400 animate-spin" />
-                          <span>{formatDurationSeconds(elapsedSeconds)}</span>
-                        </span>
-                      )}
-                      <span className="font-mono font-bold text-amber-400">
-                        {getProgressPercent(activeJob)}%
-                      </span>
-                    </div>
+                    <span className="font-mono font-bold text-amber-400">
+                      {getProgressPercent(activeJob)}%
+                    </span>
                   </div>
 
                   <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
@@ -1437,19 +1146,6 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                     />
                   </div>
 
-                  {/* High Capacity / 1080p Background Muxing Notice */}
-                  {isDownloading && selectedFormat === '1080' && elapsedSeconds > 25 && (
-                    <div className="p-2.5 rounded-lg bg-sky-950/40 border border-sky-500/30 text-[11px] text-sky-200 space-y-1">
-                      <div className="flex items-center gap-1.5 font-semibold text-sky-300">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-400" />
-                        <span>Đang ghép nối 1080p Full HD... ({formatDurationSeconds(elapsedSeconds)})</span>
-                      </div>
-                      <p className="text-[10px] text-slate-300 leading-normal">
-                        Video 1080p thời lượng cao cần 2-4 phút để ghép 2 luồng hình và tiếng sắc nét nhất. Kết nối được giữ tự động, bạn không cần bấm tải thủ công khi xong.
-                      </p>
-                    </div>
-                  )}
-
                   {activeJob.progress && (
                     <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
                       <span>Giai đoạn: {activeJob.progress.stage || 'downloading'}</span>
@@ -1463,125 +1159,63 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                   )}
                 </div>
 
-                {/* If COMPLETED: Direct Auto-Downloaded Action Cards */}
-                {activeJob.status === 'COMPLETED' && activeJob.downloadUrl && (() => {
-                  const completedFilename = buildMinhHieuDownloadFileName(
-                    customTitleOverride.trim() || activeJob.title || videoInfo?.title || 'video',
-                    activeJob.actualFormat || activeJob.format || selectedFormat,
-                    customEpisode.trim() || undefined
-                  );
-
-                  return (
-                    <div className="space-y-3 pt-2">
-                      <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                            File đã xử lý thành công 100%!
+                {/* If COMPLETED: Direct Action Buttons & Audio Player */}
+                {activeJob.status === 'COMPLETED' && activeJob.downloadUrl && (
+                  <div className="space-y-3 pt-2">
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4" />
+                          File sẵn sàng tải về
+                        </span>
+                        {activeJob.fileSize && (
+                          <span className="text-[11px] text-emerald-300 font-mono">
+                            {formatBytes(activeJob.fileSize)}
                           </span>
-                          {activeJob.fileSize && (
-                            <span className="text-[11px] text-emerald-300 font-mono font-bold bg-emerald-500/20 px-2 py-0.5 rounded">
-                              {formatBytes(activeJob.fileSize)}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Formatted File Name Banner */}
-                        <div className="p-2.5 rounded-lg bg-slate-950 border border-emerald-500/30 flex items-center justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <span className="text-[10px] text-slate-400 block font-semibold uppercase">
-                              Tên tệp đã định dạng:
-                            </span>
-                            <span className="text-xs font-mono text-emerald-300 font-bold truncate block select-all">
-                              📁 {completedFilename}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(completedFilename);
-                              onShowToast('📋 Đã sao chép tên tệp!');
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors shrink-0"
-                            title="Sao chép tên tệp"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        {isAutoDownload && (
-                          <div className="flex items-center gap-2 text-[11px] text-emerald-300 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20">
-                            <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
-                            <span>Trình duyệt đã kích hoạt tự động tải tệp về thư mục Downloads.</span>
-                          </div>
                         )}
                       </div>
 
-                      {/* Action Buttons: Instant Save & Links */}
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => triggerMinhHieuDownload(activeJob.downloadUrl!, completedFilename)}
-                          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
-                        >
-                          <Download className="w-4 h-4 stroke-[2.5]" />
-                          <span>Tải ngay về máy ({completedFilename})</span>
-                        </button>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => handleCopyLink(activeJob.downloadUrl!)}
-                            className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all active:scale-95"
-                          >
-                            <Copy className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Sao chép link tải</span>
-                          </button>
-
-                          <button
-                            onClick={() => setIsPreviewPlayerOpen(!isPreviewPlayerOpen)}
-                            className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all active:scale-95"
-                          >
-                            <Play className="w-3.5 h-3.5 text-sky-400" />
-                            <span>{isPreviewPlayerOpen ? 'Đóng nghe thử' : 'Nghe/Xem thử'}</span>
-                          </button>
-                        </div>
-
-                        {/* Optional Inline Preview Player - Only opened on explicit request */}
-                        {isPreviewPlayerOpen && (
-                          <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
-                            <div className="flex items-center justify-between text-[11px] text-slate-400">
-                              <span>Trình phát xem thử:</span>
-                              <span className="font-mono text-amber-300">{activeJob.format || selectedFormat}</span>
-                            </div>
-                            {String(activeJob.format || selectedFormat).includes('audio') ? (
-                              <audio
-                                controls
-                                src={activeJob.downloadUrl}
-                                className="w-full h-9 rounded-lg"
-                                preload="metadata"
-                              />
-                            ) : (
-                              <video
-                                controls
-                                src={activeJob.downloadUrl}
-                                className="w-full rounded-lg max-h-48 bg-black"
-                                preload="metadata"
-                              />
-                            )}
-                          </div>
-                        )}
-
-                        {onAddToQueue && (
-                          <button
-                            onClick={() => handleAddDownloadedToQueue(activeJob)}
-                            className="w-full py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all"
-                          >
-                            <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Thêm vào danh sách phát CastTube để nghe</span>
-                          </button>
-                        )}
-                      </div>
+                      {/* HTML5 Audio Preview if audio format */}
+                      <audio
+                        controls
+                        src={activeJob.downloadUrl}
+                        className="w-full h-9 rounded-lg mt-1"
+                        preload="metadata"
+                      />
                     </div>
-                  );
-                })()}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <a
+                        href={activeJob.downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow transition-all active:scale-95"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Tải tệp về máy</span>
+                      </a>
+
+                      <button
+                        onClick={() => handleCopyLink(activeJob.downloadUrl!)}
+                        className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-2 border border-slate-700 transition-all active:scale-95"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Sao chép link tải</span>
+                      </button>
+                    </div>
+
+                    {onAddToQueue && (
+                      <button
+                        onClick={() => handleAddDownloadedToQueue(activeJob)}
+                        className="w-full py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Thêm vào danh sách phát CastTube để nghe</span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-8 rounded-xl bg-slate-950/60 border border-dashed border-slate-800 text-center space-y-2">
@@ -1640,17 +1274,16 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60">
-                      <button
-                        onClick={() => {
-                          const historyFilename = buildMinhHieuDownloadFileName(item.title, item.format);
-                          triggerMinhHieuDownload(item.downloadUrl, historyFilename);
-                          onShowToast(`📥 Đang tải: ${historyFilename}`);
-                        }}
+                      <a
+                        href={item.downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
                         className="flex-1 py-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors"
                       >
                         <Download className="w-3 h-3 text-amber-400" />
-                        <span>Tải lại file</span>
-                      </button>
+                        <span>Tải lại</span>
+                      </a>
                       <button
                         onClick={() => handleCopyLink(item.downloadUrl)}
                         className="p-1 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white text-[11px] transition-colors"
