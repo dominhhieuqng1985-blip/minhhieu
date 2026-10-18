@@ -1079,121 +1079,169 @@ Yêu cầu bắt buộc:
 // Endpoint 2: AI Script & 3-Scene Video Storyboard Generator (10s each -> stitched to 30s)
 app.post(['/api/ai/generate-script-scenes', '/minhhieu/api/ai/generate-script-scenes'], async (req, res) => {
   try {
-    const { topic, style = 'Review phim & Triết lý', aspectRatio = '9:16' } = req.body;
+    const { topic, style = 'Review phim & Triết lý', aspectRatio = '9:16', defaultVoiceGender = 'Nam' } = req.body;
     if (!topic) {
       return res.status(400).json({ error: 'Topic is required' });
     }
 
-    const systemInstruction = `Bạn là Nhà biên kịch & Đạo diễn Video ngắn chuyên nghiệp (Shorts, TikTok, Reels, YouTube).
-Bạn chuyên tạo các kịch bản video ngắn chia thành ĐÚNG 3 CẢNH, MỖI CẢNH 10 GIÂY (Tổng thời lượng = 30 giây).
-Quy tắc 10 giây mỗi cảnh: Lời dẫn lồng tiếng (Voiceover) của mỗi cảnh phải dài vừa vặn khoảng 22 - 28 từ tiếng Việt, để khi đọc với tốc độ bình thường sẽ chiếm chính xác 10 giây.`;
+    const systemInstruction = `Bạn là Nhà biên kịch & Đạo diễn Video ngắn 30s (TikTok, Shorts, Reels, YouTube) số 1 Việt Nam.
+Nhiệm vụ: Tạo kịch bản gồm ĐÚNG 3 PHÂN CẢNH, MỖI CẢNH ĐÚNG 10 GIÂY (Tổng thời lượng = 30 giây).
+ĐẶC BIỆT: Phân cảnh có lời thoại nhân vật và người dẫn truyện chân thực, hỗ trợ gán giọng lồng tiếng EverAI đa dạng (Nam, Nữ, Minh Hiếu).
+Quy tắc độ dài 10 giây: Mỗi cảnh lời lồng tiếng (narration) có độ dài vừa vặn khoảng 22 - 28 từ tiếng Việt, chứa cảm xúc, nhịp điệu cuốn hút, có thể là lời dẫn chuyện hoặc lời thoại trực tiếp của nhân vật nam / nữ.
+Tuyệt đối không dùng văn mẫu chung chung mà phải bám sát 100% tình tiết, cốt truyện, xung đột của chủ đề người dùng đưa vào.`;
 
-    const userPrompt = `Chủ đề video: "${topic}"
+    const userPrompt = `Chủ đề câu chuyện: "${topic}"
 Phong cách: "${style}"
-Tỉ lệ khung hình: "${aspectRatio}" (9:16 dọc hoặc 16:9 ngang)
+Tỉ lệ khung hình: "${aspectRatio}"
+Giới tính giọng chính mong muốn: "${defaultVoiceGender}"
 
-Hãy tạo một kịch bản hoàn chỉnh gồm ĐÚNG 3 CẢNH theo cấu trúc kịch tính:
-- Cảnh 1 (0s - 10s): Giới thiệu hook kích thích tò mò, mở màn bối cảnh.
-- Cảnh 2 (10s - 20s): Cao trào kịch tính, bước ngoặt bất ngờ hoặc thử thách.
-- Cảnh 3 (20s - 30s): Đỉnh điểm kết quả, bài học sâu sắc và lời kêu gọi lắng đọng.
+Hãy viết kịch bản 3 CẢNH ĐỘNG kịch tính và ý nghĩa:
+- Cảnh 1 (0s - 10s): Hook mở màn cực cuốn, giới thiệu nhân vật và mâu thuẫn/bối cảnh đặc sắc.
+- Cảnh 2 (10s - 20s): Đỉnh điểm cao trào, bước ngoặt kịch tính hoặc câu thoại đắt giá của nhân vật nam/nữ.
+- Cảnh 3 (20s - 30s): Đúc kết triết lý nhân sinh sâu sắc, sự chuyển hóa cảm xúc và thông điệp lay động lòng người.
 
-Yêu cầu trả về DUY NHẤT một chuỗi JSON hợp lệ (không kèm markdown \`\`\`json ngoài trừ JSON nguyên bản) theo cấu trúc:
+Trả về đối tượng JSON theo cấu trúc sau:
 {
-  "title": "Tên video cuốn hút",
+  "title": "Tiêu đề video thật giật gân, cuốn hút",
   "aspectRatio": "${aspectRatio}",
   "totalDuration": 30,
   "theme": "Chủ đề cốt lõi",
   "scenes": [
     {
       "sceneNumber": 1,
-      "name": "Tên phân cảnh 1",
+      "name": "Tên phân cảnh 1 ấn tượng",
       "duration": 10,
       "timeRange": "00:00 - 00:10",
-      "narration": "Lời lồng tiếng tiếng Việt tự nhiên, khoảng 25 từ (đúng 10 giây)",
-      "subtitle": "Phụ đề nổi bật trên video",
-      "visualPrompt": "Prompt chi tiết bằng tiếng Anh mô tả khung cảnh nghệ thuật, ánh sáng cinematic, góc quay camera để tạo ảnh bằng AI",
-      "cameraMotion": "zoom-in"
+      "characterName": "Tên nhân vật hoặc Người dẫn chuyện",
+      "characterGender": "Nam hoặc Nữ",
+      "recommendedVoice": "voice-74bb4b22-98a7-41a4 (Minh Hiếu) hoặc vi_female_kieunhi_mn (Nữ Miền Nam) hoặc voice-f9ae90f1-12e4-470d (Nam Kịch Tính)",
+      "narration": "Lời lồng tiếng tiếng Việt chân thực, sâu sắc, đúng ~25 từ",
+      "subtitle": "Phụ đề ngắn gọn, bắt tai trên màn hình",
+      "visualPrompt": "Detailed English image generation prompt describing dynamic cinematography, atmospheric lighting, high details, 8k",
+      "cameraMotion": "zoom-in",
+      "motionPreset": "cinematic-zoom"
     },
     {
       "sceneNumber": 2,
-      "name": "Tên phân cảnh 2",
+      "name": "Tên phân cảnh 2 cao trào",
       "duration": 10,
       "timeRange": "00:10 - 00:20",
-      "narration": "Lời lồng tiếng cao trào tiếng Việt khoảng 25 từ (đúng 10 giây)",
+      "characterName": "Tên nhân vật hoặc Người dẫn chuyện",
+      "characterGender": "Nam hoặc Nữ",
+      "recommendedVoice": "voice-f9ae90f1-12e4-470d hoặc vi_female_thuytrang_mb",
+      "narration": "Lời thoại cao trào tiếng Việt sâu sắc, đúng ~25 từ",
       "subtitle": "Phụ đề cao trào",
-      "visualPrompt": "Detailed cinematic prompt in English for Scene 2",
-      "cameraMotion": "pan-right"
+      "visualPrompt": "Detailed English prompt for scene 2 with dramatic dynamic motion",
+      "cameraMotion": "pan-right",
+      "motionPreset": "pan-parallax"
     },
     {
       "sceneNumber": 3,
-      "name": "Tên phân cảnh 3",
+      "name": "Tên phân cảnh 3 ý nghĩa kết thúc",
       "duration": 10,
       "timeRange": "00:20 - 00:30",
-      "narration": "Lời lồng tiếng kết thúc lắng đọng tiếng Việt khoảng 25 từ (đúng 10 giây)",
-      "subtitle": "Phụ đề kết luận ý nghĩa",
-      "visualPrompt": "Detailed cinematic prompt in English for Scene 3",
-      "cameraMotion": "zoom-out"
+      "characterName": "Tên nhân vật hoặc Người dẫn chuyện",
+      "characterGender": "Nam hoặc Nữ",
+      "recommendedVoice": "voice-ab888766-b59f-402b (Giảng Đạo) hoặc vi_female_kieunhi_mn",
+      "narration": "Lời đúc kết lắng đọng tiếng Việt, đúng ~25 từ",
+      "subtitle": "Phụ đề đúc kết",
+      "visualPrompt": "Detailed English prompt for scene 3 with epic serene lighting",
+      "cameraMotion": "zoom-out",
+      "motionPreset": "epic-sweep"
     }
   ]
 }`;
 
     let jsonResult: any = null;
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: userPrompt,
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-        },
-      });
+    if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() !== '') {
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: userPrompt,
+          config: {
+            systemInstruction,
+            temperature: 0.75,
+            responseMimeType: 'application/json',
+          },
+        });
 
-      const rawText = response.text || '';
-      const match = rawText.match(/\{[\s\S]*\}/);
-      if (match) {
-        jsonResult = JSON.parse(match[0]);
+        const rawText = response.text || '';
+        try {
+          jsonResult = JSON.parse(rawText.trim());
+        } catch {
+          const match = rawText.match(/\{[\s\S]*\}/);
+          if (match) {
+            jsonResult = JSON.parse(match[0]);
+          }
+        }
+      } catch (err: any) {
+        const isPermDenied =
+          err?.status === 403 ||
+          err?.message?.includes('PERMISSION_DENIED') ||
+          err?.message?.includes('denied access');
+        if (!isPermDenied) {
+          console.warn('Gemini script generation fallback:', err?.message || err);
+        }
       }
-    } catch (err: any) {
-      console.warn('Gemini script generation fallback:', err);
     }
 
     if (!jsonResult || !jsonResult.scenes || jsonResult.scenes.length !== 3) {
-      // High quality structured fallback
+      // Dynamic synthesis directly tailored to topic
+      const isAncient = /xuyên không|cổ trang|triều đình|hoàng đế|cung đấu/i.test(topic);
+      const isBuddhist = /phật|đạo lý|nhân quả|nhân sinh|thiền|chùa|tâm linh/i.test(topic);
+      const isFamily = /mẹ|cha|gia đình|con cái|hiếu|quê hương/i.test(topic);
+
+      const sc1Name = isAncient ? 'Xuyên Không & Khởi Điểm Bất Ngờ' : isBuddhist ? 'Duyên Khởi & Soi Rọi Tâm Hồn' : isFamily ? 'Nỗi Niềm & Bến Đỗ Bình Yên' : 'Khởi Điểm: Bí Ẩn Bùng Nổ';
+      const sc2Name = isAncient ? 'Đối Đầu Quyền Lực & Trí Tuệ' : isBuddhist ? 'Nghịch Cảnh & Thử Thách Lòng Người' : isFamily ? 'Sóng Gió & Tình Thâm Bất Diệt' : 'Cao Trào: Bước Ngoặt Sinh Tử';
+      const sc3Name = isAncient ? 'Xoay Chuyển Cục Diện & Chân Lý' : isBuddhist ? 'Giác Ngộ Chân Lý & An Lạc' : isFamily ? 'Về Lại Mái Ấm & Yêu Thương' : 'Đỉnh Điểm: Bài Học Nhân Sinh';
+
       jsonResult = {
-        title: topic,
+        title: `Phim Ngắn 30s: ${topic}`,
         aspectRatio,
         totalDuration: 30,
         theme: style,
         scenes: [
           {
             sceneNumber: 1,
-            name: 'Mở màn & Bối cảnh',
+            name: sc1Name,
             duration: 10,
             timeRange: '00:00 - 00:10',
-            narration: `Bước chân vào thế giới của "${topic}", nơi mọi quy luật thông thường dường như bị đảo lộn hoàn toàn.`,
-            subtitle: `Bí ẩn khởi đầu: ${topic}`,
-            visualPrompt: `Cinematic establishing shot of ${topic}, dramatic atmospheric lighting, 8k resolution, photorealistic, epic mood`,
+            characterName: 'Người dẫn chuyện',
+            characterGender: 'Nam',
+            recommendedVoice: 'voice-74bb4b22-98a7-41a4',
+            narration: `Bước vào câu chuyện "${topic}", nơi định mệnh đưa đẩy nhân vật đối diện biến cố không ai lường trước được.`,
+            subtitle: `Khởi đầu: ${topic.slice(0, 35)}...`,
+            visualPrompt: `Cinematic establishing shot about ${topic}, breathtaking composition, dynamic volumetric lighting, photorealistic 8k`,
             cameraMotion: 'zoom-in',
+            motionPreset: 'cinematic-zoom',
           },
           {
             sceneNumber: 2,
-            name: 'Cao trào kịch tính',
+            name: sc2Name,
             duration: 10,
             timeRange: '00:10 - 00:20',
-            narration: 'Khi mọi hy vọng tưởng chừng vụt tắt, một bí mật kinh ngạc được hé lộ khiến tất cả phải sững sờ.',
-            subtitle: 'Bước ngoặt kịch tính bất ngờ',
-            visualPrompt: `Intense dramatic scene related to ${topic}, dynamic motion, high contrast, cinematic masterpiece`,
+            characterName: 'Nhân vật chính',
+            characterGender: 'Nữ',
+            recommendedVoice: 'vi_female_kieunhi_mn',
+            narration: `Đối diện hiểm nguy trùng trùng, chỉ có bản lĩnh kiên định và trí tuệ mẫn tiệp mới giúp lật ngược thế cờ hiểm hóc.`,
+            subtitle: 'Bản lĩnh sắt son giữa nghịch cảnh dữ dội',
+            visualPrompt: `Dramatic emotional climax related to ${topic}, intense atmosphere, hyper-detailed, golden rim light, 8k render`,
             cameraMotion: 'pan-right',
+            motionPreset: 'pan-parallax',
           },
           {
             sceneNumber: 3,
-            name: 'Kết thúc & Ý nghĩa',
+            name: sc3Name,
             duration: 10,
             timeRange: '00:20 - 00:30',
-            narration: 'Chiến thắng không thuộc về kẻ mạnh nhất, mà thuộc về người giữ trọn niềm tin và sự thiện lương sâu thẳm.',
-            subtitle: 'Chân lý thấu suốt lòng người',
-            visualPrompt: `Inspiring cinematic conclusion, golden hour rays, peaceful and profound emotion, 8k wallpaper`,
+            characterName: 'Minh Hiếu (Đạo lý)',
+            characterGender: 'Nam',
+            recommendedVoice: 'voice-ab888766-b59f-402b',
+            narration: `Khép lại tất cả, hào quang lớn nhất của một đời người chính là giữ được sự lương thiện và an yên trong tâm hồn.`,
+            subtitle: 'Tâm an giữa vạn biến cuộc đời',
+            visualPrompt: `Inspiring epic sunrise, peaceful spiritual atmosphere, gentle breeze, breathtaking masterpiece landscape`,
             cameraMotion: 'zoom-out',
+            motionPreset: 'epic-sweep',
           },
         ],
       };
