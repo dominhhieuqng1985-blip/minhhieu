@@ -199,6 +199,13 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
     }
   };
 
+  const handleImportCustomVoices = (imported: EverAiVoice[]) => {
+    setCustomVoices(imported);
+    if (imported.length > 0) {
+      setSelectedEverAiVoice(imported[0].id);
+    }
+  };
+
   // 1. Generate Voice via EverAI API
   const handleGenerateEverAiSpeech = async () => {
     if (!text.trim()) {
@@ -1148,6 +1155,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
         onSaveVoice={handleSaveCustomVoice}
         onDeleteVoice={handleDeleteCustomVoice}
         onSelectVoice={(id) => setSelectedEverAiVoice(id)}
+        onImportVoices={handleImportCustomVoices}
         currentSelectedVoiceId={selectedEverAiVoice}
         onShowToast={onShowToast}
       />

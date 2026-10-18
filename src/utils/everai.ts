@@ -28,6 +28,16 @@ export const EVERAI_MODELS = [
 export const EVERAI_VOICES: EverAiVoice[] = [
   // Special voices for Minh Hieu Review Phim / Thuyết pháp
   {
+    id: 'voice-74bb4b22-98a7-41a4',
+    name: 'Minh Hiếu - Đạo Lý & Review Phim',
+    gender: 'Nam',
+    region: 'Thuyết pháp & Đạo lý',
+    language: 'Việt Nam',
+    description: 'Giọng đọc truyền cảm, ấm áp, sâu sắc phù hợp đọc kinh kệ, đạo lý và lời bình phim',
+    cost: '1000 credits',
+    isSpecial: true,
+  },
+  {
     id: 'voice-ab888766-b59f-402b',
     name: 'Giảng Đạo Nhấn Nhá',
     gender: 'Nam',
@@ -665,5 +675,54 @@ export function deleteCustomVoice(id: string): EverAiVoice[] {
 export function getAllEverAiVoices(): EverAiVoice[] {
   const custom = getCustomVoices();
   return [...custom, ...EVERAI_VOICES];
+}
+
+/**
+ * Xuất danh sách giọng tùy chỉnh ra chuỗi JSON để sao chép hoặc chuyển sang thiết bị/domain khác
+ */
+export function exportCustomVoicesJson(): string {
+  const custom = getCustomVoices();
+  return JSON.stringify(custom, null, 2);
+}
+
+/**
+ * Nhập danh sách giọng tùy chỉnh từ JSON (hỗ trợ nhập đè hoặc hợp nhất)
+ */
+export function importCustomVoices(rawJson: string): EverAiVoice[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(rawJson);
+    const items: any[] = Array.isArray(parsed) ? parsed : [parsed];
+    const current = getCustomVoices();
+    const map = new Map<string, EverAiVoice>();
+
+    for (const v of current) {
+      if (v.id) map.set(v.id.trim().toLowerCase(), v);
+    }
+
+    for (const item of items) {
+      if (item && item.id && item.name) {
+        const cleanId = String(item.id).trim();
+        const v: EverAiVoice = {
+          id: cleanId,
+          name: String(item.name).trim() || cleanId,
+          gender: item.gender || 'Nam',
+          region: item.region || 'Tùy chỉnh',
+          language: item.language || 'Việt Nam',
+          description: item.description || `Giọng đọc AI tùy chỉnh (Mã: ${cleanId})`,
+          cost: item.cost || '1000 credits',
+          isCustom: true,
+          createdAt: item.createdAt || new Date().toISOString(),
+        };
+        map.set(cleanId.toLowerCase(), v);
+      }
+    }
+
+    const updated = Array.from(map.values());
+    localStorage.setItem(STORAGE_KEY_CUSTOM_VOICES, JSON.stringify(updated));
+    return updated;
+  } catch (err: any) {
+    throw new Error(`Định dạng JSON không hợp lệ: ${err.message}`);
+  }
 }
 

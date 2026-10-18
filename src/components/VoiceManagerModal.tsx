@@ -17,8 +17,16 @@ import {
   FileText,
   Sliders,
   CheckCircle2,
+  Upload,
+  Download,
+  FileJson,
 } from 'lucide-react';
-import { EverAiVoice, EVERAI_VOICES } from '../utils/everai';
+import {
+  EverAiVoice,
+  EVERAI_VOICES,
+  importCustomVoices,
+  exportCustomVoicesJson,
+} from '../utils/everai';
 
 interface VoiceManagerModalProps {
   isOpen: boolean;
@@ -27,6 +35,7 @@ interface VoiceManagerModalProps {
   onSaveVoice: (voice: Partial<EverAiVoice> & { id: string; name: string }) => void;
   onDeleteVoice: (id: string) => void;
   onSelectVoice: (id: string) => void;
+  onImportVoices?: (voices: EverAiVoice[]) => void;
   currentSelectedVoiceId?: string;
   onShowToast: (msg: string) => void;
 }
@@ -49,6 +58,7 @@ export const VoiceManagerModal: React.FC<VoiceManagerModalProps> = ({
   onSaveVoice,
   onDeleteVoice,
   onSelectVoice,
+  onImportVoices,
   currentSelectedVoiceId,
   onShowToast,
 }) => {
@@ -62,6 +72,34 @@ export const VoiceManagerModal: React.FC<VoiceManagerModalProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showSystemVoicesRef, setShowSystemVoicesRef] = useState<boolean>(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showImportBox, setShowImportBox] = useState<boolean>(false);
+  const [importText, setImportText] = useState<string>('');
+
+  // Export all custom voices as formatted JSON
+  const handleExportJson = () => {
+    const json = exportCustomVoicesJson();
+    navigator.clipboard.writeText(json);
+    onShowToast(`📋 Đã sao chép ${customVoices.length} giọng đọc tùy chỉnh (JSON) vào bộ nhớ tạm!`);
+  };
+
+  // Import custom voices from pasted JSON
+  const handleExecuteImport = () => {
+    if (!importText.trim()) {
+      onShowToast('⚠️ Vui lòng dán chuỗi JSON danh sách giọng');
+      return;
+    }
+    try {
+      const updated = importCustomVoices(importText.trim());
+      if (onImportVoices) {
+        onImportVoices(updated);
+      }
+      setShowImportBox(false);
+      setImportText('');
+      onShowToast(`🎉 Đã nhập thành công ${updated.length} giọng đọc tùy chỉnh!`);
+    } catch (err: any) {
+      onShowToast(`❌ Lỗi nhập JSON: ${err.message}`);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -383,9 +421,26 @@ export const VoiceManagerModal: React.FC<VoiceManagerModalProps> = ({
             </div>
           </form>
 
+          {/* Domain Sync Notice: Explain AI Studio vs GitHub Pages */}
+          <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/30 text-xs text-amber-200/90 space-y-2">
+            <div className="flex items-center gap-2 font-bold text-amber-300">
+              <Info className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Tại sao giọng thêm trên AI Studio không tự hiện trên GitHub Pages?</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed">
+              Trình duyệt web bảo mật bằng cách <strong>cô lập LocalStorage riêng cho từng tên miền</strong> (ví dụ giữa <code className="text-amber-300 font-mono">aistudio.google.com</code> và <code className="text-amber-300 font-mono">github.io</code>). Dữ liệu bạn lưu ở AI Studio sẽ không tự động nhảy sang GitHub Pages.
+            </p>
+            <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-amber-500/20 text-slate-200">
+              <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Giọng <code className="text-emerald-300 font-mono">voice-74bb4b22-98a7-41a4 (Minh Hiếu)</code> đã được đưa thẳng vào mã nguồn hệ thống để luôn có trên GitHub Pages!</span>
+              </div>
+            </div>
+          </div>
+
           {/* Section 2: List of Saved Custom Voices */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-400" />
@@ -395,10 +450,73 @@ export const VoiceManagerModal: React.FC<VoiceManagerModalProps> = ({
                   {customVoices.length}
                 </span>
               </div>
-              <span className="text-[11px] text-slate-400">
-                Được lưu vĩnh viễn trên trình duyệt này
-              </span>
+              <div className="flex items-center gap-2 text-xs">
+                {customVoices.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleExportJson}
+                    className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center gap-1.5 transition-colors border border-slate-700"
+                    title="Sao chép toàn bộ danh sách giọng dưới dạng JSON để dán sang GitHub Pages"
+                  >
+                    <Download className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Sao chép JSON</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowImportBox(!showImportBox)}
+                  className="px-2.5 py-1 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 flex items-center gap-1.5 transition-colors border border-indigo-500/40"
+                  title="Nhập danh sách giọng từ chuỗi JSON"
+                >
+                  <Upload className="w-3.5 h-3.5 text-indigo-300" />
+                  <span>{showImportBox ? 'Đóng hộp nhập' : 'Nhập từ JSON'}</span>
+                </button>
+              </div>
             </div>
+
+            {/* Expandable Import Box */}
+            {showImportBox && (
+              <div className="p-4 rounded-2xl bg-slate-950 border border-indigo-500/40 space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-white flex items-center gap-1.5">
+                    <FileJson className="w-4 h-4 text-indigo-400" />
+                    Dán chuỗi JSON danh sách giọng (Export từ AI Studio hoặc file dự phòng):
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowImportBox(false)}
+                    className="text-slate-400 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder='[ { "id": "voice-xxxx", "name": "Tên giọng", "gender": "Nam", "region": "Miền Nam", "language": "Việt Nam" } ]'
+                  className="w-full h-24 p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-slate-200 focus:outline-none focus:border-indigo-500"
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImportText('');
+                      setShowImportBox(false);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs text-slate-300 hover:bg-slate-700"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExecuteImport}
+                    className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors"
+                  >
+                    Xác nhận nhập giọng
+                  </button>
+                </div>
+              </div>
+            )}
 
             {customVoices.length === 0 ? (
               <div className="p-8 rounded-2xl bg-slate-950/50 border border-dashed border-slate-800 text-center space-y-3">
