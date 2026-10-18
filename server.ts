@@ -49,12 +49,127 @@ app.use((req, _res, next) => {
   next();
 });
 
+// High-Speed Direct Media Stream Pipe for 1080p & High-Capacity Downloads
+// Pipes raw chunks from source CDN directly to browser with Content-Disposition: attachment
+// Ensures browser triggers native file saving with minhhieu_ prefix without opening player tab
+app.get(
+  [
+    '/api/vidkraken/stream',
+    '/api/vidkraken-stream',
+    '/minhhieu/api/vidkraken-stream',
+    '/api/download-stream',
+    '/minhhieu/api/download-stream',
+  ],
+  async (req, res) => {
+    try {
+      req.setTimeout(1800000); // 30 mins
+      res.setTimeout(1800000);
+      const fileUrl = (req.query.url as string) || '';
+      let filename = (req.query.filename as string) || 'minhhieu_video.mp4';
+
+      if (!fileUrl) {
+        return res.status(400).json({ error: 'Thiếu tham số url file cần tải' });
+      }
+
+      // Sanitize filename and ensure minhhieu_ prefix
+      filename = filename.replace(/[/\\?%*:|"<>]/g, '_');
+      if (!filename.startsWith('minhhieu_')) {
+        filename = `minhhieu_${filename}`;
+      }
+
+      // Forward Range header if requested (for resume & download accelerators like IDM / Chrome)
+      const fetchHeaders: Record<string, string> = {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      };
+      if (req.headers.range) {
+        fetchHeaders['Range'] = req.headers.range;
+      }
+
+      const controller = new AbortController();
+      // Only abort when client response is prematurely terminated before completion
+      res.on('close', () => {
+        if (!res.writableEnded && !res.writableFinished) {
+          controller.abort();
+        }
+      });
+
+      const remoteRes = await fetch(fileUrl, {
+        headers: fetchHeaders,
+        signal: controller.signal,
+      });
+
+      if (!remoteRes.ok && remoteRes.status !== 206) {
+        res.status(remoteRes.status);
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.send(
+          `Không thể tải tệp từ nguồn VidKraken (Mã HTTP ${remoteRes.status}): ${remoteRes.statusText}`
+        );
+      }
+
+      const contentType =
+        remoteRes.headers.get('content-type') ||
+        (filename.endsWith('.mp3')
+          ? 'audio/mpeg'
+          : filename.endsWith('.m4a')
+          ? 'audio/mp4'
+          : 'video/mp4');
+      const contentLength = remoteRes.headers.get('content-length');
+      const contentRange = remoteRes.headers.get('content-range');
+
+      res.status(remoteRes.status);
+      res.setHeader('Content-Type', contentType);
+      // Disable proxy buffering in Cloud Run & Nginx to stream raw data smoothly
+      res.setHeader('X-Accel-Buffering', 'no');
+      // Force native attachment download with custom UTF-8 safe filename
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+      );
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+
+      if (contentLength) {
+        res.setHeader('Content-Length', contentLength);
+      }
+      if (contentRange) {
+        res.setHeader('Content-Range', contentRange);
+      }
+
+      if (remoteRes.body) {
+        const { Readable } = await import('stream');
+        const { pipeline } = await import('stream/promises');
+        try {
+          await pipeline(Readable.fromWeb(remoteRes.body as any), res);
+        } catch (pipeErr: any) {
+          if (pipeErr.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+            console.error('VidKraken stream pipe error:', pipeErr.message);
+          }
+        }
+      } else {
+        res.end();
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return; // Client disconnected / cancelled
+      }
+      console.error('VidKraken stream proxy error:', err);
+      if (!res.headersSent) {
+        res.status(500).setHeader('Content-Type', 'text/plain; charset=utf-8').send('Lỗi truyền dữ liệu tải: ' + err.message);
+      }
+    }
+  }
+);
+
 // VidKraken API v2 Proxy Endpoint (Direct forwarding with default user API key)
 const VIDKRAKEN_DEFAULT_KEY =
   process.env.VIDKRAKEN_API_KEY || 'f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba';
 
 app.use(['/api/vidkraken', '/minhhieu/api/vidkraken'], async (req, res) => {
   try {
+    req.setTimeout(900000); // 15 mins
+    res.setTimeout(900000);
+
     let subPath = req.url;
     if (subPath.startsWith('/minhhieu/api/vidkraken')) {
       subPath = subPath.replace(/^\/minhhieu\/api\/vidkraken/, '');
