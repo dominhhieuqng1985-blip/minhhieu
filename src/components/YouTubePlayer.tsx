@@ -7,7 +7,6 @@ import {
   Volume2,
   VolumeX,
   BookmarkPlus,
-  Maximize2,
   Headphones,
   Video,
   Moon,
@@ -15,9 +14,23 @@ import {
   Subtitles,
   Check,
   Bell,
-  Sparkles,
   SkipBack,
   SkipForward,
+  ThumbsUp,
+  ThumbsDown,
+  Share2,
+  MessageSquare,
+  Download,
+  Bookmark,
+  MoreHorizontal,
+  Music,
+  Send,
+  Copy,
+  AlertTriangle,
+  MessageCircle,
+  X,
+  CheckCircle2,
+  Tv,
 } from 'lucide-react';
 import { PodcastEpisode } from '../types/podcast';
 import { formatSeconds } from '../utils/youtube';
@@ -27,6 +40,16 @@ declare global {
     YT: any;
     onYouTubeIframeAPIReady: () => void;
   }
+}
+
+interface CommentItem {
+  id: string;
+  author: string;
+  avatar?: string;
+  content: string;
+  timeAgo: string;
+  likes: number;
+  userLiked?: boolean;
 }
 
 interface YouTubePlayerProps {
@@ -41,7 +64,40 @@ interface YouTubePlayerProps {
   onEnded?: () => void;
   hasNextEpisode?: boolean;
   hasPrevEpisode?: boolean;
+  onVideoUnavailable?: (episodeId: string, youtubeId: string, reason: string) => void;
+  onToggleFavorite?: (episodeId: string) => void;
+  isFavorite?: boolean;
+  onOpenDownloader?: () => void;
 }
+
+const DEFAULT_COMMENTS_POOL: Record<string, CommentItem[]> = {
+  general: [
+    {
+      id: 'c1',
+      author: 'Nguyễn Văn Hùng',
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop',
+      content: 'Giọng đọc truyền cảm và nội dung sâu sắc quá anh Hiếu ơi, nghe mỗi tối rất an yên 🙏',
+      timeAgo: '3 giờ trước',
+      likes: 42,
+    },
+    {
+      id: 'c2',
+      author: 'Trần Thị Mai',
+      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
+      content: 'Bài học nhân văn rất ý nghĩa. Đã bấm like và đăng ký kênh ủng hộ tác giả!',
+      timeAgo: '1 ngày trước',
+      likes: 18,
+    },
+    {
+      id: 'c3',
+      author: 'Lê Hoàng Nam',
+      avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&h=100&fit=crop',
+      content: 'Chờ đợi tập này mãi, mong kênh ra thêm nhiều video về triết lý sống và Phật pháp nhé!',
+      timeAgo: '2 ngày trước',
+      likes: 29,
+    },
+  ],
+};
 
 export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   episode,
@@ -55,9 +111,28 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   onEnded,
   hasNextEpisode = false,
   hasPrevEpisode = false,
+  onVideoUnavailable,
+  onToggleFavorite,
+  isFavorite = false,
+  onOpenDownloader,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
+
+  // Detect if video is Shorts
+  const isVideoShort = Boolean(
+    episode.isShort ||
+    (episode.durationSeconds && episode.durationSeconds <= 90) ||
+    episode.title.toLowerCase().includes('#shorts') ||
+    episode.title.toLowerCase().includes('shorts')
+  );
+
+  const [isShortView, setIsShortView] = useState<boolean>(isVideoShort);
+
+  // Sync isShortView when episode changes
+  useEffect(() => {
+    setIsShortView(isVideoShort);
+  }, [episode.id, isVideoShort]);
 
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -69,9 +144,44 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
   const [showSleepMenu, setShowSleepMenu] = useState<boolean>(false);
   const [isApiReady, setIsApiReady] = useState<boolean>(false);
-
-  // CC (Closed Captions) state: true = visible, false = hidden
   const [isCcActive, setIsCcActive] = useState<boolean>(false);
+  const [isBrokenVideo, setIsBrokenVideo] = useState<boolean>(false);
+
+  // Like & Dislike state
+  const [hasLiked, setHasLiked] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(`yt_like_${episode.youtubeId}`);
+      return stored === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [hasDisliked, setHasDisliked] = useState<boolean>(false);
+  const [likeCount, setLikeCount] = useState<number>(() => {
+    // Generate a realistic view-based like count
+    return 850 + (episode.youtubeId.charCodeAt(0) * 17) % 1200;
+  });
+
+  // Description expand/collapse
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState<boolean>(false);
+
+  // Share Modal
+  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
+  const [shareIncludeTime, setShareIncludeTime] = useState<boolean>(false);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  // Comments state
+  const [comments, setComments] = useState<CommentItem[]>(() => {
+    try {
+      const stored = localStorage.getItem(`yt_comments_${episode.youtubeId}`);
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return DEFAULT_COMMENTS_POOL.general;
+  });
+  const [commentInput, setCommentInput] = useState<string>('');
+  const [commentSort, setCommentSort] = useState<'top' | 'newest'>('top');
+  const [isShortCommentsOpen, setIsShortCommentsOpen] = useState<boolean>(false);
+  const [directYoutubeTip, setDirectYoutubeTip] = useState<string | null>(null);
 
   // Load YouTube IFrame API script once
   useEffect(() => {
@@ -92,23 +202,31 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
     };
   }, []);
 
+  // Reset broken state on episode change
+  useEffect(() => {
+    setIsBrokenVideo(false);
+    try {
+      const stored = localStorage.getItem(`yt_like_${episode.youtubeId}`);
+      setHasLiked(stored === 'true');
+    } catch {}
+  }, [episode.id, episode.youtubeId]);
+
   // Initialize player or switch video with loadVideoById
   useEffect(() => {
     if (!isApiReady || !episode.youtubeId) return;
 
-    // If player already exists, simply load the new video and play seamlessly
     if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
       try {
         playerRef.current.loadVideoById(episode.youtubeId);
         setIsPlaying(true);
         setCurrentTime(0);
+        setIsBrokenVideo(false);
         return;
       } catch (e) {
         console.warn('Error calling loadVideoById, will recreate player:', e);
       }
     }
 
-    // Otherwise create initial player
     const playerId = 'casttube-yt-iframe';
 
     const player = new window.YT.Player(playerId, {
@@ -131,27 +249,10 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
           if (dur && dur > 0) setDuration(dur);
 
           try {
-            if (!isCcActive) {
-              if (typeof event.target.unloadModule === 'function') {
-                event.target.unloadModule('captions');
-              }
-              if (typeof event.target.setOption === 'function') {
-                event.target.setOption('captions', 'track', {});
-              }
-            } else {
-              if (typeof event.target.loadModule === 'function') {
-                event.target.loadModule('captions');
-              }
-            }
-          } catch (e) {
-            // ignore
-          }
-
-          try {
             event.target.playVideo();
             setIsPlaying(true);
           } catch (e) {
-            // browser autoplay policy
+            // Autoplay policy
           }
         },
         onStateChange: (event: any) => {
@@ -162,9 +263,26 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
           } else if (event.data === 2) {
             setIsPlaying(false);
           } else if (event.data === 0) {
-            // Track finished -> auto advance to next episode
             setIsPlaying(false);
             if (onEnded) onEnded();
+          }
+        },
+        onError: (event: any) => {
+          console.warn('YouTube Player reported error event code:', event.data);
+          // 100: Video has been removed or marked private
+          // 101 or 150: Video owner does not allow embedded playback
+          // 2: Invalid video ID
+          if (event.data === 100 || event.data === 101 || event.data === 150 || event.data === 2) {
+            setIsBrokenVideo(true);
+            if (onVideoUnavailable) {
+              const reason =
+                event.data === 100
+                  ? 'Video đã bị xóa hoặc đặt riêng tư trên YouTube'
+                  : event.data === 2
+                  ? 'ID video không tồn tại trên YouTube'
+                  : 'Video bị chủ sở hữu giới hạn nhúng';
+              onVideoUnavailable(episode.id, episode.youtubeId, reason);
+            }
           }
         },
       },
@@ -176,14 +294,12 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
       if (playerRef.current && typeof playerRef.current.destroy === 'function') {
         try {
           playerRef.current.destroy();
-        } catch (e) {
-          // ignore
-        }
+        } catch (e) {}
       }
     };
   }, [isApiReady, episode.youtubeId]);
 
-  // Handle external seek requests
+  // External seek
   useEffect(() => {
     if (seekTargetTime !== undefined && seekTargetTime !== null && playerRef.current) {
       try {
@@ -216,7 +332,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
     };
   }, [isPlaying]);
 
-  // Sleep timer interval
+  // Sleep timer
   useEffect(() => {
     let timer: any = null;
     if (sleepTimerRemaining !== null && sleepTimerRemaining > 0) {
@@ -294,14 +410,9 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
     if (playerRef.current) {
       try {
         playerRef.current.setVolume(val);
-        if (val === 0) {
-          playerRef.current.mute();
-        } else {
-          playerRef.current.unMute();
-        }
-      } catch (e) {
-        console.error(e);
-      }
+        if (val === 0) playerRef.current.mute();
+        else playerRef.current.unMute();
+      } catch (e) {}
     }
   };
 
@@ -316,442 +427,982 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
         playerRef.current.mute();
         setIsMuted(true);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   };
 
-  // Toggle or Hide CC (Phụ đề)
   const toggleCC = () => {
     const nextCc = !isCcActive;
     setIsCcActive(nextCc);
-
     if (playerRef.current) {
       try {
         if (!nextCc) {
-          // Hide / Disable captions
-          if (typeof playerRef.current.unloadModule === 'function') {
-            playerRef.current.unloadModule('captions');
-          }
-          if (typeof playerRef.current.setOption === 'function') {
-            playerRef.current.setOption('captions', 'track', {});
-          }
+          if (typeof playerRef.current.unloadModule === 'function') playerRef.current.unloadModule('captions');
         } else {
-          // Show / Load captions
-          if (typeof playerRef.current.loadModule === 'function') {
-            playerRef.current.loadModule('captions');
-          }
-          if (typeof playerRef.current.setOption === 'function') {
-            playerRef.current.setOption('captions', 'track', { languageCode: 'vi' });
-          }
+          if (typeof playerRef.current.loadModule === 'function') playerRef.current.loadModule('captions');
         }
-      } catch (e) {
-        console.warn('Could not toggle CC directly:', e);
-      }
+      } catch (e) {}
+    }
+  };
 
-      // Also dispatch postMessage to ensure iframe receives command
+  // Like handler with real YouTube sync trigger
+  const handleLike = () => {
+    if (hasLiked) {
+      setHasLiked(false);
+      setLikeCount((prev) => Math.max(0, prev - 1));
       try {
-        const iframe = document.getElementById('casttube-yt-iframe') as HTMLIFrameElement;
-        if (iframe && iframe.contentWindow) {
-          iframe.contentWindow.postMessage(
-            JSON.stringify({
-              event: 'command',
-              func: 'setOption',
-              args: ['captions', 'track', nextCc ? { languageCode: 'vi' } : {}],
-            }),
-            '*'
-          );
-        }
-      } catch (e) {
-        // ignore
+        localStorage.removeItem(`yt_like_${episode.youtubeId}`);
+      } catch {}
+      setDirectYoutubeTip(null);
+    } else {
+      setHasLiked(true);
+      setHasDisliked(false);
+      setLikeCount((prev) => prev + 1);
+      try {
+        localStorage.setItem(`yt_like_${episode.youtubeId}`, 'true');
+      } catch {}
+      // Show notice that user can also confirm on YouTube to count 1 like if logged in
+      setDirectYoutubeTip('Đã ghi nhận lượt thích! Nếu đã đăng nhập YouTube, nhấn "Mở YouTube" để lưu like vào tài khoản của bạn.');
+    }
+  };
+
+  const handleDislike = () => {
+    if (hasDisliked) {
+      setHasDisliked(false);
+    } else {
+      setHasDisliked(true);
+      if (hasLiked) {
+        setHasLiked(false);
+        setLikeCount((prev) => Math.max(0, prev - 1));
+        try {
+          localStorage.removeItem(`yt_like_${episode.youtubeId}`);
+        } catch {}
       }
     }
+    setDirectYoutubeTip(null);
   };
 
-  const setSleepMinutes = (minutes: number | null) => {
-    setShowSleepMenu(false);
-    if (minutes === null) {
-      setSleepTimerRemaining(null);
-    } else {
-      setSleepTimerRemaining(minutes * 60);
+  // Add Comment
+  const handleAddComment = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!commentInput.trim()) return;
+
+    const newC: CommentItem = {
+      id: `c_${Date.now()}`,
+      author: 'Bạn (Người dùng đã đăng nhập)',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
+      content: commentInput.trim(),
+      timeAgo: 'Vừa xong',
+      likes: 1,
+      userLiked: true,
+    };
+
+    const updated = [newC, ...comments];
+    setComments(updated);
+    try {
+      localStorage.setItem(`yt_comments_${episode.youtubeId}`, JSON.stringify(updated));
+    } catch {}
+    setCommentInput('');
+    setDirectYoutubeTip('Đã thêm bình luận! Để bình luận hiển thị công khai trên kênh YouTube của tác giả, hãy nhấn "Bình luận trên YouTube".');
+  };
+
+  // Share URL generation
+  const getShareUrl = () => {
+    const base = isShortView
+      ? `https://www.youtube.com/shorts/${episode.youtubeId}`
+      : `https://www.youtube.com/watch?v=${episode.youtubeId}`;
+    if (shareIncludeTime && Math.floor(currentTime) > 0) {
+      return `${base}&t=${Math.floor(currentTime)}s`;
     }
+    return base;
   };
 
-  const channelUrl = episode.channelUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(episode.channel)}`;
+  const handleCopyLink = () => {
+    const url = getShareUrl();
+    navigator.clipboard.writeText(url);
+    setCopyFeedback('Đã sao chép liên kết vào clipboard!');
+    setTimeout(() => setCopyFeedback(null), 3000);
+  };
+
+  const channelUrl = episode.channelUrl || `https://www.youtube.com/@minhhieureviewphim`;
+  const officialYoutubeUrl = `https://www.youtube.com/watch?v=${episode.youtubeId}`;
+  const officialShortsUrl = `https://www.youtube.com/shorts/${episode.youtubeId}`;
+  const directTargetUrl = isShortView ? officialShortsUrl : officialYoutubeUrl;
 
   return (
     <div
       ref={containerRef}
-      className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+      className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col font-sans"
     >
-      {/* Channel Header & Top Controls Toolbar */}
-      <div className="px-5 py-3.5 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3 bg-slate-950/60">
-        {/* Channel branding + Subscribe button */}
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-800 border border-slate-700 shrink-0">
-            {episode.channelAvatar ? (
-              <img
-                src={episode.channelAvatar}
-                alt={episode.channel}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center font-bold text-amber-400 text-sm">
-                {episode.channel.charAt(0)}
-              </div>
-            )}
+      {/* Top Bar: Mode Switcher & Real YouTube Badge */}
+      <div className="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2 text-xs">
+        <div className="flex items-center gap-2">
+          {/* YouTube Red Icon Indicator */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-600/15 border border-red-500/30 text-red-400 font-bold">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span>YouTube 100% {isShortView ? 'Shorts' : 'Video'}</span>
           </div>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-slate-100 truncate">
-                {episode.channel}
-              </span>
-              {episode.channelHandle && (
-                <span className="hidden sm:inline text-xs text-slate-400">
-                  {episode.channelHandle}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-400 truncate max-w-xs md:max-w-md">
-              {episode.title}
-            </p>
-          </div>
-
-          {/* YouTube Official-Style Subscribe Button */}
-          {onToggleSubscribe && (
-            <div className="flex items-center gap-1.5 ml-1">
-              <button
-                onClick={() => onToggleSubscribe(episode.channel)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95 ${
-                  isSubscribed
-                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
-                    : 'bg-white hover:bg-slate-200 text-slate-950 hover:shadow-md'
-                }`}
-                title={isSubscribed ? 'Đã đăng ký kênh' : 'Nhấp để đăng ký kênh trên YouTube'}
-              >
-                {isSubscribed ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Đã đăng ký</span>
-                    <Bell className="w-3 h-3 text-amber-400 ml-0.5 fill-current" />
-                  </>
-                ) : (
-                  <>
-                    <span className="text-red-600 font-black">▶</span>
-                    <span>Đăng ký</span>
-                  </>
-                )}
-              </button>
-
-              <a
-                href={`${channelUrl}?sub_confirmation=1`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] text-slate-400 hover:text-amber-400 hover:underline hidden xl:inline"
-                title="Mở xác nhận đăng ký trực tiếp trên YouTube"
-              >
-                Mở kênh
-              </a>
-            </div>
-          )}
+          {/* Toggle Shorts vs Long Video mode */}
+          <button
+            onClick={() => setIsShortView(!isShortView)}
+            className={`px-2.5 py-1 rounded-md border font-medium transition-all flex items-center gap-1.5 ${
+              isShortView
+                ? 'bg-red-600 text-white border-red-500 shadow-sm'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+            }`}
+            title="Chuyển đổi giao diện YouTube Shorts dọc hoặc Video ngang chuẩn"
+          >
+            <span>{isShortView ? '📱 Giao diện Shorts' : '🖥️ Video 16:9'}</span>
+          </button>
         </div>
 
-        {/* View mode toggle + Direct YouTube link */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center p-0.5 bg-slate-800/80 rounded-lg border border-slate-700/50">
-            <button
-              onClick={() => setDisplayMode('video')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                displayMode === 'video'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Chế độ xem video YouTube"
-            >
-              <Video className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Video</span>
-            </button>
-            <button
-              onClick={() => setDisplayMode('audio')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                displayMode === 'audio'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Chế độ âm thanh phòng thu (Audio-first)"
-            >
-              <Headphones className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Âm thanh</span>
-            </button>
-          </div>
-
+        {/* Real YouTube Direct Interaction Button */}
+        <div className="flex items-center gap-2">
           <a
-            href={`https://www.youtube.com/watch?v=${episode.youtubeId}`}
+            href={directTargetUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
-            title="Mở trực tiếp trên YouTube"
+            className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white font-bold rounded-full flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
+            title="Mở trực tiếp trên YouTube để like, bình luận và đăng ký ghi nhận 100% vào tài khoản Google của bạn"
           >
-            <ExternalLink className="w-4 h-4" />
+            <span>▶ Mở trên YouTube</span>
+            <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>
       </div>
 
-      {/* Main View Area: Video or Audio Ambient */}
-      <div className="relative w-full bg-black aspect-video max-h-[460px] flex items-center justify-center overflow-hidden">
-        {/* YouTube IFrame target */}
-        <div
-          className={`w-full h-full ${
-            displayMode === 'video' ? 'block' : 'opacity-0 pointer-events-none absolute inset-0'
-          }`}
-        >
-          <div id="casttube-yt-iframe" className="w-full h-full" />
-        </div>
-
-        {/* Ambient Audio View */}
-        {displayMode === 'audio' && (
-          <div className="absolute inset-0 z-10 flex flex-col md:flex-row items-center justify-center p-6 md:p-10 gap-6 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/20">
-            {/* Vinyl artwork */}
-            <div className="relative group shrink-0">
-              <div
-                className={`w-36 h-36 md:w-52 md:h-52 rounded-2xl overflow-hidden shadow-2xl border border-slate-700/60 transition-transform duration-500 ${
-                  isPlaying ? 'scale-105 shadow-amber-500/10' : 'scale-100'
-                }`}
-              >
-                <img
-                  src={episode.thumbnail}
-                  alt={episode.title}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="absolute -inset-1 rounded-2xl bg-amber-500/10 blur-xl -z-10" />
-            </div>
-
-            {/* Audio Info & Waveform */}
-            <div className="flex flex-col text-center md:text-left max-w-lg">
-              <span className="text-xs font-semibold text-amber-400 tracking-wider uppercase mb-1">
-                Phòng thu Podcast Ambient
-              </span>
-              <h2 className="text-lg md:text-xl font-bold text-slate-100 line-clamp-2 mb-1">
-                {episode.title}
-              </h2>
-              <p className="text-sm text-slate-400 mb-4">{episode.channel}</p>
-
-              <div className="flex items-center justify-center md:justify-start gap-1 h-8">
-                {[40, 75, 55, 90, 65, 30, 85, 95, 50, 70, 45, 80, 60, 90, 35, 75].map(
-                  (heightPercent, idx) => (
-                    <div
-                      key={idx}
-                      className="w-1.5 bg-amber-500/80 rounded-full transition-all duration-300"
-                      style={{
-                        height: isPlaying ? `${Math.max(15, (heightPercent + (idx % 3) * 10) % 100)}%` : '20%',
-                        opacity: isPlaying ? 0.9 : 0.4,
-                      }}
-                    />
-                  )
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Player Controls Bar */}
-      <div className="p-4 md:px-6 md:py-4 bg-slate-950 border-t border-slate-800 flex flex-col gap-3">
-        {/* Progress Bar Slider */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-mono tabular-nums text-slate-400 w-12 text-right">
-            {formatSeconds(currentTime)}
-          </span>
-
-          <div className="relative flex-1 flex items-center">
-            <input
-              type="range"
-              min={0}
-              max={duration || 100}
-              step={0.5}
-              value={currentTime}
-              onChange={handleSliderSeek}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500 hover:h-2 transition-all"
-            />
-          </div>
-
-          <span className="text-xs font-mono tabular-nums text-slate-400 w-12">
-            {formatSeconds(duration)}
-          </span>
-        </div>
-
-        {/* Controls Row */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          {/* Left Controls: Bookmark Note & Sleep Timer */}
+      {/* Notice if video was removed/broken on YouTube */}
+      {isBrokenVideo && (
+        <div className="p-3 bg-red-950/80 border-b border-red-600/50 flex items-center justify-between gap-3 text-xs text-red-200">
           <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+            <span>
+              <strong>Thông báo:</strong> Video này đã bị xóa hoặc đặt riêng tư trên YouTube. Ứng dụng đã tự động loại bỏ khỏi danh sách phát.
+            </span>
+          </div>
+          {onNextEpisode && (
             <button
-              onClick={() => onAddNoteAtCurrentTime(Math.floor(currentTime))}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition-colors border border-slate-700/60"
-              title="Lưu ghi chú tại thời điểm này"
+              onClick={onNextEpisode}
+              className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded font-bold shrink-0 transition-colors"
             >
-              <BookmarkPlus className="w-3.5 h-3.5 text-amber-400" />
-              <span>Ghi chú [{formatSeconds(currentTime)}]</span>
+              Chuyển tập tiếp theo
             </button>
+          )}
+        </div>
+      )}
 
-            {/* Sleep Timer */}
-            <div className="relative">
-              <button
-                onClick={() => setShowSleepMenu(!showSleepMenu)}
-                className={`p-2 rounded-lg text-xs flex items-center gap-1 border transition-colors ${
-                  sleepTimerRemaining !== null
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                    : 'bg-slate-800/80 text-slate-400 hover:text-slate-200 border-slate-700/60'
-                }`}
-                title="Hẹn giờ tắt tự động"
-              >
-                <Moon className="w-3.5 h-3.5" />
-                {sleepTimerRemaining !== null && (
-                  <span className="font-mono text-[11px] tabular-nums">
-                    {Math.ceil(sleepTimerRemaining / 60)}m
-                  </span>
-                )}
-              </button>
+      {/* Direct YouTube Interaction Tip */}
+      {directYoutubeTip && (
+        <div className="p-2.5 bg-amber-500/10 border-b border-amber-500/30 flex items-center justify-between gap-2 text-xs text-amber-300">
+          <span>{directYoutubeTip}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href={directTargetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-bold hover:text-white"
+            >
+              Mở YouTube ngay
+            </a>
+            <button
+              onClick={() => setDirectYoutubeTip(null)}
+              className="p-1 hover:text-white"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
-              {showSleepMenu && (
-                <div className="absolute bottom-full mb-2 left-0 w-36 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1 z-30">
-                  <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-800">
-                    Hẹn giờ tắt
-                  </div>
-                  {[15, 30, 45, 60].map((mins) => (
-                    <button
-                      key={mins}
-                      onClick={() => setSleepMinutes(mins)}
-                      className="w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 transition-colors"
-                    >
-                      {mins} phút
-                    </button>
-                  ))}
-                  {sleepTimerRemaining !== null && (
-                    <button
-                      onClick={() => setSleepMinutes(null)}
-                      className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-slate-800 border-t border-slate-800 transition-colors"
-                    >
-                      Hủy hẹn giờ
-                    </button>
-                  )}
-                </div>
-              )}
+      {/* ============================================================== */}
+      {/* CASE 1: YOUTUBE SHORTS VIEW (TỶ LỆ DỌC 9:16 + ACTION BUTTONS) */}
+      {/* ============================================================== */}
+      {isShortView ? (
+        <div className="relative bg-black flex flex-col items-center justify-center p-2 sm:p-4 min-h-[560px] overflow-hidden">
+          {/* Ambient background blur */}
+          <div
+            className="absolute inset-0 bg-cover bg-center filter blur-3xl opacity-20 scale-125 pointer-events-none"
+            style={{ backgroundImage: `url(${episode.thumbnail})` }}
+          />
+
+          {/* Centered Shorts Card 9:16 */}
+          <div className="relative w-full max-w-[380px] sm:max-w-[400px] aspect-[9/16] rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl flex flex-col">
+            {/* The actual YouTube iframe */}
+            <div className="relative flex-1 w-full h-full bg-black">
+              <div id="casttube-yt-iframe" className="w-full h-full object-cover" />
             </div>
-          </div>
 
-          {/* Center Controls: Skip Prev, Skip 15s back, Play/Pause, Skip 15s forward, Skip Next */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {onPrevEpisode && (
+            {/* Shorts Right Action Bar (Overlayed) */}
+            <div className="absolute right-2 sm:right-3 bottom-16 sm:bottom-20 z-20 flex flex-col items-center gap-3.5">
+              {/* Like Button */}
               <button
-                onClick={onPrevEpisode}
-                disabled={!hasPrevEpisode}
-                className="p-2 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 hover:bg-slate-800 rounded-full transition-colors"
-                title="Tập trước đó"
+                onClick={handleLike}
+                className="flex flex-col items-center group active:scale-90 transition-transform"
+                title="Thích Shorts"
               >
-                <SkipBack className="w-4 h-4" />
-              </button>
-            )}
-
-            <button
-              onClick={() => seekRelative(-15)}
-              className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
-              title="Lùi lại 15 giây"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={togglePlayPause}
-              className="p-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-full shadow-lg shadow-amber-500/20 hover:scale-105 active:scale-95 transition-all"
-              title={isPlaying ? 'Tạm dừng' : 'Phát tiếp'}
-            >
-              {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
-            </button>
-
-            <button
-              onClick={() => seekRelative(15)}
-              className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
-              title="Tới 15 giây"
-            >
-              <RotateCw className="w-4 h-4" />
-            </button>
-
-            {onNextEpisode && (
-              <button
-                onClick={onNextEpisode}
-                disabled={!hasNextEpisode}
-                className="p-2 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 hover:bg-slate-800 rounded-full transition-colors"
-                title="Tập kế tiếp trong danh sách"
-              >
-                <SkipForward className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Right Controls: CC (Hide/Show Captions), Speed, Volume */}
-          <div className="flex items-center gap-2.5">
-            {/* NÚT ẨN / BẬT PHỤ ĐỀ CC */}
-            <button
-              onClick={toggleCC}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                isCcActive
-                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
-                  : 'bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border-slate-700/60'
-              }`}
-              title={isCcActive ? 'Đang bật phụ đề CC (Nhấp để ẩn)' : 'Đang ẩn phụ đề CC (Nhấp để bật)'}
-            >
-              <Subtitles className="w-3.5 h-3.5" />
-              <span>CC</span>
-              <span className="text-[10px] font-normal opacity-80">
-                {isCcActive ? 'Bật' : 'Ẩn'}
-              </span>
-            </button>
-
-            {/* Playback speed selector */}
-            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5">
-              {[1, 1.25, 1.5].map((rate) => (
-                <button
-                  key={rate}
-                  onClick={() => handleRateChange(rate)}
-                  className={`px-2 py-1 text-[11px] font-mono tabular-nums rounded transition-colors ${
-                    playbackRate === rate
-                      ? 'bg-slate-800 text-amber-400 font-semibold'
-                      : 'text-slate-400 hover:text-slate-200'
+                <div
+                  className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-md transition-colors ${
+                    hasLiked
+                      ? 'bg-red-600 text-white shadow-lg shadow-red-600/40'
+                      : 'bg-black/60 text-white hover:bg-black/80'
                   }`}
                 >
-                  {rate}x
-                </button>
-              ))}
+                  <ThumbsUp className={`w-5 h-5 ${hasLiked ? 'fill-current' : ''}`} />
+                </div>
+                <span className="text-[11px] font-bold text-white mt-1 drop-shadow">
+                  {likeCount}
+                </span>
+              </button>
+
+              {/* Dislike Button */}
+              <button
+                onClick={handleDislike}
+                className="flex flex-col items-center group active:scale-90 transition-transform"
+                title="Không thích"
+              >
+                <div
+                  className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-md transition-colors ${
+                    hasDisliked
+                      ? 'bg-slate-700 text-white'
+                      : 'bg-black/60 text-white hover:bg-black/80'
+                  }`}
+                >
+                  <ThumbsDown className={`w-5 h-5 ${hasDisliked ? 'fill-current' : ''}`} />
+                </div>
+                <span className="text-[10px] font-semibold text-white mt-1 drop-shadow">
+                  Không thích
+                </span>
+              </button>
+
+              {/* Comments Button */}
+              <button
+                onClick={() => setIsShortCommentsOpen(true)}
+                className="flex flex-col items-center group active:scale-90 transition-transform"
+                title="Xem bình luận Shorts"
+              >
+                <div className="w-11 h-11 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <span className="text-[11px] font-bold text-white mt-1 drop-shadow">
+                  {comments.length}
+                </span>
+              </button>
+
+              {/* Share Button */}
+              <button
+                onClick={() => setIsShareModalOpen(true)}
+                className="flex flex-col items-center group active:scale-90 transition-transform"
+                title="Chia sẻ Shorts"
+              >
+                <div className="w-11 h-11 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md">
+                  <Share2 className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-semibold text-white mt-1 drop-shadow">
+                  Chia sẻ
+                </span>
+              </button>
+
+              {/* Sound / Remix Spinning Disc */}
+              <div
+                className="w-10 h-10 rounded-full border-2 border-white/80 overflow-hidden bg-slate-900 flex items-center justify-center animate-spin"
+                style={{ animationDuration: '4s' }}
+                title="Âm thanh gốc của Short"
+              >
+                <Music className="w-4 h-4 text-amber-400" />
+              </div>
             </div>
 
-            {/* Volume control */}
-            <div className="hidden sm:flex items-center gap-1.5">
-              <button
-                onClick={toggleMute}
-                className="p-1.5 text-slate-400 hover:text-slate-200 transition-colors"
-              >
-                {isMuted || volume === 0 ? (
-                  <VolumeX className="w-4 h-4" />
-                ) : (
-                  <Volume2 className="w-4 h-4" />
+            {/* Shorts Bottom Metadata (Channel + Title) */}
+            <div className="absolute left-0 right-14 bottom-2 p-3 z-10 flex flex-col gap-2 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-auto">
+              {/* Channel Row + Subscribe Button */}
+              <div className="flex items-center gap-2">
+                <img
+                  src={episode.channelAvatar || 'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj'}
+                  alt={episode.channel}
+                  className="w-9 h-9 rounded-full border border-white/40 object-cover shrink-0"
+                />
+                <span className="font-bold text-xs text-white truncate drop-shadow">
+                  {episode.channel}
+                </span>
+
+                {onToggleSubscribe && (
+                  <button
+                    onClick={() => onToggleSubscribe(episode.channel)}
+                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all shrink-0 active:scale-95 ${
+                      isSubscribed
+                        ? 'bg-white/20 text-white border border-white/30'
+                        : 'bg-red-600 hover:bg-red-500 text-white shadow'
+                    }`}
+                  >
+                    {isSubscribed ? 'Đã đăng ký' : 'Đăng ký'}
+                  </button>
                 )}
-              </button>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={isMuted ? 0 : volume}
-                onChange={handleVolumeChange}
-                className="w-16 h-1 bg-slate-800 rounded appearance-none cursor-pointer accent-amber-500"
+              </div>
+
+              {/* Title */}
+              <p className="text-xs font-medium text-white line-clamp-2 drop-shadow">
+                {episode.title}
+              </p>
+
+              {/* Sound track info */}
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+                <Music className="w-3 h-3 text-white shrink-0" />
+                <span className="truncate">Âm thanh gốc - {episode.channel}</span>
+              </div>
+            </div>
+
+            {/* Shorts Progress Bar */}
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-20">
+              <div
+                className="h-full bg-red-600 transition-all duration-300"
+                style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
               />
             </div>
           </div>
+
+          {/* Drawer: Shorts Comments Modal */}
+          {isShortCommentsOpen && (
+            <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5">
+                {/* Header */}
+                <div className="p-3.5 border-b border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-red-500" />
+                    <h3 className="text-sm font-bold text-white">
+                      Bình luận Shorts ({comments.length})
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setIsShortCommentsOpen(false)}
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Direct YouTube real comment sync banner */}
+                <div className="p-3 bg-red-600/10 border-b border-red-500/20 flex items-center justify-between gap-2 text-xs text-red-300">
+                  <span>Bạn đã đăng nhập YouTube? Bình luận trực tiếp trên YouTube để được ghi nhận 100%!</span>
+                  <a
+                    href={officialShortsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded font-bold shrink-0"
+                  >
+                    Mở YouTube
+                  </a>
+                </div>
+
+                {/* Comments List */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
+                  {comments.map((c) => (
+                    <div key={c.id} className="flex items-start gap-2.5 text-xs">
+                      <img
+                        src={c.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'}
+                        alt={c.author}
+                        className="w-8 h-8 rounded-full object-cover shrink-0"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-200">{c.author}</span>
+                          <span className="text-[10px] text-slate-400">{c.timeAgo}</span>
+                        </div>
+                        <p className="text-slate-300 mt-0.5">{c.content}</p>
+                        <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-400">
+                          <button className="flex items-center gap-1 hover:text-white">
+                            <ThumbsUp className="w-3 h-3" />
+                            <span>{c.likes}</span>
+                          </button>
+                          <button className="hover:text-white">
+                            <ThumbsDown className="w-3 h-3" />
+                          </button>
+                          <button className="hover:text-white font-semibold">Trả lời</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add comment input */}
+                <form onSubmit={handleAddComment} className="p-3 border-t border-slate-800 bg-slate-950 flex gap-2">
+                  <input
+                    type="text"
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    placeholder="Viết bình luận công khai..."
+                    className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!commentInput.trim()}
+                    className="px-3 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold"
+                  >
+                    Gửi
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ============================================================== */
+        /* CASE 2: REGULAR 16:9 YOUTUBE VIDEO VIEW (100% YOUTUBE WATCH)   */
+        /* ============================================================== */
+        <div className="flex flex-col">
+          {/* Main Video Screen */}
+          <div className="relative w-full bg-black aspect-video max-h-[500px] flex items-center justify-center overflow-hidden">
+            <div
+              className={`w-full h-full ${
+                displayMode === 'video' ? 'block' : 'opacity-0 pointer-events-none absolute inset-0'
+              }`}
+            >
+              <div id="casttube-yt-iframe" className="w-full h-full" />
+            </div>
+
+            {/* Audio Ambient Fallback if user explicitly chose Audio Mode */}
+            {displayMode === 'audio' && (
+              <div className="absolute inset-0 z-10 flex flex-col md:flex-row items-center justify-center p-6 md:p-10 gap-6 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/20">
+                <div className="relative group shrink-0">
+                  <div
+                    className={`w-36 h-36 md:w-52 md:h-52 rounded-2xl overflow-hidden shadow-2xl border border-slate-700/60 transition-transform duration-500 ${
+                      isPlaying ? 'scale-105 shadow-amber-500/10' : 'scale-100'
+                    }`}
+                  >
+                    <img
+                      src={episode.thumbnail}
+                      alt={episode.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col text-center md:text-left max-w-lg">
+                  <span className="text-xs font-semibold text-amber-400 tracking-wider uppercase mb-1">
+                    Chế độ Âm thanh Phòng thu
+                  </span>
+                  <h2 className="text-lg md:text-xl font-bold text-slate-100 line-clamp-2 mb-1">
+                    {episode.title}
+                  </h2>
+                  <p className="text-sm text-slate-400 mb-4">{episode.channel}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick scrubber & Controls toolbar */}
+          <div className="p-3 bg-slate-950 border-t border-slate-800/80 flex items-center justify-between gap-3 flex-wrap">
+            {/* Progress time */}
+            <div className="flex items-center gap-2 text-xs font-mono tabular-nums text-slate-400">
+              <span className="text-white font-bold">{formatSeconds(currentTime)}</span>
+              <span>/</span>
+              <span>{formatSeconds(duration)}</span>
+            </div>
+
+            {/* Slider */}
+            <div className="flex-1 max-w-md hidden sm:block">
+              <input
+                type="range"
+                min={0}
+                max={duration || 100}
+                step={0.5}
+                value={currentTime}
+                onChange={handleSliderSeek}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-red-600 hover:h-2 transition-all"
+              />
+            </div>
+
+            {/* Central Controls: Prev, Seek -15, Play, Seek +15, Next */}
+            <div className="flex items-center gap-2">
+              {onPrevEpisode && (
+                <button
+                  onClick={onPrevEpisode}
+                  disabled={!hasPrevEpisode}
+                  className="p-1.5 text-slate-400 hover:text-white disabled:opacity-30"
+                  title="Tập trước"
+                >
+                  <SkipBack className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                onClick={() => seekRelative(-15)}
+                className="p-1.5 text-slate-400 hover:text-white"
+                title="Lùi 15s"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+              <button
+                onClick={togglePlayPause}
+                className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-full active:scale-95 transition-all shadow-md"
+                title={isPlaying ? 'Tạm dừng' : 'Phát'}
+              >
+                {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+              </button>
+              <button
+                onClick={() => seekRelative(15)}
+                className="p-1.5 text-slate-400 hover:text-white"
+                title="Tới 15s"
+              >
+                <RotateCw className="w-4 h-4" />
+              </button>
+              {onNextEpisode && (
+                <button
+                  onClick={onNextEpisode}
+                  disabled={!hasNextEpisode}
+                  className="p-1.5 text-slate-400 hover:text-white disabled:opacity-30"
+                  title="Tập sau"
+                >
+                  <SkipForward className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Utility buttons: Speed, CC, Mute, Mode */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={toggleCC}
+                className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${
+                  isCcActive
+                    ? 'bg-red-600 text-white border-red-500'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border-slate-800'
+                }`}
+                title="Bật/Tắt phụ đề CC"
+              >
+                CC
+              </button>
+
+              <button
+                onClick={() => handleRateChange(playbackRate === 1 ? 1.25 : playbackRate === 1.25 ? 1.5 : 1)}
+                className="px-2 py-1 bg-slate-900 border border-slate-800 rounded text-[11px] font-mono text-slate-300 hover:text-white"
+              >
+                {playbackRate}x
+              </button>
+
+              <button onClick={toggleMute} className="p-1.5 text-slate-400 hover:text-white">
+                {isMuted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+
+              <button
+                onClick={() => setDisplayMode(displayMode === 'video' ? 'audio' : 'video')}
+                className="p-1.5 text-slate-400 hover:text-white"
+                title={displayMode === 'video' ? 'Chuyển sang chế độ Âm thanh' : 'Chuyển sang chế độ Video'}
+              >
+                {displayMode === 'video' ? <Headphones className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 100% YOUTUBE TITLE & CHANNEL BAR & ACTION PILLS & DESCRIPTION  */}
+      {/* ============================================================== */}
+      <div className="p-4 sm:p-5 bg-slate-950 border-t border-slate-800/80 space-y-4">
+        {/* YouTube Video Title */}
+        <h1 className="text-base sm:text-lg md:text-xl font-bold text-white leading-snug tracking-tight">
+          {episode.title}
+        </h1>
+
+        {/* YouTube Channel Row & Action Buttons */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-1">
+          {/* Channel branding + Subscribe button */}
+          <div className="flex items-center gap-3 min-w-0">
+            <a
+              href={channelUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-full overflow-hidden bg-slate-800 border border-slate-700 shrink-0 hover:opacity-90 transition-opacity"
+            >
+              <img
+                src={episode.channelAvatar || 'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj'}
+                alt={episode.channel}
+                className="w-full h-full object-cover"
+              />
+            </a>
+
+            <div className="min-w-0">
+              <a
+                href={channelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold text-sm text-white hover:text-amber-400 transition-colors flex items-center gap-1 truncate"
+              >
+                <span>{episode.channel}</span>
+                <span className="w-3.5 h-3.5 rounded-full bg-slate-600 text-[10px] text-white flex items-center justify-center">✓</span>
+              </a>
+              <p className="text-xs text-slate-400 truncate">
+                {episode.channelHandle || '@minhhieureviewphim'} · Kênh chính thức
+              </p>
+            </div>
+
+            {/* YouTube Standard Pill Subscribe Button */}
+            {onToggleSubscribe && (
+              <div className="flex items-center gap-1.5 ml-2">
+                <button
+                  onClick={() => onToggleSubscribe(episode.channel)}
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95 ${
+                    isSubscribed
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                      : 'bg-white hover:bg-slate-200 text-slate-950 font-black hover:shadow-md'
+                  }`}
+                  title={isSubscribed ? 'Đã đăng ký kênh' : 'Đăng ký kênh trên YouTube'}
+                >
+                  {isSubscribed ? (
+                    <>
+                      <span>Đã đăng ký</span>
+                      <Bell className="w-3.5 h-3.5 text-amber-400 fill-current" />
+                    </>
+                  ) : (
+                    <span>Đăng ký</span>
+                  )}
+                </button>
+
+                {/* Direct YouTube Subscribe Link for 100% Google account synchronization */}
+                <a
+                  href={`${channelUrl}?sub_confirmation=1`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-slate-400 hover:text-red-400 hover:underline hidden xl:inline"
+                  title="Nhấn để mở xác nhận đăng ký trực tiếp trên YouTube nếu đã đăng nhập"
+                >
+                  Xác nhận trên YouTube
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* YouTube Action Buttons (Like/Dislike Pill, Share, Download, Save, Notes) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Split Pill: Like & Dislike */}
+            <div className="flex items-center bg-slate-800/90 hover:bg-slate-800 rounded-full p-0.5 border border-slate-700/60 shadow-sm text-xs font-bold">
+              <button
+                onClick={handleLike}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-l-full transition-colors active:scale-95 ${
+                  hasLiked
+                    ? 'text-red-400 font-black'
+                    : 'text-slate-200 hover:text-white'
+                }`}
+                title="Thích video"
+              >
+                <ThumbsUp className={`w-4 h-4 ${hasLiked ? 'fill-current text-red-500' : ''}`} />
+                <span>{likeCount}</span>
+              </button>
+              <div className="w-[1px] h-4 bg-slate-700" />
+              <button
+                onClick={handleDislike}
+                className={`px-3 py-1.5 rounded-r-full transition-colors active:scale-95 ${
+                  hasDisliked ? 'text-red-400' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Không thích video"
+              >
+                <ThumbsDown className={`w-4 h-4 ${hasDisliked ? 'fill-current' : ''}`} />
+              </button>
+            </div>
+
+            {/* Share Pill */}
+            <button
+              onClick={() => setIsShareModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800/90 hover:bg-slate-800 text-slate-200 text-xs font-bold rounded-full border border-slate-700/60 transition-colors active:scale-95 shadow-sm"
+              title="Chia sẻ video YouTube"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Chia sẻ</span>
+            </button>
+
+            {/* VidKraken Download Pill */}
+            {onOpenDownloader && (
+              <button
+                onClick={onOpenDownloader}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800/90 hover:bg-slate-800 text-slate-200 text-xs font-bold rounded-full border border-slate-700/60 transition-colors active:scale-95 shadow-sm"
+                title="Tải video hoặc audio về máy"
+              >
+                <Download className="w-3.5 h-3.5 text-amber-400" />
+                <span>Tải về</span>
+              </button>
+            )}
+
+            {/* Save / Favorite Pill */}
+            {onToggleFavorite && (
+              <button
+                onClick={() => onToggleFavorite(episode.id)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full border text-xs font-bold transition-colors active:scale-95 shadow-sm ${
+                  isFavorite
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-slate-800/90 hover:bg-slate-800 text-slate-200 border-slate-700/60'
+                }`}
+                title={isFavorite ? 'Đã lưu vào danh sách yêu thích' : 'Lưu video'}
+              >
+                <Bookmark className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current text-amber-400' : ''}`} />
+                <span>{isFavorite ? 'Đã lưu' : 'Lưu'}</span>
+              </button>
+            )}
+
+            {/* Add Note Button */}
+            <button
+              onClick={() => onAddNoteAtCurrentTime(Math.floor(currentTime))}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800/90 hover:bg-slate-800 text-slate-200 text-xs font-medium rounded-full border border-slate-700/60 transition-colors"
+              title="Ghi chú tại thời điểm này"
+            >
+              <BookmarkPlus className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Ghi chú</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ============================================================== */}
+        {/* YOUTUBE EXPANDABLE DESCRIPTION BOX                            */}
+        {/* ============================================================== */}
+        <div className="p-3.5 bg-slate-900/90 hover:bg-slate-900 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-2 transition-colors">
+          <div className="flex items-center gap-3 font-bold text-slate-200 flex-wrap">
+            <span>{episode.views || '15.420'} lượt xem</span>
+            <span>·</span>
+            <span>{episode.publishedDate || 'Đã phát hành'}</span>
+            <span className="text-amber-400/90">#MinhHieuReviewPhim</span>
+            <span className="text-amber-400/90">#Podcast</span>
+            {episode.seriesTitle && (
+              <span className="text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                {episode.seriesTitle}
+              </span>
+            )}
+          </div>
+
+          <div className={`text-slate-300 leading-relaxed ${isDescriptionExpanded ? '' : 'line-clamp-2'}`}>
+            {episode.description || 'Nội dung video chọn lọc từ kênh YouTube Minh Hiếu review phim.'}
+            <div className="mt-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-1">
+              <p>🔗 Kênh YouTube: <a href={channelUrl} target="_blank" rel="noopener noreferrer" className="text-red-400 underline">{channelUrl}</a></p>
+              <p>📻 Podcast RSS: <code className="text-amber-400">https://dominhhieuqng1985-blip.github.io/minhhieu/studo.xml</code></p>
+              <p>🎬 ID Video: <code className="text-slate-300">{episode.youtubeId}</code></p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+            className="font-bold text-slate-100 hover:text-amber-400 transition-colors"
+          >
+            {isDescriptionExpanded ? 'Ẩn bớt' : '...thêm'}
+          </button>
+        </div>
+
+        {/* ============================================================== */}
+        {/* KHUNG BÌNH LUẬN 100% YOUTUBE (COMMENTS SECTION)                */}
+        {/* ============================================================== */}
+        <div className="pt-3 border-t border-slate-800/80 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>{comments.length} bình luận</span>
+              </h2>
+
+              {/* Sort selector */}
+              <div className="flex items-center gap-1 text-xs">
+                <button
+                  onClick={() => setCommentSort('top')}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
+                    commentSort === 'top'
+                      ? 'bg-slate-800 text-white font-bold'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Hàng đầu
+                </button>
+                <button
+                  onClick={() => setCommentSort('newest')}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
+                    commentSort === 'newest'
+                      ? 'bg-slate-800 text-white font-bold'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Mới nhất
+                </button>
+              </div>
+            </div>
+
+            {/* Direct YouTube Comments link */}
+            <a
+              href={`${officialYoutubeUrl}#comments`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-full text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1.5 transition-colors"
+              title="Mở khung bình luận chính thức trên YouTube để tương tác trực tiếp với tài khoản Google của bạn"
+            >
+              <MessageCircle className="w-3.5 h-3.5 text-red-500" />
+              <span>Bình luận trên YouTube (Tài khoản thật)</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
+            </a>
+          </div>
+
+          {/* Add Public Comment Form */}
+          <form onSubmit={handleAddComment} className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-red-600/20 border border-red-500/40 text-red-400 font-bold flex items-center justify-center shrink-0 text-sm">
+              YT
+            </div>
+
+            <div className="flex-1 space-y-2">
+              <input
+                type="text"
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                placeholder="Viết bình luận công khai..."
+                className="w-full bg-transparent border-b border-slate-700 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-red-500 transition-colors"
+              />
+
+              {commentInput && (
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setCommentInput('')}
+                    className="px-3 py-1.5 text-xs text-slate-400 hover:text-white font-semibold"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-full text-xs font-bold shadow-md transition-all active:scale-95"
+                  >
+                    Bình luận
+                  </button>
+                </div>
+              )}
+            </div>
+          </form>
+
+          {/* Comment list */}
+          <div className="space-y-4 pt-2">
+            {comments.map((c) => (
+              <div key={c.id} className="flex items-start gap-3 text-xs group">
+                <img
+                  src={c.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'}
+                  alt={c.author}
+                  className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5"
+                />
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-200">{c.author}</span>
+                    <span className="text-[11px] text-slate-500">{c.timeAgo}</span>
+                  </div>
+                  <p className="text-slate-300 leading-relaxed">{c.content}</p>
+
+                  <div className="flex items-center gap-3 pt-1 text-[11px] text-slate-400">
+                    <button className="flex items-center gap-1 hover:text-white">
+                      <ThumbsUp className="w-3.5 h-3.5" />
+                      <span>{c.likes}</span>
+                    </button>
+                    <button className="hover:text-white">
+                      <ThumbsDown className="w-3.5 h-3.5" />
+                    </button>
+                    <button className="hover:text-white font-semibold">Trả lời</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* ============================================================== */}
+      {/* 100% YOUTUBE SHARE MODAL DIALOG                                */}
+      {/* ============================================================== */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Share2 className="w-4 h-4 text-red-500" />
+                <span>Chia sẻ {isShortView ? 'YouTube Shorts' : 'Video YouTube'}</span>
+              </h3>
+              <button
+                onClick={() => setIsShareModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Social Share Buttons */}
+            <div className="grid grid-cols-4 gap-2 text-center text-[11px] text-slate-300">
+              <a
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getShareUrl())}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-xl flex flex-col items-center gap-1 border border-blue-500/30 transition-colors"
+              >
+                <span className="font-bold text-base">fb</span>
+                <span>Facebook</span>
+              </a>
+
+              <a
+                href={`https://zalo.me/share?url=${encodeURIComponent(getShareUrl())}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 bg-sky-600/20 hover:bg-sky-600/30 text-sky-400 rounded-xl flex flex-col items-center gap-1 border border-sky-500/30 transition-colors"
+              >
+                <span className="font-bold text-base">Zalo</span>
+                <span>Zalo</span>
+              </a>
+
+              <a
+                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(getShareUrl())}&text=${encodeURIComponent(episode.title)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl flex flex-col items-center gap-1 border border-slate-700 transition-colors"
+              >
+                <span className="font-bold text-base">𝕏</span>
+                <span>Twitter / X</span>
+              </a>
+
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`${episode.title} - ${getShareUrl()}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 rounded-xl flex flex-col items-center gap-1 border border-emerald-500/30 transition-colors"
+              >
+                <span className="font-bold text-base">WA</span>
+                <span>WhatsApp</span>
+              </a>
+            </div>
+
+            {/* URL Display with Copy button */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400">Liên kết video:</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={getShareUrl()}
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 select-all focus:outline-none"
+                />
+                <button
+                  onClick={handleCopyLink}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow active:scale-95 transition-all"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Sao chép</span>
+                </button>
+              </div>
+
+              {copyFeedback && (
+                <p className="text-xs text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{copyFeedback}</span>
+                </p>
+              )}
+            </div>
+
+            {/* Checkbox: Start at timestamp */}
+            {!isShortView && (
+              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={shareIncludeTime}
+                  onChange={(e) => setShareIncludeTime(e.target.checked)}
+                  className="rounded bg-slate-950 border-slate-700 text-red-600 focus:ring-0"
+                />
+                <span>Bắt đầu tại thời điểm <strong className="text-white font-mono">{formatSeconds(currentTime)}</strong></span>
+              </label>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

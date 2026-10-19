@@ -27,15 +27,28 @@ app.use((req, res, next) => {
   next();
 });
 
-// Endpoint: Podcast RSS Feed (studo.xml) for YouTube Studio & podcast players
+// Endpoint: Podcast RSS Feed (studo.xml, feed.xml, studio.xml, rss.xml) for YouTube Studio & podcast players
 app.get(['/studo.xml', '/minhhieu/studo.xml', '/studio.xml', '/minhhieu/studio.xml', '/feed.xml', '/minhhieu/feed.xml', '/rss.xml', '/minhhieu/rss.xml'], (req, res) => {
-  const studoPath = path.resolve(__dirname, 'public/studo.xml');
+  const reqUrl = req.path.toLowerCase();
+  let filename = 'studo.xml';
+  if (reqUrl.includes('feed.xml')) filename = 'feed.xml';
+  else if (reqUrl.includes('studio.xml')) filename = 'studio.xml';
+  else if (reqUrl.includes('rss.xml')) filename = 'rss.xml';
+
+  let filePath = path.resolve(__dirname, 'public', filename);
+  if (!fs.existsSync(filePath)) {
+    filePath = path.resolve(__dirname, 'public/studo.xml');
+  }
+  if (!fs.existsSync(filePath)) {
+    filePath = path.resolve(__dirname, 'public/feed.xml');
+  }
+
   res.setHeader('Content-Type', 'application/xml; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=300');
-  if (fs.existsSync(studoPath)) {
-    return res.sendFile(studoPath);
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
   }
-  return res.status(404).send('<!-- studo.xml not found -->');
+  return res.status(404).send('<!-- RSS XML not found -->');
 });
 
 // Support base prefix from Vite base: '/minhhieu/' and normalize duplicate /api/api

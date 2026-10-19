@@ -71,6 +71,7 @@ const STORAGE_KEY_FAVORITES = 'casttube_user_favorites';
 const STORAGE_KEY_NOTES = 'casttube_user_notes';
 const STORAGE_KEY_SUBS = 'casttube_user_subs';
 const STORAGE_KEY_CHANNEL = 'casttube_current_channel_v2';
+const STORAGE_KEY_DELETED_VIDEOS = 'casttube_deleted_video_ids_v1';
 
 export default function App() {
   // Channel Profile State
@@ -125,6 +126,24 @@ export default function App() {
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(true);
   const [newVideosAlert, setNewVideosAlert] = useState<string | null>(null);
   const [isGithubSyncModalOpen, setIsGithubSyncModalOpen] = useState<boolean>(false);
+  const [isScanningDeleted, setIsScanningDeleted] = useState<boolean>(false);
+
+  // Auto filter out any videos marked as deleted/removed on YouTube
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
+      if (stored) {
+        const deletedIds: string[] = JSON.parse(stored);
+        if (deletedIds.length > 0) {
+          const filterOut = (list: PodcastEpisode[]) =>
+            list.filter((v) => !deletedIds.includes(v.youtubeId) && !deletedIds.includes(v.id));
+          setChannelVideos(filterOut);
+          setChannelPodcasts(filterOut);
+          setActiveQueue(filterOut);
+        }
+      }
+    } catch {}
+  }, []);
 
   // Top URL input for instant channel/playlist loading
   const [urlInput, setUrlInput] = useState<string>('https://www.youtube.com/@minhhieureviewphim');
@@ -852,6 +871,79 @@ export default function App() {
     setSeekTargetTime(seconds);
   };
 
+  // Automatically delete videos that are no longer available on YouTube
+  const handleVideoUnavailable = (episodeId: string, youtubeId: string, reason: string) => {
+    // 1. Permanently blacklist this YouTube video ID in localStorage
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
+      const list: string[] = stored ? JSON.parse(stored) : [];
+      if (!list.includes(youtubeId)) {
+        list.push(youtubeId);
+        localStorage.setItem(STORAGE_KEY_DELETED_VIDEOS, JSON.stringify(list));
+      }
+    } catch {}
+
+    // 2. Remove from active lists
+    setChannelVideos((prev) => prev.filter((v) => v.id !== episodeId && v.youtubeId !== youtubeId));
+    setChannelPodcasts((prev) => prev.filter((p) => p.id !== episodeId && p.youtubeId !== youtubeId));
+    setActiveQueue((prev) => prev.filter((p) => p.id !== episodeId && p.youtubeId !== youtubeId));
+
+    showToast(`⚠️ Đã tự động loại bỏ video đã bị xóa trên YouTube! (${reason})`);
+
+    // 3. Play next available episode
+    setTimeout(() => {
+      handleNextEpisode();
+    }, 400);
+  };
+
+  // Scan and clean up deleted videos from the entire channel
+  const handleScanDeletedVideos = async () => {
+    setIsScanningDeleted(true);
+    showToast('🔍 Đang kiểm tra trạng thái video trên YouTube...');
+
+    const deletedFound: string[] = [];
+    // Check up to 25 items at a time
+    const batch = channelVideos.slice(0, 25);
+
+    for (const v of batch) {
+      try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 2000);
+        const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${v.youtubeId}`, {
+          signal: controller.signal,
+        });
+        clearTimeout(t);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.error || !json.title) {
+            deletedFound.push(v.youtubeId);
+          }
+        }
+      } catch {
+        // network / cors issue, do not treat as deleted
+      }
+    }
+
+    if (deletedFound.length > 0) {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
+        const list: string[] = stored ? JSON.parse(stored) : [];
+        const merged = Array.from(new Set([...list, ...deletedFound]));
+        localStorage.setItem(STORAGE_KEY_DELETED_VIDEOS, JSON.stringify(merged));
+      } catch {}
+
+      setChannelVideos((prev) => prev.filter((v) => !deletedFound.includes(v.youtubeId)));
+      setChannelPodcasts((prev) => prev.filter((p) => !deletedFound.includes(p.youtubeId)));
+      setActiveQueue((prev) => prev.filter((p) => !deletedFound.includes(p.youtubeId)));
+
+      showToast(`🗑️ Đã xóa ${deletedFound.length} video không còn tồn tại trên YouTube!`);
+    } else {
+      showToast('✅ Tất cả video trên kênh đều hoạt động bình thường trên YouTube!');
+    }
+
+    setIsScanningDeleted(false);
+  };
+
   // Filter episodes based on activeTab, videoFilter, selectedPodcastSeries, search, and favorites
   const filteredQueue = (() => {
     let list = activeQueue;
@@ -1028,6 +1120,21 @@ export default function App() {
               >
                 <Github className="w-3.5 h-3.5 text-amber-400" />
                 <span>Đồng bộ GitHub</span>
+              </button>
+
+              {/* Scan & Purge Deleted YouTube Videos Button */}
+              <button
+                onClick={handleScanDeletedVideos}
+                disabled={isScanningDeleted}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-red-950/40 hover:bg-red-900/50 border border-red-500/40 text-red-300 flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
+                title="Quét và tự động xóa các video đã bị gỡ hoặc đặt riêng tư trên YouTube"
+              >
+                {isScanningDeleted ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                )}
+                <span>{isScanningDeleted ? 'Đang quét...' : 'Xóa video đã gỡ trên YT'}</span>
               </button>
 
               {/* Autoplay Next Toggle */}
@@ -1230,6 +1337,10 @@ export default function App() {
                   onEnded={handleEpisodeEnded}
                   hasNextEpisode={hasNextEpisode}
                   hasPrevEpisode={hasPrevEpisode}
+                  onVideoUnavailable={handleVideoUnavailable}
+                  onToggleFavorite={handleToggleFavorite}
+                  isFavorite={favorites.includes(currentEpisode.id)}
+                  onOpenDownloader={() => setPlayerSidebarTab('download')}
                 />
               </div>
 
