@@ -54,6 +54,7 @@ import {
   testVidKrakenConnection,
   buildMinhHieuDownloadFileName,
   triggerMinhHieuDownload,
+  getMinhHieuDownloadStreamUrl,
   getStoredAutoDownload,
   setStoredAutoDownload,
   getStoredActiveJob,
@@ -1248,7 +1249,7 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
                       {/* Solution 1: GitHub Actions */}
                       <a
-                        href="https://github.com/dominhhieuqng1985-blip/minhhieu/actions/workflows/download-media.yml"
+                        href="https://github.com/dominhhieuqng1985-blip/minhhieu/actions/workflows/download.yml"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-3 rounded-lg bg-slate-900 border border-slate-700 hover:border-amber-400 text-left transition-colors flex flex-col justify-between group"
@@ -1518,13 +1519,20 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
 
                       {/* Action Buttons: Instant Save & Links */}
                       <div className="space-y-2">
-                        <button
-                          onClick={() => triggerMinhHieuDownload(activeJob.downloadUrl!, completedFilename)}
-                          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+                        <a
+                          href={getMinhHieuDownloadStreamUrl(activeJob.downloadUrl!, completedFilename)}
+                          download={completedFilename}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => {
+                            triggerMinhHieuDownload(activeJob.downloadUrl!, completedFilename);
+                            onShowToast(`📥 Đang kích hoạt tải "${completedFilename}" về máy...`);
+                          }}
+                          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer"
                         >
                           <Download className="w-4 h-4 stroke-[2.5]" />
                           <span>Tải ngay về máy ({completedFilename})</span>
-                        </button>
+                        </a>
 
                         <div className="grid grid-cols-2 gap-2">
                           <button
@@ -1640,17 +1648,21 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60">
-                      <button
+                      <a
+                        href={getMinhHieuDownloadStreamUrl(item.downloadUrl, buildMinhHieuDownloadFileName(item.title, item.format))}
+                        download={buildMinhHieuDownloadFileName(item.title, item.format)}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={() => {
                           const historyFilename = buildMinhHieuDownloadFileName(item.title, item.format);
                           triggerMinhHieuDownload(item.downloadUrl, historyFilename);
                           onShowToast(`📥 Đang tải: ${historyFilename}`);
                         }}
-                        className="flex-1 py-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors"
+                        className="flex-1 py-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
                       >
                         <Download className="w-3 h-3 text-amber-400" />
                         <span>Tải lại file</span>
-                      </button>
+                      </a>
                       <button
                         onClick={() => handleCopyLink(item.downloadUrl)}
                         className="p-1 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white text-[11px] transition-colors"
@@ -1859,12 +1871,12 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Repository của bạn đã được cài sẵn workflow <code className="text-slate-200">.github/workflows/download-media.yml</code>. Bạn chỉ cần nhấn nút bên dưới để mở trang workflow, chọn Run workflow là file sẽ được tải thẳng về kho lưu trữ:
+                Repository của bạn đã được cài sẵn workflow <code className="text-slate-200">.github/workflows/download.yml</code> (và <code className="text-slate-200">download-media.yml</code>). Bạn chỉ cần nhấn nút bên dưới để mở trang workflow, chọn <b>Run workflow</b> là file sẽ được tải thẳng về kho lưu trữ:
               </p>
 
               <div className="flex items-center gap-3">
                 <a
-                  href="https://github.com/dominhhieuqng1985-blip/minhhieu/actions/workflows/download-media.yml"
+                  href="https://github.com/dominhhieuqng1985-blip/minhhieu/actions/workflows/download.yml"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-colors"

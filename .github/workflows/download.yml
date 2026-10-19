@@ -1,0 +1,65 @@
+name: VidKraken Downloader (Tải Video & MP3)
+
+on:
+  workflow_dispatch:
+    inputs:
+      youtube_url:
+        description: 'Đường dẫn YouTube cần tải (URL hoặc Video ID)'
+        required: true
+        default: 'https://www.youtube.com/watch?v=wWLTeDAW8g0'
+      format:
+        description: 'Định dạng tải (audio-mp3 | 1080 | 720 | 480 | audio-aac)'
+        required: true
+        default: 'audio-mp3'
+        type: choice
+        options:
+          - 'audio-mp3'
+          - '720'
+          - '1080'
+          - '480'
+          - '360'
+          - 'audio-aac'
+          - 'audio'
+
+jobs:
+  download:
+    name: Tải Media qua VidKraken API v2
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Kiểm tra tài khoản & hạn mức VidKraken
+        run: |
+          API_KEY="${{ secrets.VIDKRAKEN_API_KEY }}"
+          if [ -z "$API_KEY" ]; then
+            API_KEY="276b76d3-a265-447d-8d32-1bcf2258290c"
+          fi
+          VIDKRAKEN_API_KEY="$API_KEY" node scripts/vidkraken-cli.cjs me
+
+      - name: Tiến hành tải Video / Audio
+        id: download_step
+        run: |
+          API_KEY="${{ secrets.VIDKRAKEN_API_KEY }}"
+          if [ -z "$API_KEY" ]; then
+            API_KEY="276b76d3-a265-447d-8d32-1bcf2258290c"
+          fi
+          mkdir -p downloads
+          cd downloads
+          VIDKRAKEN_API_KEY="$API_KEY" node ../scripts/vidkraken-cli.cjs download "${{ github.event.inputs.youtube_url }}" "${{ github.event.inputs.format }}"
+          echo "Danh sách tệp đã tải trong thư mục downloads:"
+          ls -la
+
+      - name: Lưu trữ File đã tải lên GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vidkraken-media-${{ github.run_id }}
+          path: downloads/
+          if-no-files-found: warn
+          retention-days: 7

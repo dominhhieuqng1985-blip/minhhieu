@@ -11,7 +11,7 @@
  *   node scripts/vidkraken-cli.cjs download "https://youtu.be/dQw4w9WgXcQ" 1080
  */
 
-const API_KEY = process.env.VIDKRAKEN_API_KEY || 'f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba';
+const API_KEY = process.env.VIDKRAKEN_API_KEY || '276b76d3-a265-447d-8d32-1bcf2258290c';
 const BASE_URL = 'https://vidkraken.com/api/v2';
 
 async function checkAccount() {
@@ -111,7 +111,7 @@ async function downloadVideo(url, format = 'audio') {
   console.log(`⏳ Job ID: ${job.jobId} (Trạng thái ban đầu: ${job.status})`);
 
   let attempts = 0;
-  while (attempts < 60) {
+  while (attempts < 180) {
     attempts++;
     await new Promise((r) => setTimeout(r, 2000));
     const getRes = await fetch(`${BASE_URL}/download/${job.jobId}`, {
@@ -163,9 +163,12 @@ async function downloadVideo(url, format = 'audio') {
         process.exit(1);
       }
       const p = statusData.progress ? `${statusData.progress.percent || 0}%` : statusData.status;
-      process.stdout.write(`\r⏳ Tiến trình: ${p} (Kiểm tra lần ${attempts})...`);
+      process.stdout.write(`\r⏳ Tiến trình: ${p} (Kiểm tra lần ${attempts}/180)...`);
     }
   }
+
+  console.error('\n❌ Quá thời gian chờ xử lý video (vượt quá 6 phút). Bạn hãy thử lại hoặc chọn định dạng 720p/MP3.');
+  process.exit(1);
 }
 
 // CLI Dispatcher

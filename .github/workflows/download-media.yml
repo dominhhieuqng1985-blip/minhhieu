@@ -13,13 +13,13 @@ on:
         default: 'audio-mp3'
         type: choice
         options:
-          - 720 
-          - 1080
-          - 480
-          - 360
-          - audio-mp3
-          - audio-aac
-          - audio
+          - 'audio-mp3'
+          - '720'
+          - '1080'
+          - '480'
+          - '360'
+          - 'audio-aac'
+          - 'audio'
 
 jobs:
   download:
@@ -36,23 +36,30 @@ jobs:
 
       - name: Kiểm tra tài khoản & hạn mức VidKraken
         run: |
-          node scripts/vidkraken-cli.cjs me
-        env:
-          VIDKRAKEN_API_KEY: ${{ secrets.VIDKRAKEN_API_KEY || '276b76d3-a265-447d-8d32-1bcf2258290c' }}
+          API_KEY="${{ secrets.VIDKRAKEN_API_KEY }}"
+          if [ -z "$API_KEY" ]; then
+            API_KEY="276b76d3-a265-447d-8d32-1bcf2258290c"
+          fi
+          VIDKRAKEN_API_KEY="$API_KEY" node scripts/vidkraken-cli.cjs me
 
       - name: Tiến hành tải Video / Audio
         id: download_step
         run: |
+          API_KEY="${{ secrets.VIDKRAKEN_API_KEY }}"
+          if [ -z "$API_KEY" ]; then
+            API_KEY="276b76d3-a265-447d-8d32-1bcf2258290c"
+          fi
           mkdir -p downloads
           cd downloads
-          node ../scripts/vidkraken-cli.cjs download "${{ github.event.inputs.youtube_url }}" "${{ github.event.inputs.format }}"
+          VIDKRAKEN_API_KEY="$API_KEY" node ../scripts/vidkraken-cli.cjs download "${{ github.event.inputs.youtube_url }}" "${{ github.event.inputs.format }}"
+          echo "Danh sách tệp đã tải trong thư mục downloads:"
           ls -la
-        env:
-          VIDKRAKEN_API_KEY: ${{ secrets.VIDKRAKEN_API_KEY || '276b76d3-a265-447d-8d32-1bcf2258290c' }}
 
       - name: Lưu trữ File đã tải lên GitHub Artifacts
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: vidkraken-${{ github.event.inputs.format }}-${{ github.run_id }}
+          name: vidkraken-media-${{ github.run_id }}
           path: downloads/
+          if-no-files-found: warn
           retention-days: 7

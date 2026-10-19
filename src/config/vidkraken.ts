@@ -1,9 +1,15 @@
 // Cấu hình VidKraken API v2
-// Lưu trữ API Key của người dùng: f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba
+// API Key hoạt động chính (có lượt tải khả dụng): 276b76d3-a265-447d-8d32-1bcf2258290c
+// API Key dự phòng: f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba
 
 export const DEFAULT_VIDKRAKEN_API_KEY =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_VIDKRAKEN_API_KEY) ||
-  'f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba';
+  '276b76d3-a265-447d-8d32-1bcf2258290c';
+
+export const BACKUP_VIDKRAKEN_API_KEYS = [
+  '276b76d3-a265-447d-8d32-1bcf2258290c',
+  'f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba',
+];
 
 export const VIDKRAKEN_BASE_URL = 'https://vidkraken.com/api/v2';
 

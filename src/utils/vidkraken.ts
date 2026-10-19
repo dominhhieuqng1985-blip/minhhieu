@@ -88,15 +88,17 @@ export interface DownloadHistoryItem {
 
 /**
  * Get the currently active VidKraken API Key
- * Defaults to the user provided key: f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba
+ * Defaults to the active key with available quota: 276b76d3-a265-447d-8d32-1bcf2258290c
  */
 export function getStoredVidKrakenKey(): string {
   if (typeof window === 'undefined') return DEFAULT_VIDKRAKEN_API_KEY;
   const saved = localStorage.getItem(STORAGE_KEY_VIDKRAKEN_KEY);
-  if (saved && saved.trim()) return saved.trim();
-  // Automatically seed the user's provided key so it's always ready
-  localStorage.setItem(STORAGE_KEY_VIDKRAKEN_KEY, DEFAULT_VIDKRAKEN_API_KEY);
-  return DEFAULT_VIDKRAKEN_API_KEY;
+  // Automatically migrate from depleted key f71cd7b5... to active key 276b76d3...
+  if (!saved || !saved.trim() || saved.trim() === 'f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba') {
+    localStorage.setItem(STORAGE_KEY_VIDKRAKEN_KEY, DEFAULT_VIDKRAKEN_API_KEY);
+    return DEFAULT_VIDKRAKEN_API_KEY;
+  }
+  return saved.trim();
 }
 
 /**
@@ -582,8 +584,26 @@ export function buildMinhHieuDownloadFileName(
 }
 
 /**
+ * Get direct stream URL or download URL
+ */
+export function getMinhHieuDownloadStreamUrl(downloadUrl: string, filename: string): string {
+  if (typeof window === 'undefined' || !downloadUrl) return '';
+
+  const base = import.meta.env.BASE_URL || '/';
+  const normalized = base.endsWith('/') ? base : `${base}/`;
+
+  if (!isStaticHost || getCustomBackendUrl()) {
+    const customBackend = getCustomBackendUrl();
+    const endpointBase = customBackend ? `${customBackend}/api/vidkraken-stream` : `${normalized}api/vidkraken-stream`;
+    return `${endpointBase}?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
+  }
+
+  return downloadUrl;
+}
+
+/**
  * Trigger file download directly using streaming pipe if backend available,
- * or direct link fallback
+ * blob fetch fallback, or direct link
  */
 export function triggerMinhHieuDownload(downloadUrl: string, filename: string): void {
   if (typeof window === 'undefined' || !downloadUrl) return;
@@ -591,10 +611,7 @@ export function triggerMinhHieuDownload(downloadUrl: string, filename: string): 
   const base = import.meta.env.BASE_URL || '/';
   const normalized = base.endsWith('/') ? base : `${base}/`;
 
-  // If backend exists, use the streaming attachment pipe which guarantees:
-  // 1. Browser shows native download dialog/bar directly
-  // 2. Browser never opens the in-tab media player
-  // 3. Exact filename minhhieu_... is respected
+  // 1. If backend exists, use the streaming attachment pipe:
   if (!isStaticHost || getCustomBackendUrl()) {
     const customBackend = getCustomBackendUrl();
     const endpointBase = customBackend ? `${customBackend}/api/vidkraken-stream` : `${normalized}api/vidkraken-stream`;
@@ -608,20 +625,41 @@ export function triggerMinhHieuDownload(downloadUrl: string, filename: string): 
     a.click();
     setTimeout(() => {
       if (document.body.contains(a)) document.body.removeChild(a);
-    }, 1500);
+    }, 2000);
     return;
   }
 
-  // Fallback for purely static host without backend
-  const a = document.createElement('a');
-  a.href = downloadUrl;
-  a.download = filename;
-  a.target = '_blank';
-  a.rel = 'noopener noreferrer';
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    if (document.body.contains(a)) document.body.removeChild(a);
-  }, 1500);
+  // 2. On static host: Try fetching as Blob first to enforce exact filename & prevent browser media tab
+  fetch(downloadUrl, { mode: 'cors' })
+    .then((res) => {
+      if (!res.ok) throw new Error('Fetch failed');
+      return res.blob();
+    })
+    .then((blob) => {
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+        if (document.body.contains(a)) document.body.removeChild(a);
+      }, 30000);
+    })
+    .catch(() => {
+      // 3. Fallback to direct navigation / anchor click
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = filename;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (document.body.contains(a)) document.body.removeChild(a);
+      }, 2000);
+    });
 }

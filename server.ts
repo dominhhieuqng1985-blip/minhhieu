@@ -149,7 +149,7 @@ app.get(
 
 // VidKraken API v2 Proxy Endpoint (Direct forwarding with default user API key)
 const VIDKRAKEN_DEFAULT_KEY =
-  process.env.VIDKRAKEN_API_KEY || 'f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba';
+  process.env.VIDKRAKEN_API_KEY || '276b76d3-a265-447d-8d32-1bcf2258290c';
 
 app.use(['/api/vidkraken', '/minhhieu/api/vidkraken'], async (req, res) => {
   try {
@@ -165,7 +165,11 @@ app.use(['/api/vidkraken', '/minhhieu/api/vidkraken'], async (req, res) => {
     if (!subPath.startsWith('/')) subPath = '/' + subPath;
 
     const targetUrl = `https://vidkraken.com/api/v2${subPath}`;
-    const authHeader = req.headers.authorization || `Bearer ${VIDKRAKEN_DEFAULT_KEY}`;
+    let authHeader = req.headers.authorization || `Bearer ${VIDKRAKEN_DEFAULT_KEY}`;
+    // If incoming auth header contains depleted key, upgrade to working key
+    if (authHeader.includes('f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba')) {
+      authHeader = `Bearer 276b76d3-a265-447d-8d32-1bcf2258290c`;
+    }
 
     const headers: Record<string, string> = {
       Authorization: authHeader,
