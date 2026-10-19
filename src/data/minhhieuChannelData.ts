@@ -300,7 +300,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Tập 1 : căn nhà bị khóa - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "9 lượt xem",
+    "views": "10 lượt xem",
     "id": "mh-v16"
   },
   {
