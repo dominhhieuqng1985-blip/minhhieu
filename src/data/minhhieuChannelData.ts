@@ -210,7 +210,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Đức phật quay lại hoàng cung khai thị cho cha trước khi cha qua đời - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "11 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v10"
   },
   {
@@ -275,14 +275,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "WjgrpSYEiJU",
-    "title": "Xuyên Không Về C��� Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần",
+    "title": "Xuyên Không Về Cổ Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "1:37:19",
     "durationSeconds": 5839,
     "thumbnail": "https://i.ytimg.com/vi/WjgrpSYEiJU/hqdefault.jpg",
-    "description": "Xuyên Không Về C��� Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần - Kênh Minh Hiếu review phim.",
+    "description": "Xuyên Không Về Cổ Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "3 lượt xem",
