@@ -114,10 +114,14 @@ app.get(
 
       res.status(remoteRes.status);
       res.setHeader('Content-Type', contentType);
-      // Force native attachment download with custom UTF-8 safe filename
+      // Clean ASCII filename fallback + RFC 5987 / RFC 6266 UTF-8 filename
+      const asciiFilename = (filename || 'minhhieu_media.mp4')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9._-]/g, '_');
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+        `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(filename || asciiFilename)}`
       );
       res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Cache-Control', 'public, max-age=3600');

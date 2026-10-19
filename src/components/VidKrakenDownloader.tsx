@@ -31,6 +31,7 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   getStoredVidKrakenKey,
@@ -55,6 +56,8 @@ import {
   buildMinhHieuDownloadFileName,
   triggerMinhHieuDownload,
   getMinhHieuDownloadStreamUrl,
+  ensureHttpsUrl,
+  isRunningInIframe,
   getStoredAutoDownload,
   setStoredAutoDownload,
   getStoredActiveJob,
@@ -62,7 +65,7 @@ import {
   extractEpisodeTag,
   StoredActiveJob,
 } from '../utils/vidkraken';
-import { isStaticHost } from '../utils/api';
+import { isStaticHost, getCustomBackendUrl } from '../utils/api';
 import {
   DEFAULT_VIDKRAKEN_API_KEY,
   VIDKRAKEN_FORMATS,
@@ -141,6 +144,30 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
     message: string;
     latencyMs?: number;
   } | null>(null);
+
+  // File saving state & iframe detection
+  const [isSavingFile, setIsSavingFile] = useState<boolean>(false);
+  const inIframe = isRunningInIframe();
+
+  const handleExecuteDownload = async (url: string, filename: string) => {
+    if (isSavingFile || !url) return;
+    setIsSavingFile(true);
+    const safeUrl = ensureHttpsUrl(url);
+    onShowToast(`📥 Đang nạp tệp "${filename}" và lưu về máy...`);
+    try {
+      const res = await triggerMinhHieuDownload(safeUrl, filename);
+      if (res.success) {
+        onShowToast(`🎉 Đang tải tệp "${filename}" về máy tính!`);
+      } else {
+        onShowToast(`⚠️ Trình duyệt chặn tải ngầm. Bạn hãy bấm "Mở trong tab mới & Lưu" để tải trực tiếp.`);
+      }
+    } catch (err: any) {
+      console.warn('Download error:', err);
+      onShowToast(`⚠️ Trình duyệt chặn tải ngầm. Bạn có thể mở tab mới hoặc sao chép link.`);
+    } finally {
+      setIsSavingFile(false);
+    }
+  };
 
   // Load initial account info, history, and check for resumable background jobs
   useEffect(() => {
@@ -445,10 +472,19 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
           saveDownloadHistoryItem(historyItem);
           setHistory(getSavedDownloadHistory());
 
-          // AUTO-DOWNLOAD: Trigger immediate file saving without opening video player tab
+          // AUTO-DOWNLOAD: Trigger immediate file saving if user explicitly enabled it
           if (isAutoDownload && statusRes.downloadUrl) {
-            triggerMinhHieuDownload(statusRes.downloadUrl, finalFilename);
-            onShowToast(`🎉 Đã xử lý xong! Đang tự động tải về "${finalFilename}"...`);
+            triggerMinhHieuDownload(statusRes.downloadUrl, finalFilename)
+              .then((res) => {
+                if (res.success) {
+                  onShowToast(`🎉 Đã xử lý xong! Đang tải về "${finalFilename}"...`);
+                } else {
+                  onShowToast(`⚠️ Trình duyệt đã chặn tự động tải. Bạn hãy bấm nút "Tải ngay về máy" bên dưới.`);
+                }
+              })
+              .catch(() => {
+                onShowToast(`🎉 File "${finalFilename}" đã sẵn sàng! Bấm "Tải ngay về máy" để lưu.`);
+              });
           } else {
             onShowToast(`🎉 Đã xử lý xong! File "${finalFilename}" đã sẵn sàng.`);
           }
@@ -1166,6 +1202,9 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                   <span>Tự động tải về máy ngay khi xử lý xong (Không mở tab phát video)</span>
                 </div>
               </label>
+              <p className="text-[11px] text-slate-400 pl-6 leading-relaxed">
+                💡 <span className="text-amber-300">Lưu ý:</span> Nếu trình duyệt (Chrome, Cốc Cốc) hiện thông báo chặn tải xuống tự động, bạn chỉ cần bấm vào biểu tượng ⚠️ ở thanh địa chỉ và chọn <em>"Luôn cho phép"</em> hoặc tắt mục này để tải thủ công bằng nút bấm.
+              </p>
             </div>
 
             {/* 1080p Full HD & High-Capacity Processing Stability Guide */}
@@ -1518,25 +1557,50 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                       </div>
 
                       {/* Action Buttons: Instant Save & Links */}
-                      <div className="space-y-2">
+                      <div className="space-y-2.5">
+                        {/* Primary Button: Direct Native Stream or Safe Trigger */}
+                        {!isStaticHost || getCustomBackendUrl() ? (
+                          <a
+                            href={getMinhHieuDownloadStreamUrl(activeJob.downloadUrl!, completedFilename)}
+                            download={completedFilename}
+                            onClick={() => {
+                              onShowToast(`📥 Đang tải "${completedFilename}" về thư mục Downloads...`);
+                            }}
+                            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer"
+                          >
+                            <Download className="w-4 h-4 stroke-[2.5]" />
+                            <span>Tải ngay về máy ({completedFilename})</span>
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => handleExecuteDownload(activeJob.downloadUrl!, completedFilename)}
+                            disabled={isSavingFile}
+                            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer disabled:opacity-60"
+                          >
+                            {isSavingFile ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                            ) : (
+                              <Download className="w-4 h-4 stroke-[2.5]" />
+                            )}
+                            <span>{isSavingFile ? 'Đang chuẩn bị tải file...' : `Tải ngay về máy (${completedFilename})`}</span>
+                          </button>
+                        )}
+
+                        {/* Bypass Browser Blocker: Open file in new tab so user can press Ctrl+S */}
                         <a
-                          href={getMinhHieuDownloadStreamUrl(activeJob.downloadUrl!, completedFilename)}
-                          download={completedFilename}
+                          href={ensureHttpsUrl(activeJob.downloadUrl!)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          onClick={() => {
-                            triggerMinhHieuDownload(activeJob.downloadUrl!, completedFilename);
-                            onShowToast(`📥 Đang kích hoạt tải "${completedFilename}" về máy...`);
-                          }}
-                          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer"
+                          className="w-full py-2.5 px-3 rounded-xl bg-sky-950/40 hover:bg-sky-900/60 border border-sky-500/30 text-sky-200 font-semibold text-xs flex items-center justify-center gap-2 transition-all hover:text-white"
+                          title="Mở tệp trực tiếp trong tab mới, sau đó bấm Ctrl+S để lưu"
                         >
-                          <Download className="w-4 h-4 stroke-[2.5]" />
-                          <span>Tải ngay về máy ({completedFilename})</span>
+                          <ExternalLink className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                          <span>Mở trong tab mới &amp; Lưu (Bấm Ctrl + S - Không bị chặn)</span>
                         </a>
 
                         <div className="grid grid-cols-2 gap-2">
                           <button
-                            onClick={() => handleCopyLink(activeJob.downloadUrl!)}
+                            onClick={() => handleCopyLink(ensureHttpsUrl(activeJob.downloadUrl!))}
                             className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all active:scale-95"
                           >
                             <Copy className="w-3.5 h-3.5 text-amber-400" />
@@ -1547,9 +1611,31 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                             onClick={() => setIsPreviewPlayerOpen(!isPreviewPlayerOpen)}
                             className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all active:scale-95"
                           >
-                            <Play className="w-3.5 h-3.5 text-sky-400" />
+                            <Play className="w-3.5 h-3.5 text-emerald-400" />
                             <span>{isPreviewPlayerOpen ? 'Đóng nghe thử' : 'Nghe/Xem thử'}</span>
                           </button>
+                        </div>
+
+                        {/* Browser Download Unblock Helper Banner */}
+                        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-2">
+                          <div className="flex items-center gap-2 font-bold text-amber-300">
+                            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                            <span>Nếu trình duyệt (Chrome, Cốc Cốc, Edge) chặn không cho tải về:</span>
+                          </div>
+                          <div className="space-y-1.5 text-slate-300 text-[11px] leading-relaxed pl-0.5">
+                            <p>
+                              • <strong className="text-amber-300">Cách 1 (Mở khóa trên thanh địa chỉ):</strong> Nhìn lên góc trên bên phải thanh địa chỉ (URL) của trình duyệt, nhấp vào biểu tượng <strong>Tải xuống bị chặn (⚠️ hoặc 📥)</strong> &rarr; Chọn <strong>"Luôn cho phép" (Always allow)</strong> rồi bấm tải lại.
+                            </p>
+                            <p>
+                              • <strong className="text-sky-300">Cách 2 (Khuyên dùng - Nhanh nhất):</strong> Bấm nút màu xanh dương <span className="text-sky-300 font-semibold">"Mở trong tab mới &amp; Lưu"</span> ở trên &rarr; khi tab mở ra, chỉ cần bấm tổ hợp phím <kbd className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 font-mono text-[10px] text-amber-300 font-bold">Ctrl + S</kbd> (hoặc <kbd className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 font-mono text-[10px] text-amber-300 font-bold">Cmd + S</kbd> trên Mac) là file lưu về máy tính ngay lập tức mà không bao giờ bị chặn.
+                            </p>
+                            <p>
+                              • <strong className="text-emerald-300">Cách 3:</strong> Bấm <span className="text-emerald-300 font-semibold">"Sao chép link tải"</span> rồi dán vào trình tăng tốc tải IDM hoặc thanh địa chỉ trình duyệt mới để tải tốc độ cao.
+                            </p>
+                            <p>
+                              • <strong className="text-purple-300">Cách 4:</strong> Chạy GitHub Actions <a href="https://github.com/dominhhieuqng1985-blip/minhhieu/actions/workflows/download.yml" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline font-semibold">workflow download.yml</a> để tải trên đám mây GitHub và nhận file qua Artifacts.
+                            </p>
+                          </div>
                         </div>
 
                         {/* Optional Inline Preview Player - Only opened on explicit request */}
@@ -1647,26 +1733,34 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                       {item.fileSize && <span>{formatBytes(item.fileSize)}</span>}
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60">
-                      <a
-                        href={getMinhHieuDownloadStreamUrl(item.downloadUrl, buildMinhHieuDownloadFileName(item.title, item.format))}
-                        download={buildMinhHieuDownloadFileName(item.title, item.format)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <div className="flex items-center gap-1.5 pt-1 border-t border-slate-800/60">
+                      <button
                         onClick={() => {
                           const historyFilename = buildMinhHieuDownloadFileName(item.title, item.format);
-                          triggerMinhHieuDownload(item.downloadUrl, historyFilename);
-                          onShowToast(`📥 Đang tải: ${historyFilename}`);
+                          handleExecuteDownload(item.downloadUrl, historyFilename);
                         }}
-                        className="flex-1 py-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/35 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        title="Tải tệp về máy"
                       >
-                        <Download className="w-3 h-3 text-amber-400" />
-                        <span>Tải lại file</span>
+                        <Download className="w-3 h-3 text-emerald-400" />
+                        <span>Tải về</span>
+                      </button>
+
+                      <a
+                        href={ensureHttpsUrl(item.downloadUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-1.5 px-2 rounded-lg bg-sky-950/50 hover:bg-sky-900/60 border border-sky-500/30 text-sky-300 text-[11px] font-medium flex items-center gap-1 transition-colors hover:text-white"
+                        title="Mở tab mới (bấm Ctrl+S để lưu)"
+                      >
+                        <ExternalLink className="w-3 h-3 text-sky-400" />
+                        <span>Mở tab mới</span>
                       </a>
+
                       <button
-                        onClick={() => handleCopyLink(item.downloadUrl)}
-                        className="p-1 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white text-[11px] transition-colors"
-                        title="Sao chép link"
+                        onClick={() => handleCopyLink(ensureHttpsUrl(item.downloadUrl))}
+                        className="p-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white text-[11px] transition-colors"
+                        title="Sao chép link tải"
                       >
                         <Copy className="w-3 h-3" />
                       </button>
