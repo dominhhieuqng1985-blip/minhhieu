@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Cổ Đại Dùng Kiến Thức Hiện Đại Chế Tạo Thần Khí, Khiến Cả Hoàng Tộc Phải Quỳ Phục - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "4 lượt xem",
+    "views": "5 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -240,7 +240,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Tăng đoàn của đề đà đạt đa đã quay về với tăng đoàn của đức phật - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "12 lượt xem",
+    "views": "13 lượt xem",
     "id": "mh-v12"
   },
   {
@@ -495,7 +495,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Giữa Hai Thế Giới, Cô Gái Đến Hiện Đại Làm Thuê Mang Lương Thực Thuốc Men Về Cứu Bà Nội - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "120 lượt xem",
+    "views": "126 lượt xem",
     "id": "mh-v29"
   },
   {
