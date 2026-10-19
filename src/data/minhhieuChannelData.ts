@@ -360,7 +360,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Nhặt Được Công Pháp Thần Cấp, Chàng Trai Chỉ Cần Ngủ Cũng Đột Phá Khiến Cả Gia Tộc Khiếp Sợ - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "9 lượt xem",
+    "views": "10 lượt xem",
     "id": "mh-v20"
   },
   {
@@ -495,7 +495,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Giữa Hai Thế Giới, Cô Gái Đến Hiện Đại Làm Thuê Mang Lương Thực Thuốc Men Về Cứu Bà Nội - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "126 lượt xem",
+    "views": "130 lượt xem",
     "id": "mh-v29"
   },
   {
@@ -510,7 +510,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Rơi Xuống Vực Nhặt Được Thần Dược Trăm Năm,Chàng Trai Thức Tỉnh Công Pháp Vô Địch Chấn Động Tiên Môn - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "58 lượt xem",
+    "views": "59 lượt xem",
     "id": "mh-v30"
   },
   {
