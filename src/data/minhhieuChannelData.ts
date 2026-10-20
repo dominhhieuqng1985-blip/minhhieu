@@ -185,14 +185,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "aUVV8wlj1KE",
-    "title": "Âm mưu hảm hại đức phật của cô gái bị bại lộ",
+    "title": "Âm mưu h���m hại đức phật của cô gái bị bại lộ",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
     "category": "tam-ly-doi-song",
     "duration": "6:26",
     "durationSeconds": 386,
     "thumbnail": "https://i.ytimg.com/vi/aUVV8wlj1KE/hqdefault.jpg",
-    "description": "Âm mưu hảm hại đức phật của cô gái bị bại lộ - Kênh Minh Hiếu review phim.",
+    "description": "Âm mưu h���m hại đức phật của cô gái bị bại lộ - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "6 lượt xem",
@@ -495,7 +495,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Giữa Hai Thế Giới, Cô Gái Đến Hiện Đại Làm Thuê Mang Lương Thực Thuốc Men Về Cứu Bà Nội - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "135 lượt xem",
+    "views": "138 lượt xem",
     "id": "mh-v29"
   },
   {
