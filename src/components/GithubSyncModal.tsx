@@ -220,8 +220,23 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({
               </div>
             </div>
 
-            <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed">
-              💡 <strong>Lưu ý quan trọng:</strong> Nếu YouTube Studio vừa báo lỗi và bạn vừa sửa, hãy đổi sang dùng link <code className="bg-slate-900 px-1 py-0.5 rounded text-amber-300 font-mono">studio.xml</code> hoặc chờ 5 - 10 phút để bộ nhớ đệm (cache) của GitHub Pages và YouTube cập nhật lại nội dung mới nhất.
+            <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/30 text-[11px] text-emerald-200/90 leading-relaxed space-y-1.5">
+              <p className="font-bold text-emerald-400 flex items-center gap-1.5 text-xs">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Cách tạo Podcast CHUẨN NHẤT trên YouTube Studio (Không cần RSS feed):</span>
+              </p>
+              <p className="text-slate-300">
+                Vì toàn bộ video của bạn <strong>đã có sẵn trên YouTube</strong>, YouTube Studio có sẵn tính năng tạo Podcast trực tiếp mà không cần gửi RSS:
+              </p>
+              <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1">
+                <li>Vào <strong className="text-white">YouTube Studio</strong> &gt; Bấm nút <strong className="text-amber-400">Tạo</strong> (góc trên bên phải).</li>
+                <li>Chọn <strong className="text-white">Podcast mới</strong>.</li>
+                <li>Chọn tùy chọn: <strong className="text-emerald-400">"Đặt một danh sách phát hiện có làm podcast"</strong> (thay vì "Gửi nguồn cấp dữ liệu RSS").</li>
+                <li>Chọn Danh sách phát (Playlist) video của bạn &gt; Nhấn <strong className="text-white">Lưu</strong>.</li>
+              </ol>
+              <p className="text-[10px] text-emerald-300/80 italic">
+                👉 Kênh YouTube của bạn sẽ có ngay tab Podcast chính thức và phát trên YouTube Music tức thì mà không bao giờ bị báo lỗi!
+              </p>
             </div>
           </div>
 
