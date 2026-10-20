@@ -480,7 +480,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Bị Tiên Đạo Phong Ấn 3000 Năm, Đại Đế Tái Xuất Nghịch Thiên Bắt Cả Thiên Hạ Quỳ Phục - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "20 lượt xem",
+    "views": "21 lượt xem",
     "id": "mh-v28"
   },
   {
@@ -495,7 +495,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Giữa Hai Thế Giới, Cô Gái Đến Hiện Đại Làm Thuê Mang Lương Thực Thuốc Men Về Cứu Bà Nội - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "134 lượt xem",
+    "views": "135 lượt xem",
     "id": "mh-v29"
   },
   {
