@@ -356,7 +356,7 @@ export const DEFAULT_PODCASTS: PodcastEpisode[] = [
   const feedUrl = 'https://dominhhieuqng1985-blip.github.io/minhhieu/studo.xml';
   const channelDesc = 'Kênh Podcast chính thức của Minh Hiếu review phim (@minhhieureviewphim). Tổng hợp các bộ phim Phật giáo ý nghĩa, truyện ma rùng rợn, bài học tâm lý cuộc sống và âm nhạc chọn lọc.';
   const author = 'Minh Hiếu';
-  const email = 'dominhhieuqng1985@gmail.com';
+  const email = 'chieuthuaroi19852@gmail.com';
 
   const itemsXml = finalAllVideos.map((v, idx) => {
     const pubDate = new Date(Date.now() - idx * 3600 * 1000 * 4).toUTCString();
