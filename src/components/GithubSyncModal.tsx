@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   ChevronRight,
   Info,
+  Mail,
 } from 'lucide-react';
 
 interface GithubSyncModalProps {
@@ -36,6 +37,8 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({
   if (!isOpen) return null;
 
   const studoUrl = 'https://dominhhieuqng1985-blip.github.io/minhhieu/studo.xml';
+  const studioUrl = 'https://dominhhieuqng1985-blip.github.io/minhhieu/studio.xml';
+  const ownerEmail = 'chieuthuaroi19852@gmail.com';
   const repoUrl = 'https://github.com/dominhhieuqng1985-blip/minhhieu';
 
   const copyToClipboard = (text: string, key: string) => {
@@ -96,48 +99,130 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({
             </button>
           </div>
 
-          {/* RSS Feed studo.xml Card */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-amber-950/20 to-slate-950 border border-amber-500/30 space-y-2.5">
+          {/* RSS Feed & Email Owner Section */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-amber-950/20 via-slate-900/80 to-slate-950 border border-amber-500/30 space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-bold text-amber-400 flex items-center gap-1.5">
+              <span className="font-bold text-amber-400 flex items-center gap-1.5 text-sm">
                 <Rss className="w-4 h-4" />
-                URL Podcast RSS feed (studo.xml):
+                Nguồn cấp dữ liệu Podcast RSS Feed
               </span>
-              <a
-                href={studoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] text-amber-400/90 hover:underline flex items-center gap-1 font-semibold"
-              >
-                <span>Xem XML</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-            <div className="flex items-center gap-2 bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-              <span className="font-mono text-[11px] text-slate-200 break-all select-all flex-1">
-                {studoUrl}
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                Đã kèm Email Chủ sở hữu
               </span>
-              <button
-                onClick={() => copyToClipboard(studoUrl, 'studo')}
-                className="p-1.5 rounded-md bg-amber-500 hover:bg-amber-400 text-slate-950 shrink-0 font-semibold flex items-center gap-1 text-[11px] transition-colors"
-                title="Sao chép URL"
-              >
-                {copiedKey === 'studo' ? (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Đã chép</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Chép</span>
-                  </>
-                )}
-              </button>
             </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              Dán liên kết này vào <strong className="text-white">YouTube Studio</strong> (Tạo &gt; Podcast mới &gt; Gửi nguồn cấp dữ liệu RSS), Apple Podcasts hoặc Spotify để tự động đồng bộ tập podcast!
-            </p>
+
+            {/* Email Owner Box */}
+            <div className="p-3 rounded-lg bg-slate-950/90 border border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-amber-400" />
+                  Email chủ sở hữu (Owner Email):
+                </span>
+                <button
+                  onClick={() => copyToClipboard(ownerEmail, 'email')}
+                  className="p-1 rounded text-slate-400 hover:text-amber-400 transition-colors flex items-center gap-1 text-[11px]"
+                >
+                  {copiedKey === 'email' ? (
+                    <span className="text-emerald-400 flex items-center gap-1 font-semibold">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Đã chép
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <Copy className="w-3 h-3" /> Chép email
+                    </span>
+                  )}
+                </button>
+              </div>
+              <div className="font-mono text-xs text-amber-300 bg-slate-900 px-2.5 py-1.5 rounded border border-slate-800 flex items-center justify-between">
+                <span>{ownerEmail}</span>
+                <span className="text-[10px] text-slate-400 font-sans">
+                  &lt;itunes:email&gt; &amp; &lt;managingEditor&gt;
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                <strong className="text-slate-200">Tại sao nền tảng báo cần email?</strong> YouTube Studio Podcast, Spotify và Apple Podcasts kiểm tra thẻ này để gửi <span className="text-amber-300 font-semibold">Mã xác minh (OTP) 6 chữ số</span> về hộp thư nhằm chứng minh bạn chính là chủ sở hữu của kênh podcast.
+              </p>
+            </div>
+
+            {/* Link 1: studo.xml */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-semibold text-slate-300">Link 1: studo.xml (Link mặc định):</span>
+                <a
+                  href={studoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-400 hover:underline flex items-center gap-1"
+                >
+                  <span>Mở xem XML</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <span className="font-mono text-[11px] text-slate-200 break-all select-all flex-1">
+                  {studoUrl}
+                </span>
+                <button
+                  onClick={() => copyToClipboard(studoUrl, 'studo')}
+                  className="p-1.5 rounded-md bg-amber-500 hover:bg-amber-400 text-slate-950 shrink-0 font-semibold flex items-center gap-1 text-[11px] transition-colors"
+                  title="Sao chép URL"
+                >
+                  {copiedKey === 'studo' ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Đã chép</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Chép</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Link 2: studio.xml */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-semibold text-slate-300">Link 2: studio.xml (Dự phòng nếu link 1 bị lưu cache cũ):</span>
+                <a
+                  href={studioUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-400 hover:underline flex items-center gap-1"
+                >
+                  <span>Mở xem XML</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <span className="font-mono text-[11px] text-slate-200 break-all select-all flex-1">
+                  {studioUrl}
+                </span>
+                <button
+                  onClick={() => copyToClipboard(studioUrl, 'studio')}
+                  className="p-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 shrink-0 font-semibold flex items-center gap-1 text-[11px] transition-colors border border-slate-700"
+                  title="Sao chép URL"
+                >
+                  {copiedKey === 'studio' ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Đã chép</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Chép</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed">
+              💡 <strong>Lưu ý quan trọng:</strong> Nếu YouTube Studio vừa báo lỗi và bạn vừa sửa, hãy đổi sang dùng link <code className="bg-slate-900 px-1 py-0.5 rounded text-amber-300 font-mono">studio.xml</code> hoặc chờ 5 - 10 phút để bộ nhớ đệm (cache) của GitHub Pages và YouTube cập nhật lại nội dung mới nhất.
+            </div>
           </div>
 
           {/* Why GitHub doesn't sync automatically & Fixes */}

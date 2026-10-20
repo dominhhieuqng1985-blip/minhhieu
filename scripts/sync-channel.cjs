@@ -5,7 +5,7 @@ const path = require('path');
 const CHANNEL_ID = 'UCUr78N1iiRNyg_UoBgtPPhw';
 const CHANNEL_HANDLE = '@minhhieureviewphim';
 const CHANNEL_NAME = 'Minh Hiếu review phim';
-const CHANNEL_AVATAR = 'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj';
+const CHANNEL_AVATAR = 'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj';
 const CHANNEL_BANNER = 'https://yt3.googleusercontent.com/nXC6CfLFHVL0mQjAJtqBxNqZM3nPyjtdk-zs9b9RIdblNxB_9CMOSBDc8iIFho4WiUMHbrU-zQ=w2560-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj';
 
 const YOUTUBE_HEADERS = {
@@ -392,6 +392,8 @@ export const DEFAULT_PODCASTS: PodcastEpisode[] = [
     <language>vi</language>
     <copyright>© 2026 ${channelTitle}</copyright>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    <managingEditor>${email} (${author})</managingEditor>
+    <webMaster>${email} (${author})</webMaster>
     <itunes:author>${author}</itunes:author>
     <itunes:summary>${channelDesc}</itunes:summary>
     <itunes:type>episodic</itunes:type>
