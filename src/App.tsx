@@ -132,16 +132,27 @@ export default function App() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
-      if (stored) {
-        const deletedIds: string[] = JSON.parse(stored);
-        if (deletedIds.length > 0) {
-          const filterOut = (list: PodcastEpisode[]) =>
-            list.filter((v) => !deletedIds.includes(v.youtubeId) && !deletedIds.includes(v.id));
-          setChannelVideos(filterOut);
-          setChannelPodcasts(filterOut);
-          setActiveQueue(filterOut);
-        }
+      const list: string[] = stored ? JSON.parse(stored) : [];
+      if (!list.includes('bMgyPch3IQs')) {
+        list.push('bMgyPch3IQs');
+        localStorage.setItem(STORAGE_KEY_DELETED_VIDEOS, JSON.stringify(list));
       }
+      const deletedIds = new Set(list);
+
+      // Clean casttube_user_saved_videos
+      const customStored = localStorage.getItem('casttube_user_saved_videos');
+      if (customStored) {
+        const customList: PodcastEpisode[] = JSON.parse(customStored);
+        const cleaned = customList.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
+        localStorage.setItem('casttube_user_saved_videos', JSON.stringify(cleaned));
+      }
+
+      const filterOut = (items: PodcastEpisode[]) =>
+        items.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
+
+      setChannelVideos(filterOut);
+      setChannelPodcasts(filterOut);
+      setActiveQueue(filterOut);
     } catch {}
   }, []);
 
@@ -196,15 +207,33 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Helper: Merge default indexed videos with any user custom/newly saved videos from localStorage
+  // Helper to get permanently blacklisted deleted video IDs
+  const getBlacklistedDeletedIds = (): Set<string> => {
+    const set = new Set<string>(['bMgyPch3IQs']);
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
+      if (stored) {
+        const list: string[] = JSON.parse(stored);
+        list.forEach((id) => set.add(id));
+      }
+    } catch {}
+    return set;
+  };
+
+  // Helper: Merge default indexed videos with any user custom/newly saved videos from localStorage, ALWAYS excluding deleted videos
   const getMergedInitialVideos = (): PodcastEpisode[] => {
+    const deletedIds = getBlacklistedDeletedIds();
     try {
       const stored = localStorage.getItem('casttube_user_saved_videos');
       if (stored) {
         const custom: PodcastEpisode[] = JSON.parse(stored);
+        const cleanedCustom = custom.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
+        if (cleanedCustom.length !== custom.length) {
+          localStorage.setItem('casttube_user_saved_videos', JSON.stringify(cleanedCustom));
+        }
         const defIds = new Set(DEFAULT_VIDEOS.map((v) => v.youtubeId));
-        const extra = custom.filter((v) => !defIds.has(v.youtubeId));
-        const combined = [...extra, ...DEFAULT_VIDEOS];
+        const extra = cleanedCustom.filter((v) => !defIds.has(v.youtubeId));
+        const combined = [...extra, ...DEFAULT_VIDEOS].filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
         const seen = new Set<string>();
         return combined.filter((v) => {
           if (seen.has(v.youtubeId)) return false;
@@ -213,15 +242,17 @@ export default function App() {
         });
       }
     } catch {}
-    return DEFAULT_VIDEOS;
+    return DEFAULT_VIDEOS.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
   };
 
   // Local Channel Data Loader (Used for static hosts like GitHub Pages)
   const applyLocalChannelData = () => {
-    const allVids = getMergedInitialVideos();
+    const deletedIds = getBlacklistedDeletedIds();
+    const allVids = getMergedInitialVideos().filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
+    const cleanPodcasts = DEFAULT_PODCASTS.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
     setChannelInfo(DEFAULT_CHANNEL_INFO);
     setChannelVideos(allVids);
-    setChannelPodcasts(DEFAULT_PODCASTS);
+    setChannelPodcasts(cleanPodcasts);
     setChannelPlaylists(DEFAULT_CHANNEL_PLAYLISTS);
     setPodcastSeries(DEFAULT_PODCAST_SERIES);
     setActiveQueue(allVids);
@@ -401,8 +432,9 @@ export default function App() {
           if (res.ok && !contentType.includes('text/html')) {
             const data = await res.json();
             if (data.success && Array.isArray(data.latestVideos)) {
+              const deletedIds = getBlacklistedDeletedIds();
               const existingIds = new Set(channelVideos.map((v) => v.youtubeId));
-              const newlyFound = data.latestVideos.filter((v: any) => !existingIds.has(v.youtubeId));
+              const newlyFound = data.latestVideos.filter((v: any) => !existingIds.has(v.youtubeId) && !deletedIds.has(v.youtubeId));
 
               if (newlyFound.length > 0) {
                 const formattedNew: PodcastEpisode[] = newlyFound.map((v: any, idx: number) => ({
@@ -436,7 +468,8 @@ export default function App() {
                 try {
                   const stored = localStorage.getItem('casttube_user_saved_videos');
                   const customList = stored ? JSON.parse(stored) : [];
-                  localStorage.setItem('casttube_user_saved_videos', JSON.stringify([...formattedNew, ...customList].slice(0, 50)));
+                  const cleanCustom = customList.filter((v: any) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
+                  localStorage.setItem('casttube_user_saved_videos', JSON.stringify([...formattedNew, ...cleanCustom].slice(0, 50)));
                 } catch {}
 
                 const alertMsg = `Đã phát hiện và nạp ${formattedNew.length} video mới: "${formattedNew[0].title}"!`;
@@ -473,6 +506,7 @@ export default function App() {
       }
 
       if (xmlFeed) {
+        const deletedIds = getBlacklistedDeletedIds();
         const items = xmlFeed.split('<item>');
         const existingIds = new Set(channelVideos.map((v) => v.youtubeId));
         const foundFromXml: PodcastEpisode[] = [];
@@ -485,7 +519,7 @@ export default function App() {
           const imgM = itemText.match(/<itunes:image href="([^"]+)"/);
           const descM = itemText.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
 
-          if (guidM && titleM && !existingIds.has(guidM[1].trim())) {
+          if (guidM && titleM && !existingIds.has(guidM[1].trim()) && !deletedIds.has(guidM[1].trim())) {
             const yId = guidM[1].trim();
             const t = titleM[1].trim();
             const dur = durM ? durM[1].trim() : '03:30';
@@ -523,7 +557,8 @@ export default function App() {
           try {
             const stored = localStorage.getItem('casttube_user_saved_videos');
             const customList = stored ? JSON.parse(stored) : [];
-            localStorage.setItem('casttube_user_saved_videos', JSON.stringify([...foundFromXml, ...customList].slice(0, 50)));
+            const cleanCustom = customList.filter((v: any) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
+            localStorage.setItem('casttube_user_saved_videos', JSON.stringify([...foundFromXml, ...cleanCustom].slice(0, 50)));
           } catch {}
 
           const alertMsg = `Đã đồng bộ ${foundFromXml.length} video mới nhất từ studo.xml: "${foundFromXml[0].title}"!`;
@@ -563,6 +598,7 @@ export default function App() {
       }
 
       if (xml) {
+        const deletedIds = getBlacklistedDeletedIds();
         const entries = xml.split('<entry>');
         const existingIds = new Set(channelVideos.map((v) => v.youtubeId));
         const foundNew: { id: string; title: string }[] = [];
@@ -571,7 +607,7 @@ export default function App() {
           const e = entries[i];
           const idM = e.match(/<yt:videoId>(.*?)<\/yt:videoId>/);
           const titleM = e.match(/<title>(.*?)<\/title>/);
-          if (idM && titleM && !existingIds.has(idM[1])) {
+          if (idM && titleM && !existingIds.has(idM[1]) && !deletedIds.has(idM[1])) {
             foundNew.push({ id: idM[1], title: titleM[1] });
           }
         }
@@ -610,7 +646,8 @@ export default function App() {
           try {
             const stored = localStorage.getItem('casttube_user_saved_videos');
             const customList = stored ? JSON.parse(stored) : [];
-            localStorage.setItem('casttube_user_saved_videos', JSON.stringify([...formattedRss, ...customList].slice(0, 50)));
+            const cleanCustom = customList.filter((v: any) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
+            localStorage.setItem('casttube_user_saved_videos', JSON.stringify([...formattedRss, ...cleanCustom].slice(0, 50)));
           } catch {}
 
           const alertMsg = `Đã phát hiện và nạp ${formattedRss.length} video mới: "${formattedRss[0].title}"!`;
@@ -843,9 +880,51 @@ export default function App() {
     });
   };
 
+  // Permanently delete video from the entire application and blacklist its ID
+  const handlePermanentlyDeleteVideo = (targetId: string, youtubeId?: string) => {
+    const ep = channelVideos.find((v) => v.id === targetId || v.youtubeId === targetId || v.youtubeId === youtubeId);
+    const targetYId = ep?.youtubeId || youtubeId || targetId;
+
+    // 1. Permanently blacklist this YouTube video ID in localStorage
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
+      const list: string[] = stored ? JSON.parse(stored) : [];
+      if (!list.includes(targetYId)) {
+        list.push(targetYId);
+      }
+      localStorage.setItem(STORAGE_KEY_DELETED_VIDEOS, JSON.stringify(list));
+
+      // 2. Remove permanently from custom saved videos
+      const customStored = localStorage.getItem('casttube_user_saved_videos');
+      if (customStored) {
+        const customList: PodcastEpisode[] = JSON.parse(customStored);
+        const cleaned = customList.filter((v) => v.youtubeId !== targetYId && v.id !== targetId);
+        localStorage.setItem('casttube_user_saved_videos', JSON.stringify(cleaned));
+      }
+    } catch {}
+
+    // 3. Remove permanently from all state lists
+    setChannelVideos((prev) => prev.filter((v) => v.id !== targetId && v.youtubeId !== targetYId));
+    setChannelPodcasts((prev) => prev.filter((v) => v.id !== targetId && v.youtubeId !== targetYId));
+    setActiveQueue((prev) => prev.filter((v) => v.id !== targetId && v.youtubeId !== targetYId));
+
+    // Update counts
+    setVideoCounts((prev) => ({
+      all: Math.max(0, prev.all - 1),
+      long: ep?.isShort ? prev.long : Math.max(0, prev.long - 1),
+      shorts: ep?.isShort ? Math.max(0, prev.shorts - 1) : prev.shorts,
+    }));
+
+    // If currently playing, move to next
+    if (currentEpisode && (currentEpisode.id === targetId || currentEpisode.youtubeId === targetYId)) {
+      handleNextEpisode();
+    }
+
+    showToast(`🗑️ Đã xóa vĩnh viễn video "${ep?.title || targetYId}" khỏi danh sách!`);
+  };
+
   const handleRemoveFromQueue = (episodeId: string) => {
-    setActiveQueue((prev) => prev.filter((e) => e.id !== episodeId));
-    showToast('Đã xóa video khỏi danh sách phát');
+    handlePermanentlyDeleteVideo(episodeId);
   };
 
   const handleSaveNote = (timestamp: number, text: string) => {
@@ -873,27 +952,8 @@ export default function App() {
 
   // Automatically delete videos that are no longer available on YouTube
   const handleVideoUnavailable = (episodeId: string, youtubeId: string, reason: string) => {
-    // 1. Permanently blacklist this YouTube video ID in localStorage
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
-      const list: string[] = stored ? JSON.parse(stored) : [];
-      if (!list.includes(youtubeId)) {
-        list.push(youtubeId);
-        localStorage.setItem(STORAGE_KEY_DELETED_VIDEOS, JSON.stringify(list));
-      }
-    } catch {}
-
-    // 2. Remove from active lists
-    setChannelVideos((prev) => prev.filter((v) => v.id !== episodeId && v.youtubeId !== youtubeId));
-    setChannelPodcasts((prev) => prev.filter((p) => p.id !== episodeId && p.youtubeId !== youtubeId));
-    setActiveQueue((prev) => prev.filter((p) => p.id !== episodeId && p.youtubeId !== youtubeId));
-
+    handlePermanentlyDeleteVideo(episodeId, youtubeId);
     showToast(`⚠️ Đã tự động loại bỏ video đã bị xóa trên YouTube! (${reason})`);
-
-    // 3. Play next available episode
-    setTimeout(() => {
-      handleNextEpisode();
-    }, 400);
   };
 
   // Scan and clean up deleted videos from the entire channel
@@ -902,25 +962,46 @@ export default function App() {
     showToast('🔍 Đang kiểm tra trạng thái video trên YouTube...');
 
     const deletedFound: string[] = [];
-    // Check up to 25 items at a time
-    const batch = channelVideos.slice(0, 25);
+    const allIds = channelVideos.map((v) => v.youtubeId);
 
-    for (const v of batch) {
-      try {
-        const controller = new AbortController();
-        const t = setTimeout(() => controller.abort(), 2000);
-        const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${v.youtubeId}`, {
-          signal: controller.signal,
+    // Try backend API first for fast bulk checking
+    let checkedViaApi = false;
+    try {
+      const apiBase = getApiBaseUrl();
+      if (apiBase) {
+        const res = await fetch(`${apiBase}youtube/check-alive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: allIds }),
         });
-        clearTimeout(t);
         if (res.ok) {
-          const json = await res.json();
-          if (json.error || !json.title) {
-            deletedFound.push(v.youtubeId);
+          const data = await res.json();
+          if (Array.isArray(data.dead)) {
+            deletedFound.push(...data.dead);
+            checkedViaApi = true;
           }
         }
-      } catch {
-        // network / cors issue, do not treat as deleted
+      }
+    } catch {}
+
+    // Fallback: check client-side via noembed
+    if (!checkedViaApi) {
+      const batch = channelVideos.slice(0, 30);
+      for (const v of batch) {
+        try {
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), 2000);
+          const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${v.youtubeId}`, {
+            signal: controller.signal,
+          });
+          clearTimeout(t);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.error || !json.title) {
+              deletedFound.push(v.youtubeId);
+            }
+          }
+        } catch {}
       }
     }
 
@@ -930,6 +1011,13 @@ export default function App() {
         const list: string[] = stored ? JSON.parse(stored) : [];
         const merged = Array.from(new Set([...list, ...deletedFound]));
         localStorage.setItem(STORAGE_KEY_DELETED_VIDEOS, JSON.stringify(merged));
+
+        const customStored = localStorage.getItem('casttube_user_saved_videos');
+        if (customStored) {
+          const customList: PodcastEpisode[] = JSON.parse(customStored);
+          const cleaned = customList.filter((v) => !deletedFound.includes(v.youtubeId));
+          localStorage.setItem('casttube_user_saved_videos', JSON.stringify(cleaned));
+        }
       } catch {}
 
       setChannelVideos((prev) => prev.filter((v) => !deletedFound.includes(v.youtubeId)));

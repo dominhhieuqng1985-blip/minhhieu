@@ -226,9 +226,13 @@ export const FullPlaylistQueue: React.FC<FullPlaylistQueueProps> = ({
                 </button>
 
                 <button
-                  onClick={() => onRemoveEpisode(ep.id)}
-                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                  title="Xóa video này khỏi danh sách"
+                  onClick={() => {
+                    if (confirm(`Bạn có chắc muốn xóa vĩnh viễn video "${ep.title}" khỏi danh sách? Video này sẽ không bao giờ tự động nạp lại.`)) {
+                      onRemoveEpisode(ep.id);
+                    }
+                  }}
+                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-70 sm:opacity-0 group-hover:opacity-100"
+                  title="Xóa vĩnh viễn video này khỏi danh sách (đã xóa trên YouTube)"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

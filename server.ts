@@ -997,6 +997,32 @@ app.get(['/api/podcast/check-updates', '/minhhieu/check-updates', '/minhhieu/api
   }
 });
 
+// Endpoint: Check whether video IDs are active or deleted on YouTube
+app.post(['/api/youtube/check-alive', '/minhhieu/api/youtube/check-alive'], async (req, res) => {
+  try {
+    const ids: string[] = req.body.ids || [];
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.json({ alive: [], dead: [] });
+    }
+    const checkOne = async (id: string) => {
+      try {
+        const oRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`, {
+          headers: YOUTUBE_HEADERS,
+        });
+        return { id, alive: oRes.ok };
+      } catch {
+        return { id, alive: true };
+      }
+    };
+    const results = await Promise.all(ids.slice(0, 100).map(checkOne));
+    const alive = results.filter((r) => r.alive).map((r) => r.id);
+    const dead = results.filter((r) => !r.alive).map((r) => r.id);
+    return res.json({ alive, dead });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Endpoint: Batch fetch YouTube metadata for multiple URLs/IDs
 app.post('/api/podcast/batch-meta', async (req, res) => {
   try {

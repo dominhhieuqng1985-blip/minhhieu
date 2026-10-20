@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Heart, ChevronRight, Check, Bell, ExternalLink, Sparkles } from 'lucide-react';
+import { Play, Heart, ChevronRight, Check, Bell, ExternalLink, Sparkles, Trash2 } from 'lucide-react';
 import { PodcastEpisode, PodcastChannel } from '../types/podcast';
 
 interface PodcastShelfProps {
@@ -13,6 +13,7 @@ interface PodcastShelfProps {
   onToggleFavorite: (episodeId: string) => void;
   onToggleSubscribe: (channelName: string) => void;
   onAnalyzeAI: (episode: PodcastEpisode) => void;
+  onDeleteEpisode?: (episodeId: string, youtubeId: string) => void;
 }
 
 export const PodcastShelf: React.FC<PodcastShelfProps> = ({
@@ -26,6 +27,7 @@ export const PodcastShelf: React.FC<PodcastShelfProps> = ({
   onToggleFavorite,
   onToggleSubscribe,
   onAnalyzeAI,
+  onDeleteEpisode,
 }) => {
   if (episodes.length === 0) return null;
 
@@ -193,6 +195,21 @@ export const PodcastShelf: React.FC<PodcastShelfProps> = ({
                     >
                       <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                     </button>
+
+                    {onDeleteEpisode && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Bạn có chắc muốn loại bỏ vĩnh viễn video "${ep.title}"? Video này sẽ không bao giờ tự động nạp lại.`)) {
+                            onDeleteEpisode(ep.id, ep.youtubeId);
+                          }
+                        }}
+                        className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                        title="Xóa vĩnh viễn video khỏi danh sách (nếu đã xóa trên YouTube)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   <button

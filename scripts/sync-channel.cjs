@@ -49,6 +49,31 @@ function parseDurationSeconds(dur) {
   return 600;
 }
 
+function checkVideoAlive(youtubeId) {
+  return new Promise((resolve) => {
+    try {
+      const url = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${youtubeId}&format=json`;
+      const req = https.get(url, { headers: YOUTUBE_HEADERS, timeout: 5000 }, (res) => {
+        res.on('data', () => {});
+        res.on('end', () => {
+          // HTTP 200: video is valid and active on YouTube
+          // HTTP 404 / 400 / 401 / 403: video is deleted, private, or unavailable
+          resolve(res.statusCode === 200);
+        });
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(true); // Don't delete on timeout to prevent false positives
+      });
+      req.on('error', () => {
+        resolve(true);
+      });
+    } catch {
+      resolve(true);
+    }
+  });
+}
+
 async function main() {
   console.log('--- Đang đồng bộ hóa video mới nhất từ YouTube ---');
 
@@ -185,15 +210,22 @@ async function main() {
     }
   }
 
-  // Extract older videos from previous data file if not present
+  // Extract older videos from previous data file if not present (ONLY KEEP THOSE STILL ALIVE ON YOUTUBE)
   if (existingDataContent) {
     const matchJson = existingDataContent.match(/export const DEFAULT_VIDEOS: PodcastEpisode\[\] = (\[[\s\S]*?\]);\s*\n/);
     if (matchJson) {
       try {
         const prevList = JSON.parse(matchJson[1]);
-        for (const item of prevList) {
-          if (!allVideosMap.has(item.youtubeId) && !item.isShort) {
-            allVideosMap.set(item.youtubeId, item);
+        const olderCandidates = prevList.filter((item) => !allVideosMap.has(item.youtubeId) && !item.isShort);
+        if (olderCandidates.length > 0) {
+          console.log(`Kiểm tra trạng thái của ${olderCandidates.length} video cũ trên YouTube...`);
+          for (const item of olderCandidates) {
+            const isAlive = await checkVideoAlive(item.youtubeId);
+            if (isAlive) {
+              allVideosMap.set(item.youtubeId, item);
+            } else {
+              console.log(`🗑️ Đã loại bỏ vĩnh viễn video bị xóa trên YouTube: [${item.youtubeId}] ${item.title}`);
+            }
           }
         }
       } catch (err) {
@@ -220,15 +252,22 @@ async function main() {
     });
   }
 
-  // Also include previous shorts
+  // Also include previous shorts (ONLY KEEP THOSE STILL ALIVE ON YOUTUBE)
   if (existingDataContent) {
     const matchJson = existingDataContent.match(/export const DEFAULT_VIDEOS: PodcastEpisode\[\] = (\[[\s\S]*?\]);\s*\n/);
     if (matchJson) {
       try {
         const prevList = JSON.parse(matchJson[1]);
-        for (const item of prevList) {
-          if (item.isShort && !allShortsMap.has(item.youtubeId)) {
-            allShortsMap.set(item.youtubeId, item);
+        const olderShortsCandidates = prevList.filter((item) => item.isShort && !allShortsMap.has(item.youtubeId));
+        if (olderShortsCandidates.length > 0) {
+          console.log(`Kiểm tra trạng thái của ${olderShortsCandidates.length} shorts cũ trên YouTube...`);
+          for (const item of olderShortsCandidates) {
+            const isAlive = await checkVideoAlive(item.youtubeId);
+            if (isAlive) {
+              allShortsMap.set(item.youtubeId, item);
+            } else {
+              console.log(`🗑️ Đã loại bỏ vĩnh viễn Shorts bị xóa trên YouTube: [${item.youtubeId}] ${item.title}`);
+            }
           }
         }
       } catch (err) {}

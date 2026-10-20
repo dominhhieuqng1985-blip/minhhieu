@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Heart, Sparkles, Clock, Youtube } from 'lucide-react';
+import { Play, Heart, Sparkles, Clock, Youtube, Trash2 } from 'lucide-react';
 import { PodcastEpisode } from '../types/podcast';
 
 interface PodcastCardProps {
@@ -9,6 +9,7 @@ interface PodcastCardProps {
   onPlay: (episode: PodcastEpisode) => void;
   onToggleFavorite: (episodeId: string) => void;
   onAnalyzeAI: (episode: PodcastEpisode) => void;
+  onDeleteEpisode?: (episodeId: string, youtubeId: string) => void;
 }
 
 export const PodcastCard: React.FC<PodcastCardProps> = ({
@@ -18,6 +19,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
   onPlay,
   onToggleFavorite,
   onAnalyzeAI,
+  onDeleteEpisode,
 }) => {
   return (
     <div
@@ -123,6 +125,21 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
             >
               <Youtube className="w-4 h-4" />
             </a>
+
+            {onDeleteEpisode && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm(`Bạn có chắc muốn loại bỏ vĩnh viễn video "${episode.title}"? Video này sẽ không bao giờ tự động nạp lại.`)) {
+                    onDeleteEpisode(episode.id, episode.youtubeId);
+                  }
+                }}
+                className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                title="Xóa vĩnh viễn video khỏi danh sách (nếu đã xóa trên YouTube)"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           <button
