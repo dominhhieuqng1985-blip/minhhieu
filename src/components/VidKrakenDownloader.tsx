@@ -150,6 +150,7 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
   const inIframe = isRunningInIframe();
 
   const handleExecuteDownload = async (url: string, filename: string) => {
+    cancelCountdown();
     if (isSavingFile || !url) return;
     setIsSavingFile(true);
     const safeUrl = ensureHttpsUrl(url);
@@ -169,7 +170,60 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
     }
   };
 
-  // Load initial account info, history, and check for resumable background jobs
+  // 30-second Auto-Download Countdown State
+  const [downloadCountdown, setDownloadCountdown] = useState<number | null>(null);
+  const countdownIntervalRef = useRef<any>(null);
+
+  const cancelCountdown = () => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setDownloadCountdown(null);
+  };
+
+  // Auto-countdown 30s when activeJob completes
+  useEffect(() => {
+    if (activeJob?.status === 'COMPLETED' && activeJob?.downloadUrl) {
+      setDownloadCountdown(30);
+
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+
+      countdownIntervalRef.current = setInterval(() => {
+        setDownloadCountdown((prev) => {
+          if (prev === null) return null;
+          if (prev <= 1) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+            // 30s elapsed: auto trigger download!
+            const filename = buildMinhHieuDownloadFileName(
+              customTitleOverride.trim() || activeJob.title || videoInfo?.title || 'video',
+              activeJob.actualFormat || activeJob.format || selectedFormat,
+              customEpisode.trim() || undefined
+            );
+            handleExecuteDownload(activeJob.downloadUrl!, filename);
+            onShowToast(`⚡ Hết 30 giây: Tự động tải file "${filename}" về máy!`);
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      setDownloadCountdown(null);
+    }
+
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, [activeJob?.status, activeJob?.downloadUrl]);
   useEffect(() => {
     setHistory(getSavedDownloadHistory());
     fetchAccountDetails(apiKey);
@@ -479,14 +533,14 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                 if (res.success) {
                   onShowToast(`🎉 Đã xử lý xong! Đang tải về "${finalFilename}"...`);
                 } else {
-                  onShowToast(`⚠️ Trình duyệt đã chặn tự động tải. Bạn hãy bấm nút "Tải ngay về máy" bên dưới.`);
+                  onShowToast(`⚠️ Trình duyệt chặn tự động tải ngầm. Bấm nút "Download" bên dưới để lưu file.`);
                 }
               })
               .catch(() => {
-                onShowToast(`🎉 File "${finalFilename}" đã sẵn sàng! Bấm "Tải ngay về máy" để lưu.`);
+                onShowToast(`🎉 File "${finalFilename}" đã sẵn sàng! Bấm nút "Download" để lưu.`);
               });
           } else {
-            onShowToast(`🎉 Đã xử lý xong! File "${finalFilename}" đã sẵn sàng.`);
+            onShowToast(`🎉 Đã xử lý xong! Tự động đếm ngược 30s để tải file về máy.`);
           }
           return;
         }
@@ -1558,31 +1612,60 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
 
                       {/* Action Buttons: Instant Save & Links */}
                       <div className="space-y-2.5">
-                        {/* Primary Button: Direct Native Stream or Safe Trigger */}
+                        {/* Auto-countdown 30s Notification Banner */}
+                        {downloadCountdown !== null && downloadCountdown > 0 && (
+                          <div className="flex items-center justify-between text-xs px-3.5 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                            <div className="flex items-center gap-2">
+                              <Timer className="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
+                              <span>
+                                Tự động tải về máy sau: <strong className="font-mono text-sm text-amber-200">{downloadCountdown}s</strong>
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={cancelCountdown}
+                              className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors"
+                              title="Hủy tự động tải về sau 30 giây"
+                            >
+                              Hủy đếm ngược
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Primary Button: Clean 'Download' with Countdown */}
                         {!isStaticHost || getCustomBackendUrl() ? (
                           <a
                             href={getMinhHieuDownloadStreamUrl(activeJob.downloadUrl!, completedFilename)}
                             download={completedFilename}
                             onClick={() => {
+                              cancelCountdown();
                               onShowToast(`📥 Đang tải "${completedFilename}" về thư mục Downloads...`);
                             }}
-                            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer"
+                            className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer"
                           >
                             <Download className="w-4 h-4 stroke-[2.5]" />
-                            <span>Tải ngay về máy ({completedFilename})</span>
+                            <span>Download{downloadCountdown !== null && downloadCountdown > 0 ? ` (${downloadCountdown}s)` : ''}</span>
                           </a>
                         ) : (
                           <button
-                            onClick={() => handleExecuteDownload(activeJob.downloadUrl!, completedFilename)}
+                            type="button"
+                            onClick={() => {
+                              cancelCountdown();
+                              handleExecuteDownload(activeJob.downloadUrl!, completedFilename);
+                            }}
                             disabled={isSavingFile}
-                            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer disabled:opacity-60"
+                            className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer disabled:opacity-60"
                           >
                             {isSavingFile ? (
                               <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
                             ) : (
                               <Download className="w-4 h-4 stroke-[2.5]" />
                             )}
-                            <span>{isSavingFile ? 'Đang chuẩn bị tải file...' : `Tải ngay về máy (${completedFilename})`}</span>
+                            <span>
+                              {isSavingFile
+                                ? 'Đang chuẩn bị tải file...'
+                                : `Download${downloadCountdown !== null && downloadCountdown > 0 ? ` (${downloadCountdown}s)` : ''}`}
+                            </span>
                           </button>
                         )}
 

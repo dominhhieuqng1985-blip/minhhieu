@@ -73,7 +73,53 @@ const STORAGE_KEY_SUBS = 'casttube_user_subs';
 const STORAGE_KEY_CHANNEL = 'casttube_current_channel_v2';
 const STORAGE_KEY_DELETED_VIDEOS = 'casttube_deleted_video_ids_v1';
 
+// Helper to get permanently blacklisted deleted video IDs
+export function getBlacklistedDeletedIds(): Set<string> {
+  const set = new Set<string>(['bMgyPch3IQs']);
+  try {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
+      if (stored) {
+        const list: string[] = JSON.parse(stored);
+        list.forEach((id) => set.add(id));
+      }
+    }
+  } catch {}
+  return set;
+}
+
+// Helper: Merge default indexed videos with any user custom/newly saved videos from localStorage, ALWAYS excluding deleted videos
+export function getMergedInitialVideos(): PodcastEpisode[] {
+  const deletedIds = getBlacklistedDeletedIds();
+  try {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('casttube_user_saved_videos');
+      if (stored) {
+        const custom: PodcastEpisode[] = JSON.parse(stored);
+        const cleanedCustom = custom.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
+        if (cleanedCustom.length !== custom.length) {
+          localStorage.setItem('casttube_user_saved_videos', JSON.stringify(cleanedCustom));
+        }
+        const defIds = new Set(DEFAULT_VIDEOS.map((v) => v.youtubeId));
+        const extra = cleanedCustom.filter((v) => !defIds.has(v.youtubeId));
+        const combined = [...extra, ...DEFAULT_VIDEOS].filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
+        const seen = new Set<string>();
+        return combined.filter((v) => {
+          if (seen.has(v.youtubeId)) return false;
+          seen.add(v.youtubeId);
+          return true;
+        });
+      }
+    }
+  } catch {}
+  return DEFAULT_VIDEOS.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
+}
+
 export default function App() {
+  const initialVideos = getMergedInitialVideos();
+  const deletedIds = getBlacklistedDeletedIds();
+  const initialPodcasts = DEFAULT_PODCASTS.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
+
   // Channel Profile State
   const [channelInfo, setChannelInfo] = useState<{
     name: string;
@@ -92,8 +138,8 @@ export default function App() {
   });
 
   // Loaded Content Categorized: Videos, Podcasts, Playlists
-  const [channelVideos, setChannelVideos] = useState<PodcastEpisode[]>(DEFAULT_VIDEOS);
-  const [channelPodcasts, setChannelPodcasts] = useState<PodcastEpisode[]>(DEFAULT_PODCASTS);
+  const [channelVideos, setChannelVideos] = useState<PodcastEpisode[]>(initialVideos);
+  const [channelPodcasts, setChannelPodcasts] = useState<PodcastEpisode[]>(initialPodcasts);
   const [podcastSeries, setPodcastSeries] = useState<PodcastSeries[]>(DEFAULT_PODCAST_SERIES);
   const [selectedPodcastSeries, setSelectedPodcastSeries] = useState<string>('all');
   const [channelPlaylists, setChannelPlaylists] = useState<PodcastPlaylist[]>(DEFAULT_CHANNEL_PLAYLISTS);
@@ -102,17 +148,17 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'videos' | 'podcasts' | 'playlists'>('videos');
   const [videoFilter, setVideoFilter] = useState<'all' | 'long' | 'shorts'>('all');
   const [videoCounts, setVideoCounts] = useState<{ all: number; long: number; shorts: number }>({
-    all: DEFAULT_VIDEOS.length,
-    long: DEFAULT_VIDEOS.filter((v) => !v.isShort).length,
-    shorts: DEFAULT_VIDEOS.filter((v) => v.isShort).length,
+    all: initialVideos.length,
+    long: initialVideos.filter((v) => !v.isShort).length,
+    shorts: initialVideos.filter((v) => v.isShort).length,
   });
 
   // Currently Active Playlist being played & its title
-  const [activeQueue, setActiveQueue] = useState<PodcastEpisode[]>(DEFAULT_VIDEOS);
+  const [activeQueue, setActiveQueue] = useState<PodcastEpisode[]>(initialVideos);
   const [activePlaylistTitle, setActivePlaylistTitle] = useState<string>('Tất cả Video');
 
   // Current playing episode
-  const [currentEpisode, setCurrentEpisode] = useState<PodcastEpisode | null>(DEFAULT_VIDEOS[0] || null);
+  const [currentEpisode, setCurrentEpisode] = useState<PodcastEpisode | null>(initialVideos[0] || null);
 
   // Auto-play next episode toggle (default: true)
   const [isAutoplayNext, setIsAutoplayNext] = useState<boolean>(true);
@@ -207,44 +253,6 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Helper to get permanently blacklisted deleted video IDs
-  const getBlacklistedDeletedIds = (): Set<string> => {
-    const set = new Set<string>(['bMgyPch3IQs']);
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
-      if (stored) {
-        const list: string[] = JSON.parse(stored);
-        list.forEach((id) => set.add(id));
-      }
-    } catch {}
-    return set;
-  };
-
-  // Helper: Merge default indexed videos with any user custom/newly saved videos from localStorage, ALWAYS excluding deleted videos
-  const getMergedInitialVideos = (): PodcastEpisode[] => {
-    const deletedIds = getBlacklistedDeletedIds();
-    try {
-      const stored = localStorage.getItem('casttube_user_saved_videos');
-      if (stored) {
-        const custom: PodcastEpisode[] = JSON.parse(stored);
-        const cleanedCustom = custom.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
-        if (cleanedCustom.length !== custom.length) {
-          localStorage.setItem('casttube_user_saved_videos', JSON.stringify(cleanedCustom));
-        }
-        const defIds = new Set(DEFAULT_VIDEOS.map((v) => v.youtubeId));
-        const extra = cleanedCustom.filter((v) => !defIds.has(v.youtubeId));
-        const combined = [...extra, ...DEFAULT_VIDEOS].filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
-        const seen = new Set<string>();
-        return combined.filter((v) => {
-          if (seen.has(v.youtubeId)) return false;
-          seen.add(v.youtubeId);
-          return true;
-        });
-      }
-    } catch {}
-    return DEFAULT_VIDEOS.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
-  };
-
   // Local Channel Data Loader (Used for static hosts like GitHub Pages)
   const applyLocalChannelData = () => {
     const deletedIds = getBlacklistedDeletedIds();
@@ -329,39 +337,45 @@ export default function App() {
         setChannelInfo(data.channel);
       }
 
-      // Format Videos (all 64 videos: 44 long videos + 20 shorts)
-      const formattedVideos: PodcastEpisode[] = (data.videos || []).map((v: any, idx: number) => ({
-        id: `v-${idx}-${v.youtubeId}`,
-        youtubeId: v.youtubeId,
-        title: v.title,
-        channel: v.channel || data.channel?.name || 'Minh Hiếu review phim',
-        channelAvatar: v.channelAvatar || data.channel?.avatar,
-        category: 'phat-trien-ban-than',
-        duration: v.duration,
-        durationSeconds: v.isShort ? 60 : 600,
-        thumbnail: v.thumbnail,
-        description: v.isShort
-          ? `Shorts từ kênh ${data.channel?.name || 'Minh Hiếu review phim'}`
-          : `Video #${idx + 1} từ kênh ${data.channel?.name || 'Minh Hiếu review phim'}`,
-        publishedDate: v.isShort ? 'YouTube Shorts' : 'Video chính thức',
-        isShort: v.isShort,
-      }));
+      const deletedIds = getBlacklistedDeletedIds();
 
-      // Format Podcasts
-      const formattedPodcasts: PodcastEpisode[] = (data.podcasts || []).map((p: any, idx: number) => ({
-        id: `p-${idx}-${p.youtubeId}`,
-        youtubeId: p.youtubeId,
-        title: p.title,
-        channel: p.channel || data.channel?.name || 'Minh Hiếu review phim',
-        channelAvatar: p.channelAvatar || data.channel?.avatar,
-        category: 'phat-trien-ban-than',
-        duration: p.duration,
-        durationSeconds: 900,
-        thumbnail: p.thumbnail,
-        description: p.seriesTitle ? `Series Podcast: ${p.seriesTitle}` : `Tập podcast từ ${data.channel?.name}`,
-        publishedDate: p.seriesTitle || 'Podcast',
-        seriesTitle: p.seriesTitle,
-      }));
+      // Format Videos (all videos, excluding any permanently deleted on YouTube)
+      const formattedVideos: PodcastEpisode[] = (data.videos || [])
+        .filter((v: any) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id))
+        .map((v: any, idx: number) => ({
+          id: `v-${idx}-${v.youtubeId}`,
+          youtubeId: v.youtubeId,
+          title: v.title,
+          channel: v.channel || data.channel?.name || 'Minh Hiếu review phim',
+          channelAvatar: v.channelAvatar || data.channel?.avatar,
+          category: 'phat-trien-ban-than',
+          duration: v.duration,
+          durationSeconds: v.isShort ? 60 : 600,
+          thumbnail: v.thumbnail,
+          description: v.isShort
+            ? `Shorts từ kênh ${data.channel?.name || 'Minh Hiếu review phim'}`
+            : `Video #${idx + 1} từ kênh ${data.channel?.name || 'Minh Hiếu review phim'}`,
+          publishedDate: v.isShort ? 'YouTube Shorts' : 'Video chính thức',
+          isShort: v.isShort,
+        }));
+
+      // Format Podcasts (excluding any permanently deleted)
+      const formattedPodcasts: PodcastEpisode[] = (data.podcasts || [])
+        .filter((p: any) => !deletedIds.has(p.youtubeId) && !deletedIds.has(p.id))
+        .map((p: any, idx: number) => ({
+          id: `p-${idx}-${p.youtubeId}`,
+          youtubeId: p.youtubeId,
+          title: p.title,
+          channel: p.channel || data.channel?.name || 'Minh Hiếu review phim',
+          channelAvatar: p.channelAvatar || data.channel?.avatar,
+          category: 'phat-trien-ban-than',
+          duration: p.duration,
+          durationSeconds: 900,
+          thumbnail: p.thumbnail,
+          description: p.seriesTitle ? `Series Podcast: ${p.seriesTitle}` : `Tập podcast từ ${data.channel?.name}`,
+          publishedDate: p.seriesTitle || 'Podcast',
+          seriesTitle: p.seriesTitle,
+        }));
 
       const longCount = data.longVideosCount || formattedVideos.filter((v) => !v.isShort).length;
       const shortsCount = data.shortsCount || formattedVideos.filter((v) => v.isShort).length;
@@ -519,14 +533,17 @@ export default function App() {
           const imgM = itemText.match(/<itunes:image href="([^"]+)"/);
           const descM = itemText.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
 
-          if (guidM && titleM && !existingIds.has(guidM[1].trim()) && !deletedIds.has(guidM[1].trim())) {
-            const yId = guidM[1].trim();
-            const t = titleM[1].trim();
-            const dur = durM ? durM[1].trim() : '03:30';
-            const isShort = t.toLowerCase().includes('#shorts') || dur === '00:60' || dur === '0:60';
-            foundFromXml.push({
-              id: `studo-${Date.now()}-${i}-${yId}`,
-              youtubeId: yId,
+          if (guidM && titleM) {
+            const rawYId = guidM[1].trim();
+            const match11 = rawYId.match(/([a-zA-Z0-9_-]{11})$/);
+            const yId = (match11 && match11[1].length === 11) ? match11[1] : rawYId;
+            if (!existingIds.has(yId) && !deletedIds.has(yId) && !deletedIds.has(rawYId)) {
+              const t = titleM[1].trim();
+              const dur = durM ? durM[1].trim() : '03:30';
+              const isShort = t.toLowerCase().includes('#shorts') || dur === '00:60' || dur === '0:60';
+              foundFromXml.push({
+                id: `studo-${Date.now()}-${i}-${yId}`,
+                youtubeId: yId,
               title: t,
               channel: 'Minh Hiếu review phim',
               category: t.includes('đức phật') ? 'tam-ly-doi-song' : 'nghe-thuat-sang-tao',
@@ -539,6 +556,7 @@ export default function App() {
             });
           }
         }
+      }
 
         if (foundFromXml.length > 0) {
           setChannelVideos((prev) => [...foundFromXml, ...prev]);
@@ -669,9 +687,13 @@ export default function App() {
     }
   };
 
-  // Initial fetch on mount
+  // Initial fetch on mount + background check for removed YouTube videos
   useEffect(() => {
     fetchFullChannelData('https://www.youtube.com/@minhhieureviewphim');
+    const scanTimer = setTimeout(() => {
+      handleScanDeletedVideos();
+    }, 3500);
+    return () => clearTimeout(scanTimer);
   }, []);
 
   // Periodic Auto-Check every 90 seconds (1.5 minutes)
@@ -882,31 +904,46 @@ export default function App() {
 
   // Permanently delete video from the entire application and blacklist its ID
   const handlePermanentlyDeleteVideo = (targetId: string, youtubeId?: string) => {
-    const ep = channelVideos.find((v) => v.id === targetId || v.youtubeId === targetId || v.youtubeId === youtubeId);
-    const targetYId = ep?.youtubeId || youtubeId || targetId;
+    const ep =
+      channelVideos.find((v) => v.id === targetId || v.youtubeId === targetId || (youtubeId && v.youtubeId === youtubeId)) ||
+      channelPodcasts.find((v) => v.id === targetId || v.youtubeId === targetId || (youtubeId && v.youtubeId === youtubeId)) ||
+      activeQueue.find((v) => v.id === targetId || v.youtubeId === targetId || (youtubeId && v.youtubeId === youtubeId)) ||
+      DEFAULT_VIDEOS.find((v) => v.id === targetId || v.youtubeId === targetId || (youtubeId && v.youtubeId === youtubeId));
+
+    const rawYId = youtubeId || ep?.youtubeId || targetId;
+    const match11 = rawYId.match(/([a-zA-Z0-9_-]{11})$/);
+    const resolvedYId = (match11 && match11[1].length === 11) ? match11[1] : rawYId;
+    const targetTitle = ep?.title || resolvedYId;
 
     // 1. Permanently blacklist this YouTube video ID in localStorage
     try {
       const stored = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
       const list: string[] = stored ? JSON.parse(stored) : [];
-      if (!list.includes(targetYId)) {
-        list.push(targetYId);
-      }
+      [resolvedYId, rawYId, targetId].forEach((id) => {
+        if (id && !list.includes(id)) {
+          list.push(id);
+        }
+      });
       localStorage.setItem(STORAGE_KEY_DELETED_VIDEOS, JSON.stringify(list));
 
       // 2. Remove permanently from custom saved videos
       const customStored = localStorage.getItem('casttube_user_saved_videos');
       if (customStored) {
         const customList: PodcastEpisode[] = JSON.parse(customStored);
-        const cleaned = customList.filter((v) => v.youtubeId !== targetYId && v.id !== targetId);
+        const cleaned = customList.filter(
+          (v) => v.youtubeId !== resolvedYId && v.youtubeId !== rawYId && v.id !== targetId
+        );
         localStorage.setItem('casttube_user_saved_videos', JSON.stringify(cleaned));
       }
     } catch {}
 
     // 3. Remove permanently from all state lists
-    setChannelVideos((prev) => prev.filter((v) => v.id !== targetId && v.youtubeId !== targetYId));
-    setChannelPodcasts((prev) => prev.filter((v) => v.id !== targetId && v.youtubeId !== targetYId));
-    setActiveQueue((prev) => prev.filter((v) => v.id !== targetId && v.youtubeId !== targetYId));
+    const isTarget = (v: PodcastEpisode) =>
+      v.id === targetId || v.youtubeId === resolvedYId || v.youtubeId === rawYId || (youtubeId && v.youtubeId === youtubeId);
+
+    setChannelVideos((prev) => prev.filter((v) => !isTarget(v)));
+    setChannelPodcasts((prev) => prev.filter((v) => !isTarget(v)));
+    setActiveQueue((prev) => prev.filter((v) => !isTarget(v)));
 
     // Update counts
     setVideoCounts((prev) => ({
@@ -916,15 +953,15 @@ export default function App() {
     }));
 
     // If currently playing, move to next
-    if (currentEpisode && (currentEpisode.id === targetId || currentEpisode.youtubeId === targetYId)) {
+    if (currentEpisode && isTarget(currentEpisode)) {
       handleNextEpisode();
     }
 
-    showToast(`🗑️ Đã xóa vĩnh viễn video "${ep?.title || targetYId}" khỏi danh sách!`);
+    showToast(`🗑️ Đã xóa vĩnh viễn video "${targetTitle}" khỏi danh sách!`);
   };
 
-  const handleRemoveFromQueue = (episodeId: string) => {
-    handlePermanentlyDeleteVideo(episodeId);
+  const handleRemoveFromQueue = (episodeId: string, youtubeId?: string) => {
+    handlePermanentlyDeleteVideo(episodeId, youtubeId);
   };
 
   const handleSaveNote = (timestamp: number, text: string) => {

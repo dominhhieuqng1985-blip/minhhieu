@@ -8,7 +8,7 @@ interface FullPlaylistQueueProps {
   isPlaying?: boolean;
   favorites: string[];
   onPlayEpisode: (episode: PodcastEpisode) => void;
-  onRemoveEpisode: (episodeId: string) => void;
+  onRemoveEpisode: (episodeId: string, youtubeId?: string) => void;
   onToggleFavorite: (episodeId: string) => void;
   onClearAll?: () => void;
   videoFilter?: 'all' | 'long' | 'shorts';
@@ -228,7 +228,7 @@ export const FullPlaylistQueue: React.FC<FullPlaylistQueueProps> = ({
                 <button
                   onClick={() => {
                     if (confirm(`Bạn có chắc muốn xóa vĩnh viễn video "${ep.title}" khỏi danh sách? Video này sẽ không bao giờ tự động nạp lại.`)) {
-                      onRemoveEpisode(ep.id);
+                      onRemoveEpisode(ep.id, ep.youtubeId);
                     }
                   }}
                   className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-70 sm:opacity-0 group-hover:opacity-100"

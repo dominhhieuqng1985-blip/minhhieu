@@ -147,18 +147,23 @@ async function main() {
     }
   }
 
-  // Also include any RSS video not in scrapedLong as long video or short
+  // Also include any RSS video not in scrapedLong as long video or short (ONLY IF STILL ALIVE ON YOUTUBE)
   for (const rv of rssVideos) {
     if (!scrapedLong.some(v => v.youtubeId === rv.youtubeId)) {
-      // Determine if short
-      const isShort = rv.title.toLowerCase().includes('#shorts') || rv.title.toLowerCase().includes('video ngắn');
-      scrapedLong.push({
-        youtubeId: rv.youtubeId,
-        title: rv.title,
-        duration: isShort ? '00:60' : '03:30',
-        durationSeconds: isShort ? 60 : 210,
-        isShort
-      });
+      const isAlive = await checkVideoAlive(rv.youtubeId);
+      if (isAlive) {
+        // Determine if short
+        const isShort = rv.title.toLowerCase().includes('#shorts') || rv.title.toLowerCase().includes('video ngắn');
+        scrapedLong.push({
+          youtubeId: rv.youtubeId,
+          title: rv.title,
+          duration: isShort ? '00:60' : '03:30',
+          durationSeconds: isShort ? 60 : 210,
+          isShort
+        });
+      } else {
+        console.log(`Bỏ qua video RSS đã bị xóa trên YouTube: [${rv.youtubeId}] ${rv.title}`);
+      }
     }
   }
 
