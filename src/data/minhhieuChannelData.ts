@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Đến Tu Tiên 16 Năm Làm Phế Vật, Thức Tỉnh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "4 lượt xem",
+    "views": "6 lượt xem",
     "id": "mh-v1"
   },
   {
