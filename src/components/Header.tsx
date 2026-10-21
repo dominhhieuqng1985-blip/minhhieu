@@ -53,21 +53,6 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Prominent Movie Tab right next to Podcast */}
           <button
-            onClick={() => onNavigate('movies')}
-            className={`hover:text-white transition-all whitespace-nowrap shrink-0 py-1.5 px-3 rounded-lg flex items-center gap-1.5 border shadow-sm ${
-              activeSection === 'movies'
-                ? 'text-rose-300 font-bold bg-rose-600/25 border-rose-500 ring-1 ring-rose-500/40'
-                : 'text-rose-300 font-semibold bg-rose-950/40 hover:bg-rose-900/60 border-rose-800/60'
-            }`}
-          >
-            <Film className="w-3.5 h-3.5 text-rose-400" />
-            <span>Xem Phim (Rạp Chiếu)</span>
-            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-extrabold uppercase animate-pulse">
-              Mới
-            </span>
-          </button>
-
-          <button
             onClick={() => onNavigate('downloader')}
             className={`hover:text-slate-100 transition-colors whitespace-nowrap shrink-0 py-1.5 px-2.5 rounded-lg flex items-center gap-1.5 ${
               activeSection === 'downloader' ? 'text-amber-400 font-bold bg-amber-500/10' : ''
