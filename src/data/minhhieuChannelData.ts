@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Lên Kinh Tìm Chồng, Cô Gái Ôm Nhầm Tân Trạng Nguyên, Ai Ngờ Phu Quân Thật Là Thái Tử Lưu Lạc 18 Năm! - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "0 lượt xem",
+    "views": "1 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -390,7 +390,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Nhặt Được Công Pháp Thần Cấp, Chàng Trai Chỉ Cần Ngủ Cũng Đột Phá Khiến Cả Gia Tộc Khiếp Sợ - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "10 lượt xem",
+    "views": "11 lượt xem",
     "id": "mh-v22"
   },
   {
