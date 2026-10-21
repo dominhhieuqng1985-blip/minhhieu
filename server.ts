@@ -1683,6 +1683,127 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ:
   }
 });
 
+// =========================================================================
+// MOVIE CINEMA API PROXY (VSMOV.COM)
+// =========================================================================
+const VSMOV_BASE_URL = 'https://vsmov.com/api';
+
+async function fetchVsmovProxy(endpoint: string, query: Record<string, any> = {}) {
+  const url = new URL(`${VSMOV_BASE_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`);
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, String(value));
+    }
+  }
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      'accept': 'application/json',
+      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`vsmov error ${response.status}: ${text.slice(0, 200)}`);
+  }
+
+  return response.json();
+}
+
+// 1. Phim mới cập nhật
+app.get('/api/movie/phim-moi-cap-nhat', async (req, res) => {
+  try {
+    const page = req.query.page || 1;
+    const data = await fetchVsmovProxy('/danh-sach/phim-moi-cap-nhat', { page });
+    return res.json(data);
+  } catch (err: any) {
+    console.error('Movie phim-moi-cap-nhat error:', err.message);
+    return res.status(500).json({ status: false, message: err.message });
+  }
+});
+
+// 2. Danh sách theo slug (e.g. subteam, phim-bo, phim-le, hoat-hinh, tv-shows...)
+app.get('/api/movie/danh-sach/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { page, limit, year, country, category, type, status } = req.query;
+    const data = await fetchVsmovProxy(`/danh-sach/${encodeURIComponent(slug)}`, {
+      page,
+      limit,
+      year,
+      country,
+      category,
+      type,
+      status,
+    });
+    return res.json(data);
+  } catch (err: any) {
+    console.error(`Movie danh-sach/${req.params.slug} error:`, err.message);
+    return res.status(500).json({ status: false, message: err.message });
+  }
+});
+
+// 3. Tìm kiếm phim
+app.get('/api/movie/tim-kiem', async (req, res) => {
+  try {
+    const { keyword, limit = 20, page = 1 } = req.query;
+    if (!keyword) {
+      return res.status(400).json({ status: false, message: 'Thiếu từ khóa keyword' });
+    }
+    const data = await fetchVsmovProxy('/tim-kiem', { keyword, limit, page });
+    return res.json(data);
+  } catch (err: any) {
+    console.error('Movie tim-kiem error:', err.message);
+    return res.status(500).json({ status: false, message: err.message });
+  }
+});
+
+// 4. Danh sách thể loại
+app.get('/api/movie/the-loai', async (req, res) => {
+  try {
+    const data = await fetchVsmovProxy('/the-loai');
+    return res.json(data);
+  } catch (err: any) {
+    console.error('Movie the-loai error:', err.message);
+    return res.status(500).json({ status: false, message: err.message });
+  }
+});
+
+// 5. Danh sách quốc gia
+app.get('/api/movie/quoc-gia', async (req, res) => {
+  try {
+    const data = await fetchVsmovProxy('/quoc-gia');
+    return res.json(data);
+  } catch (err: any) {
+    console.error('Movie quoc-gia error:', err.message);
+    return res.status(500).json({ status: false, message: err.message });
+  }
+});
+
+// 6. Danh sách năm phát hành
+app.get('/api/movie/nam', async (req, res) => {
+  try {
+    const data = await fetchVsmovProxy('/nam');
+    return res.json(data);
+  } catch (err: any) {
+    console.error('Movie nam error:', err.message);
+    return res.status(500).json({ status: false, message: err.message });
+  }
+});
+
+// 7. Chi tiết phim theo slug
+app.get('/api/movie/detail/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const data = await fetchVsmovProxy(`/phim/${encodeURIComponent(slug)}`);
+    return res.json(data);
+  } catch (err: any) {
+    console.error(`Movie detail/${req.params.slug} error:`, err.message);
+    return res.status(500).json({ status: false, message: err.message });
+  }
+});
+
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
   if (process.env.NODE_ENV === 'production') {

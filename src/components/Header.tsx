@@ -8,6 +8,7 @@ import {
   Music,
   Download,
   Sparkles,
+  Film,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -40,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {/* Zone 2: Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-4 text-xs font-medium text-slate-400 overflow-x-auto py-1 scrollbar-none">
+        <nav className="hidden lg:flex items-center gap-3 text-xs font-medium text-slate-400 overflow-x-auto py-1 scrollbar-none">
           <button
             onClick={() => onNavigate('catalog')}
             className={`hover:text-slate-100 transition-colors whitespace-nowrap shrink-0 py-1.5 px-2.5 rounded-lg ${
@@ -48,6 +49,22 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             Video &amp; Podcast
+          </button>
+
+          {/* Prominent Movie Tab right next to Podcast */}
+          <button
+            onClick={() => onNavigate('movies')}
+            className={`hover:text-white transition-all whitespace-nowrap shrink-0 py-1.5 px-3 rounded-lg flex items-center gap-1.5 border shadow-sm ${
+              activeSection === 'movies'
+                ? 'text-rose-300 font-bold bg-rose-600/25 border-rose-500 ring-1 ring-rose-500/40'
+                : 'text-rose-300 font-semibold bg-rose-950/40 hover:bg-rose-900/60 border-rose-800/60'
+            }`}
+          >
+            <Film className="w-3.5 h-3.5 text-rose-400" />
+            <span>Xem Phim (Rạp Chiếu)</span>
+            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-extrabold uppercase animate-pulse">
+              Mới
+            </span>
           </button>
 
           <button
@@ -101,23 +118,56 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </nav>
 
-        {/* Zone 3: Actions */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        {/* Zone 3: Actions - Always visible on desktop, tablet, and mobile */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Quick Access Xem Phim Button */}
+          <button
+            onClick={() => onNavigate('movies')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap shadow-md active:scale-95 border ${
+              activeSection === 'movies'
+                ? 'bg-rose-600 text-white border-rose-400 shadow-rose-600/30 ring-2 ring-rose-400/50'
+                : 'bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white border-rose-400/40 shadow-rose-950/50'
+            }`}
+            title="Xem Phim Online (VSMov API) - Phim mới cập nhật, tìm kiếm, xem tập"
+          >
+            <Film className="w-3.5 h-3.5 fill-white/20" />
+            <span>Xem Phim</span>
+            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-yellow-400 text-slate-950 font-black tracking-wider uppercase animate-pulse">
+              HOT
+            </span>
+          </button>
+
           <button
             onClick={onOpenConnectModal}
-            className="px-3.5 py-1.5 text-xs font-semibold text-slate-950 bg-amber-500 hover:bg-amber-400 rounded-xl transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
+            className="px-3 py-1.5 text-xs font-semibold text-slate-950 bg-amber-500 hover:bg-amber-400 rounded-xl transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>Kết nối kênh</span>
+            <span className="hidden sm:inline">Kết nối kênh</span>
           </button>
         </div>
       </div>
 
       {/* Subnav for Mobile & Tablet */}
-      <div className="lg:hidden border-t border-slate-800/80 bg-slate-950/90 px-4 py-2 flex items-center gap-2 overflow-x-auto scrollbar-none text-xs text-slate-400">
+      <div className="lg:hidden border-t border-slate-800/80 bg-slate-950/90 px-3 py-2 flex items-center gap-2 overflow-x-auto scrollbar-none text-xs text-slate-400">
+        {/* Highlighted Mobile Xem Phim right upfront */}
+        <button
+          onClick={() => onNavigate('movies')}
+          className={`whitespace-nowrap px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold border shrink-0 ${
+            activeSection === 'movies'
+              ? 'text-white bg-rose-600 border-rose-400 shadow-sm'
+              : 'text-rose-300 bg-rose-950/60 border-rose-800/80 hover:bg-rose-900/50'
+          }`}
+        >
+          <Film className="w-3.5 h-3.5 text-rose-400" />
+          <span>Xem Phim (Rạp Chiếu)</span>
+          <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-extrabold uppercase">
+            Mới
+          </span>
+        </button>
+
         <button
           onClick={() => onNavigate('catalog')}
-          className={`whitespace-nowrap px-2.5 py-1 rounded-md ${
+          className={`whitespace-nowrap px-2.5 py-1.5 rounded-md shrink-0 ${
             activeSection === 'catalog' ? 'text-amber-400 font-bold bg-amber-500/10' : ''
           }`}
         >
@@ -125,7 +175,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
         <button
           onClick={() => onNavigate('downloader')}
-          className={`whitespace-nowrap px-2.5 py-1 rounded-md ${
+          className={`whitespace-nowrap px-2.5 py-1.5 rounded-md shrink-0 ${
             activeSection === 'downloader' ? 'text-amber-400 font-bold bg-amber-500/10' : ''
           }`}
         >
@@ -133,7 +183,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
         <button
           onClick={() => onNavigate('converter')}
-          className={`whitespace-nowrap px-2.5 py-1 rounded-md ${
+          className={`whitespace-nowrap px-2.5 py-1.5 rounded-md shrink-0 ${
             activeSection === 'converter' ? 'text-amber-400 font-bold bg-amber-500/10' : ''
           }`}
         >
@@ -141,7 +191,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
         <button
           onClick={() => onNavigate('tts')}
-          className={`whitespace-nowrap px-2.5 py-1 rounded-md ${
+          className={`whitespace-nowrap px-2.5 py-1.5 rounded-md shrink-0 ${
             activeSection === 'tts' ? 'text-amber-400 font-bold bg-amber-500/10' : ''
           }`}
         >
@@ -149,7 +199,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
         <button
           onClick={() => onNavigate('video-ai')}
-          className={`whitespace-nowrap px-2.5 py-1 rounded-md ${
+          className={`whitespace-nowrap px-2.5 py-1.5 rounded-md shrink-0 ${
             activeSection === 'video-ai' ? 'text-amber-400 font-bold bg-amber-500/10' : ''
           }`}
         >
@@ -157,7 +207,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
         <button
           onClick={() => onNavigate('song-ai')}
-          className={`whitespace-nowrap px-2.5 py-1 rounded-md ${
+          className={`whitespace-nowrap px-2.5 py-1.5 rounded-md shrink-0 ${
             activeSection === 'song-ai' ? 'text-amber-400 font-bold bg-amber-500/10' : ''
           }`}
         >

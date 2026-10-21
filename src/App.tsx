@@ -51,6 +51,7 @@ import { DocumentConverterStudio } from './components/DocumentConverterStudio';
 import { TextToSpeechStudio } from './components/TextToSpeechStudio';
 import { AIVideoScriptStudio } from './components/AIVideoScriptStudio';
 import { AISongFolkStudio } from './components/AISongFolkStudio';
+import { MovieCinemaView } from './components/MovieCinemaView';
 import { formatSeconds } from './utils/youtube';
 import {
   DEFAULT_CHANNEL_INFO,
@@ -1140,6 +1141,16 @@ export default function App() {
           <VidKrakenDownloader
             currentEpisode={currentEpisode}
             onAddToQueue={handleAddCustomVideo}
+            onShowToast={showToast}
+          />
+        </main>
+      ) : activeNav === 'movies' ? (
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+          <MovieCinemaView
+            onSendToTTS={(text) => {
+              setActiveNav('tts');
+              showToast('Đã chuyển tóm tắt phim sang Studio Giọng Nói!');
+            }}
             onShowToast={showToast}
           />
         </main>
