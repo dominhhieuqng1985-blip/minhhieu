@@ -105,7 +105,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Cổ Đại Dùng Kiến Thức Hiện Đại Chế Tạo Thần Khí, Khiến Cả Hoàng Tộc Phải Quỳ Phục - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "6 lượt xem",
+    "views": "7 lượt xem",
     "id": "mh-v3"
   },
   {
@@ -200,14 +200,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "CbpHoTtUulQ",
-    "title": "🙏 Đức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài Học Sâu Sắc Về Đạo Làm Con 🪷",
+    "title": "🙏 Đức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài H��c Sâu Sắc Về Đạo Làm Con 🪷",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "tam-ly-doi-song",
     "duration": "3:50",
     "durationSeconds": 230,
     "thumbnail": "https://i.ytimg.com/vi/CbpHoTtUulQ/hqdefault.jpg",
-    "description": "🙏 Đức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài Học Sâu Sắc Về Đạo Làm Con 🪷 - Kênh Minh Hiếu review phim.",
+    "description": "🙏 Đức Phật Dạy Về Lòng Hiếu Kính Cha Mẹ | Bài H��c Sâu Sắc Về Đạo Làm Con 🪷 - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "2 lượt xem",
