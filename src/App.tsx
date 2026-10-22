@@ -38,6 +38,10 @@ import {
 } from 'lucide-react';
 import { PodcastEpisode, PodcastNote, PodcastSeries, PodcastPlaylist } from './types/podcast';
 import { Header } from './components/Header';
+import { SidebarLeft } from './components/SidebarLeft';
+import { CompanionRightSidebar, ActiveMovieState } from './components/CompanionRightSidebar';
+import { MovieDetail, EpisodeData, EpisodeServer, FilterOption } from './types/movie';
+import { getCategories } from './utils/movieApi';
 import { YouTubePlayer } from './components/YouTubePlayer';
 import { CurrentlyPlayingSidebar } from './components/CurrentlyPlayingSidebar';
 import { AIPodcastCompanion } from './components/AIPodcastCompanion';
@@ -49,8 +53,6 @@ import { GithubSyncModal } from './components/GithubSyncModal';
 import { VidKrakenDownloader } from './components/VidKrakenDownloader';
 import { DocumentConverterStudio } from './components/DocumentConverterStudio';
 import { TextToSpeechStudio } from './components/TextToSpeechStudio';
-import { AIVideoScriptStudio } from './components/AIVideoScriptStudio';
-import { AISongFolkStudio } from './components/AISongFolkStudio';
 import { MovieCinemaView } from './components/MovieCinemaView';
 import { formatSeconds } from './utils/youtube';
 import {
@@ -235,10 +237,34 @@ export default function App() {
   });
 
   // Navigation & Search
-  const [activeNav, setActiveNav] = useState<string>('playlist');
+  const [activeNav, setActiveNav] = useState<string>('catalog');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
   const [isAddVideoModalOpen, setIsAddVideoModalOpen] = useState<boolean>(false);
+
+  // 3-Column Layout States
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState<boolean>(false);
+  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState<boolean>(false);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState<boolean>(true);
+
+  // Movie category & selection from sidebar
+  const [movieTab, setMovieTab] = useState<string>('latest');
+  const [movieGenreSlug, setMovieGenreSlug] = useState<string>('hanh-dong');
+  const [movieActorSlug, setMovieActorSlug] = useState<string>('');
+  const [movieCategories, setMovieCategories] = useState<FilterOption[]>([]);
+
+  // Active movie being played (for sync with right sidebar & universal player)
+  const [activeMovieState, setActiveMovieState] = useState<ActiveMovieState | null>(null);
+
+  useEffect(() => {
+    getCategories()
+      .then((cats) => {
+        if (Array.isArray(cats) && cats.length > 0) {
+          setMovieCategories(cats);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Player seeking orchestration
   const [seekTargetTime, setSeekTargetTime] = useState<number | null>(null);
@@ -1108,7 +1134,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Header */}
+      {/* Header with 3-Column Controls */}
       <Header
         activeSection={activeNav}
         onNavigate={(section) => {
@@ -1117,46 +1143,86 @@ export default function App() {
         }}
         onOpenConnectModal={() => setIsConnectModalOpen(true)}
         favoritesCount={favorites.length}
+        onToggleLeftSidebar={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
+        isLeftSidebarOpen={isLeftSidebarOpen}
+        onToggleRightSidebar={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+        isRightSidebarOpen={isRightSidebarOpen}
       />
 
-      {/* Render Dedicated Studio based on navigation, or Default Catalog View */}
-      {activeNav === 'converter' ? (
-        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-          <DocumentConverterStudio onShowToast={showToast} />
-        </main>
-      ) : activeNav === 'tts' ? (
-        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-          <TextToSpeechStudio onShowToast={showToast} />
-        </main>
-      ) : activeNav === 'video-ai' ? (
-        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-          <AIVideoScriptStudio onShowToast={showToast} />
-        </main>
-      ) : activeNav === 'song-ai' ? (
-        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-          <AISongFolkStudio onShowToast={showToast} />
-        </main>
-      ) : activeNav === 'downloader' ? (
-        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-          <VidKrakenDownloader
-            currentEpisode={currentEpisode}
-            onAddToQueue={handleAddCustomVideo}
-            onShowToast={showToast}
-          />
-        </main>
-      ) : activeNav === 'movies' ? (
-        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-          <MovieCinemaView
-            onSendToTTS={(text) => {
-              setActiveNav('tts');
-              showToast('Đã chuyển tóm tắt phim sang Studio Giọng Nói!');
-            }}
-            onShowToast={showToast}
-          />
-        </main>
-      ) : (
-        /* Main Podcast Catalog & Player View */
-        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      {/* 3-Column Layout Container */}
+      <div className="flex-1 flex w-full">
+        {/* Column 1: Left Navigation Sidebar */}
+        <SidebarLeft
+          isOpen={isLeftSidebarOpen}
+          onClose={() => setIsLeftSidebarOpen(false)}
+          isCollapsed={isLeftSidebarCollapsed}
+          onToggleCollapse={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
+          activeSection={activeNav}
+          onNavigate={(section) => {
+            setActiveNav(section);
+            setIsLeftSidebarOpen(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onSelectMovieGenre={(slug) => {
+            setActiveNav('movies');
+            setMovieGenreSlug(slug);
+            setMovieTab('genre');
+            setIsLeftSidebarOpen(false);
+          }}
+          onSelectMovieTab={(tab) => {
+            setActiveNav('movies');
+            if (tab.startsWith('actor:')) {
+              setMovieActorSlug(tab.replace('actor:', ''));
+              setMovieTab('actors');
+            } else {
+              setMovieTab(tab);
+            }
+            setIsLeftSidebarOpen(false);
+          }}
+          categories={movieCategories}
+          selectedGenreSlug={movieGenreSlug}
+          channelInfo={channelInfo}
+          videoCounts={videoCounts}
+          favoritesCount={favorites.length}
+          historyCount={channelVideos.length}
+        />
+
+        {/* Column 2: Center Main Content Workspace */}
+        <div className="flex-1 min-w-0 p-3 sm:p-5 lg:p-6 space-y-6">
+          {activeNav === 'converter' ? (
+            <DocumentConverterStudio onShowToast={showToast} />
+          ) : activeNav === 'tts' ? (
+            <TextToSpeechStudio onShowToast={showToast} />
+          ) : activeNav === 'downloader' ? (
+            <VidKrakenDownloader
+              currentEpisode={currentEpisode}
+              onAddToQueue={handleAddCustomVideo}
+              onShowToast={showToast}
+            />
+          ) : activeNav === 'movies' ? (
+            <MovieCinemaView
+              initialTab={movieTab}
+              initialGenreSlug={movieGenreSlug}
+              initialActorSlug={movieActorSlug}
+              onPlayMovieInUniversalPlayer={(movie, ep, serverName, episodes) => {
+                const sIndex = episodes.findIndex((s) => s.server_name === serverName);
+                setActiveMovieState({
+                  movie,
+                  activeEpisode: ep,
+                  activeServerIndex: sIndex >= 0 ? sIndex : 0,
+                  episodes,
+                });
+                setIsRightSidebarOpen(true);
+              }}
+              onSendToTTS={(text) => {
+                setActiveNav('tts');
+                showToast('Đã chuyển tóm tắt phim sang Studio Giọng Nói!');
+              }}
+              onShowToast={showToast}
+            />
+          ) : (
+            /* Main Podcast Catalog & Player View */
+            <div className="space-y-8">
         {/* Instant URL Search & Channel Banner Header */}
         <div className="rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-7 shadow-2xl space-y-5">
           {/* Top URL Input: Allows pasting any link and auto-fetches */}
@@ -1759,28 +1825,88 @@ export default function App() {
             onAddToQueue={handleAddCustomVideo}
             onShowToast={showToast}
           />
-        </section>
-      </main>
-      )}
-
-      {/* Footer */}
-      <footer className="mt-16 border-t border-slate-800/80 bg-slate-950 py-8 text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-slate-300">
-            <Radio className="w-4 h-4 text-amber-400" />
-            <span className="font-bold">CastTube</span>
-            <span>· Kênh: {channelInfo.name}</span>
-          </div>
-
-          <div className="text-slate-400 flex items-center gap-4">
-            <a href={channelInfo.youtubeUrl} target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 underline">
-              Mở kênh trên YouTube
-            </a>
-            <span>·</span>
-            <span>Chỉ hiển thị các video & podcast của kênh bạn chọn</span>
-          </div>
+          </section>
         </div>
-      </footer>
+        )}
+      </div>
+
+      {/* Column 3: Right Companion & Player Sidebar */}
+      <CompanionRightSidebar
+        isOpen={isRightSidebarOpen}
+        onClose={() => setIsRightSidebarOpen(false)}
+        currentEpisode={currentEpisode}
+        activeQueue={activeQueue}
+        activePlaylistTitle={activePlaylistTitle}
+        currentIndex={currentIndex}
+        isAutoplayNext={isAutoplayNext}
+        onToggleAutoplay={() => {
+          const next = !isAutoplayNext;
+          setIsAutoplayNext(next);
+          showToast(next ? 'Đã BẬT tự động phát tập tiếp theo' : 'Đã TẮT tự động phát tập tiếp theo');
+        }}
+        onPlayEpisode={handlePlayEpisode}
+        onPrevEpisode={handlePrevEpisode}
+        onNextEpisode={handleNextEpisode}
+        hasNextEpisode={hasNextEpisode}
+        hasPrevEpisode={hasPrevEpisode}
+        channelVideosCount={channelVideos.length}
+        podcastSeries={podcastSeries}
+        channelPlaylists={channelPlaylists}
+        onSelectQueueSource={handleSelectQueueSource}
+        onSeekToTime={handleSeek}
+        notes={notes}
+        onDeleteNote={(id) => {
+          setNotes((prev) => {
+            const updated = prev.filter((n) => n.id !== id);
+            try {
+              localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(updated));
+            } catch {}
+            return updated;
+          });
+          showToast('Đã xóa ghi chú');
+        }}
+        activeMovie={activeMovieState}
+        onSelectMovieEpisode={(ep) => {
+          if (activeMovieState) {
+            setActiveMovieState({
+              ...activeMovieState,
+              activeEpisode: ep,
+            });
+          }
+        }}
+        onSelectMovieServer={(sIdx) => {
+          if (activeMovieState && activeMovieState.episodes[sIdx]?.server_data.length > 0) {
+            setActiveMovieState({
+              ...activeMovieState,
+              activeServerIndex: sIdx,
+              activeEpisode: activeMovieState.episodes[sIdx].server_data[0],
+            });
+          }
+        }}
+        onCloseMoviePlayer={() => setActiveMovieState(null)}
+      />
+    </div>
+
+    {/* Footer with Minh Hiếu TuBe Branding */}
+    <footer className="mt-8 border-t border-slate-800/80 bg-slate-950 py-8 text-xs text-slate-400">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-slate-300">
+          <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center text-white text-[10px] font-bold">
+            ▶
+          </div>
+          <span className="font-extrabold text-white">Minh Hiếu TuBe</span>
+          <span>· Kênh: {channelInfo.name}</span>
+        </div>
+
+        <div className="text-slate-400 flex items-center gap-4 flex-wrap">
+          <a href={channelInfo.youtubeUrl} target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 underline">
+            Mở kênh trên YouTube
+          </a>
+          <span>·</span>
+          <span>Website Đa Chức Năng 3 Cột: Video, Podcast, Rạp Phim &amp; Studio AI</span>
+        </div>
+      </div>
+    </footer>
 
       {/* Connect Modal */}
       <ConnectModal

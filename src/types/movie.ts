@@ -42,11 +42,28 @@ export interface MovieItem {
   modified?: { time?: string };
 }
 
+export interface ActorItem {
+  _id?: number | string;
+  name: string;
+  slug: string;
+  thumb_url?: string | null;
+}
+
+export interface GenreQueryParams {
+  limit?: number;
+  page?: number;
+  year?: string | number;
+  country?: string;
+  type?: 'single' | 'series' | 'hoathinh' | 'tvshows' | string;
+  status?: 'trailer' | 'ongoing' | 'completed' | string;
+}
+
 export interface EpisodeData {
   name: string;
   slug: string;
   filename?: string;
   link_embed: string;
+  link_m3u8?: string;
 }
 
 export interface EpisodeServer {

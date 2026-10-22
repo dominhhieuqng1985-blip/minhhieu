@@ -6,7 +6,9 @@ import {
   MovieDetailResponse,
   FilterOption,
   FilterListResponse,
-  EpisodeServer
+  EpisodeServer,
+  ActorItem,
+  GenreQueryParams
 } from '../types/movie';
 
 const DIRECT_BASE_URL = 'https://vsmov.com/api';
@@ -100,6 +102,57 @@ export async function getMoviesByList(
       items: extractItems(json),
       pagination: extractPagination(json, params.page || 1),
     };
+  }
+}
+
+/**
+ * Lấy danh sách phim theo thể loại (slug) và bộ lọc:
+ * /api/the-loai/[slug]?limit=20&page=1&year=2024&country=han-quoc&type=series&status=completed
+ */
+export async function getMoviesByGenre(
+  slug: string,
+  params: GenreQueryParams = {}
+): Promise<{ items: MovieItem[]; pagination: MoviePagination }> {
+  const query = new URLSearchParams();
+  if (params.page) query.set('page', String(params.page));
+  if (params.limit) query.set('limit', String(params.limit));
+  if (params.year) query.set('year', String(params.year));
+  if (params.country) query.set('country', String(params.country));
+  if (params.type) query.set('type', String(params.type));
+  if (params.status) query.set('status', String(params.status));
+
+  const qs = query.toString() ? `?${query.toString()}` : '';
+
+  try {
+    const json = await safeFetchJson<MovieListResponse>(`${PROXY_BASE_URL}/the-loai/${encodeURIComponent(slug)}${qs}`);
+    return {
+      items: extractItems(json),
+      pagination: extractPagination(json, params.page || 1),
+    };
+  } catch (proxyErr) {
+    const json = await safeFetchJson<MovieListResponse>(`${DIRECT_BASE_URL}/the-loai/${encodeURIComponent(slug)}${qs}`);
+    return {
+      items: extractItems(json),
+      pagination: extractPagination(json, params.page || 1),
+    };
+  }
+}
+
+/**
+ * Lấy danh sách tất cả diễn viên:
+ * /api/dien-vien
+ */
+export async function getActors(): Promise<ActorItem[]> {
+  try {
+    const json = await safeFetchJson<any>(`${PROXY_BASE_URL}/dien-vien`);
+    if (Array.isArray(json?.data?.items)) return json.data.items;
+    if (Array.isArray(json?.items)) return json.items;
+    return [];
+  } catch {
+    const json = await safeFetchJson<any>(`${DIRECT_BASE_URL}/dien-vien`);
+    if (Array.isArray(json?.data?.items)) return json.data.items;
+    if (Array.isArray(json?.items)) return json.items;
+    return [];
   }
 }
 

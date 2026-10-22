@@ -11,7 +11,29 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+function getPort(): number {
+  // 1. Explicit CLI arguments (--port <num>)
+  const portArgIndex = process.argv.indexOf('--port');
+  if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+    const parsed = parseInt(process.argv[portArgIndex + 1], 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  // 2. Control plane / AI studio default app port
+  if (process.env.DEFAULT_APP_PORT) {
+    const parsed = parseInt(process.env.DEFAULT_APP_PORT, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  // 3. Standalone production environment (Cloud Run / container without Nginx)
+  if (process.env.NODE_ENV === 'production' && process.env.PORT) {
+    const parsed = parseInt(process.env.PORT, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  // 4. Default to port 3000 as required by the development environment
+  return 3000;
+}
+
+const PORT = getPort();
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -1759,13 +1781,64 @@ app.get('/api/movie/tim-kiem', async (req, res) => {
   }
 });
 
-// 4. Danh sách thể loại
-app.get('/api/movie/the-loai', async (req, res) => {
+// 4. Danh sách thể loại tổng hợp
+app.get(['/api/movie/the-loai', '/api/the-loai'], async (req, res) => {
   try {
     const data = await fetchVsmovProxy('/the-loai');
     return res.json(data);
   } catch (err: any) {
     console.error('Movie the-loai error:', err.message);
+    return res.status(500).json({ status: false, message: err.message });
+  }
+});
+
+// 4b. Danh sách phim theo thể loại với đầy đủ bộ lọc
+app.get(['/api/movie/the-loai/:slug', '/api/the-loai/:slug'], async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { page, limit, year, country, type, status } = req.query;
+    const data = await fetchVsmovProxy(`/the-loai/${encodeURIComponent(slug)}`, {
+      page,
+      limit,
+      year,
+      country,
+      type,
+      status,
+    });
+    return res.json(data);
+  } catch (err: any) {
+    console.error(`Movie the-loai/${req.params.slug} error:`, err.message);
+    return res.status(500).json({ status: false, message: err.message });
+  }
+});
+
+// 4c. Danh sách tất cả diễn viên
+app.get(['/api/movie/dien-vien', '/api/dien-vien'], async (req, res) => {
+  try {
+    const data = await fetchVsmovProxy('/dien-vien');
+    return res.json(data);
+  } catch (err: any) {
+    console.error('Movie dien-vien error:', err.message);
+    return res.status(500).json({ status: false, message: err.message });
+  }
+});
+
+// 4d. Chi tiết phim theo diễn viên slug (fallback to search if direct 404)
+app.get(['/api/movie/dien-vien/:slug', '/api/dien-vien/:slug'], async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { page, limit } = req.query;
+    try {
+      const data = await fetchVsmovProxy(`/dien-vien/${encodeURIComponent(slug)}`, { page, limit });
+      return res.json(data);
+    } catch {
+      // Fallback: search movies by actor keyword
+      const keyword = slug.replace(/-/g, ' ');
+      const searchData = await fetchVsmovProxy('/tim-kiem', { keyword, limit: limit || 24, page: page || 1 });
+      return res.json(searchData);
+    }
+  } catch (err: any) {
+    console.error(`Movie dien-vien/${req.params.slug} error:`, err.message);
     return res.status(500).json({ status: false, message: err.message });
   }
 });
@@ -1814,14 +1887,21 @@ async function startServer() {
   } else {
     const { createServer } = await import('vite');
     const vite = await createServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`CastTube Server running at http://0.0.0.0:${PORT}`);
+  });
+
+  server.on('error', (err: any) => {
+    console.error('Server listen error:', err);
   });
 }
 
