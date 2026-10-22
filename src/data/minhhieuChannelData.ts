@@ -64,21 +64,6 @@ export const DEFAULT_CHANNEL_PLAYLISTS: PodcastPlaylist[] = [
 // Danh sách toàn bộ 76 video chính thức từ kênh @minhhieureviewphim
 export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   {
-    "youtubeId": "kES93_D1bxw",
-    "title": "Lên Kinh Tìm Chồng, Cô Gái Ôm Nhầm Tân Trạng Nguyên, Ai Ngờ Phu Quân Thật Là Thái Tử Lưu Lạc 18 Năm!",
-    "channel": "Minh Hiếu review phim",
-    "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
-    "category": "nghe-thuat-sang-tao",
-    "duration": "1:37:29",
-    "durationSeconds": 5849,
-    "thumbnail": "https://i.ytimg.com/vi/kES93_D1bxw/hqdefault.jpg",
-    "description": "Lên Kinh Tìm Chồng, Cô Gái Ôm Nhầm Tân Trạng Nguyên, Ai Ngờ Phu Quân Thật Là Thái Tử Lưu Lạc 18 Năm! - Kênh Minh Hiếu review phim.",
-    "publishedDate": "Video chính thức",
-    "isShort": false,
-    "views": "2 lượt xem",
-    "id": "mh-v1"
-  },
-  {
     "youtubeId": "PmR-0mHv4wU",
     "title": "Xuyên Không Đến Tu Tiên 16 Năm Làm Phế Vật, Thức Tỉnh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh",
     "channel": "Minh Hiếu review phim",
@@ -91,22 +76,22 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "8 lượt xem",
-    "id": "mh-v2"
+    "id": "mh-v1"
   },
   {
     "youtubeId": "mUBFf4cZzK8",
-    "title": "Xuyên Không Về Cổ Đại Dùng Kiến Thức Hiện Đại Chế Tạo Thần Khí, Khiến Cả Hoàng Tộc Phải Quỳ Phục",
+    "title": "Xuyên Không Về Cổ Đại Dùng Kiến Thức Hiện Đại Chế Tạo Thần Kh��, Khiến Cả Hoàng Tộc Phải Quỳ Phục",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "2:03:39",
     "durationSeconds": 7419,
     "thumbnail": "https://i.ytimg.com/vi/mUBFf4cZzK8/hqdefault.jpg",
-    "description": "Xuyên Không Về Cổ Đại Dùng Kiến Thức Hiện Đại Chế Tạo Thần Khí, Khiến Cả Hoàng Tộc Phải Quỳ Phục - Kênh Minh Hiếu review phim.",
+    "description": "Xuyên Không Về Cổ Đại Dùng Kiến Thức Hiện Đại Chế Tạo Thần Kh��, Khiến Cả Hoàng Tộc Phải Quỳ Phục - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "6 lượt xem",
-    "id": "mh-v3"
+    "id": "mh-v2"
   },
   {
     "youtubeId": "wWLTeDAW8g0",
@@ -121,7 +106,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "31 lượt xem",
-    "id": "mh-v4"
+    "id": "mh-v3"
   },
   {
     "youtubeId": "RBDiyKI0sH0",
@@ -136,7 +121,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "10 lượt xem",
-    "id": "mh-v5"
+    "id": "mh-v4"
   },
   {
     "youtubeId": "oB3xmS-kP0Y",
@@ -151,7 +136,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "0 lượt xem",
-    "id": "mh-v6"
+    "id": "mh-v5"
   },
   {
     "youtubeId": "BWzOmHQsbBA",
@@ -166,7 +151,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "11 lượt xem",
-    "id": "mh-v7"
+    "id": "mh-v6"
   },
   {
     "youtubeId": "B2CijJhm3Gs",
@@ -181,7 +166,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "13 lượt xem",
-    "id": "mh-v8"
+    "id": "mh-v7"
   },
   {
     "youtubeId": "YEGhthGa8fE",
@@ -196,7 +181,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "16 lượt xem",
-    "id": "mh-v9"
+    "id": "mh-v8"
   },
   {
     "youtubeId": "CbpHoTtUulQ",
@@ -211,7 +196,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "2 lượt xem",
-    "id": "mh-v10"
+    "id": "mh-v9"
   },
   {
     "youtubeId": "aUVV8wlj1KE",
@@ -226,7 +211,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "6 lượt xem",
-    "id": "mh-v11"
+    "id": "mh-v10"
   },
   {
     "youtubeId": "P0MxHN62ZMs",
@@ -241,7 +226,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "12 lượt xem",
-    "id": "mh-v12"
+    "id": "mh-v11"
   },
   {
     "youtubeId": "RLuGfOlOVvo",
@@ -256,7 +241,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "10 lượt xem",
-    "id": "mh-v13"
+    "id": "mh-v12"
   },
   {
     "youtubeId": "sFx3g_fZAcY",
@@ -271,7 +256,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "13 lượt xem",
-    "id": "mh-v14"
+    "id": "mh-v13"
   },
   {
     "youtubeId": "U7ucFrkJ6ok",
@@ -286,7 +271,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "8 lượt xem",
-    "id": "mh-v15"
+    "id": "mh-v14"
   },
   {
     "youtubeId": "NmUVqZoAcWk",
@@ -301,7 +286,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "3 lượt xem",
-    "id": "mh-v16"
+    "id": "mh-v15"
   },
   {
     "youtubeId": "WjgrpSYEiJU",
@@ -316,7 +301,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "3 lượt xem",
-    "id": "mh-v17"
+    "id": "mh-v16"
   },
   {
     "youtubeId": "MVFNVguGR4Q",
@@ -331,7 +316,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "10 lượt xem",
-    "id": "mh-v18"
+    "id": "mh-v17"
   },
   {
     "youtubeId": "z_dnJv34E7U",
@@ -346,7 +331,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "12 lượt xem",
-    "id": "mh-v19"
+    "id": "mh-v18"
   },
   {
     "youtubeId": "bMDVx_SX3L8",
@@ -361,7 +346,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "12 lượt xem",
-    "id": "mh-v20"
+    "id": "mh-v19"
   },
   {
     "youtubeId": "HcRZRdnqwMQ",
@@ -376,7 +361,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "9 lượt xem",
-    "id": "mh-v21"
+    "id": "mh-v20"
   },
   {
     "youtubeId": "6JyM_zWYXIk",
@@ -391,7 +376,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "11 lượt xem",
-    "id": "mh-v22"
+    "id": "mh-v21"
   },
   {
     "youtubeId": "iB1SSEtfF0o",
@@ -406,7 +391,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "9 lượt xem",
-    "id": "mh-v23"
+    "id": "mh-v22"
   },
   {
     "youtubeId": "LE9Y89y1hwE",
@@ -421,7 +406,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "6 lượt xem",
-    "id": "mh-v24"
+    "id": "mh-v23"
   },
   {
     "youtubeId": "5zQOW9ER0k4",
@@ -436,7 +421,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "9 lượt xem",
-    "id": "mh-v25"
+    "id": "mh-v24"
   },
   {
     "youtubeId": "FX0xH3mUSGI",
@@ -451,7 +436,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "2 lượt xem",
-    "id": "mh-v26"
+    "id": "mh-v25"
   },
   {
     "youtubeId": "Ugjw_91dizo",
@@ -466,7 +451,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "22 lượt xem",
-    "id": "mh-v27"
+    "id": "mh-v26"
   },
   {
     "youtubeId": "ac1luP8sZY4",
@@ -481,7 +466,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "5 lượt xem",
-    "id": "mh-v28"
+    "id": "mh-v27"
   },
   {
     "youtubeId": "LHdjVV2RteU",
@@ -496,7 +481,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "6 lượt xem",
-    "id": "mh-v29"
+    "id": "mh-v28"
   },
   {
     "youtubeId": "KcmuoUKw1vc",
@@ -511,7 +496,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "22 lượt xem",
-    "id": "mh-v30"
+    "id": "mh-v29"
   },
   {
     "youtubeId": "zcXkuUKHgBw",
@@ -525,7 +510,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "nhất kiếm phá cửu thiên - Kênh Minh Hiếu review phim.",
     "publishedDate": "Mới cập nhật",
     "isShort": false,
-    "id": "mh-v31"
+    "id": "mh-v30"
   },
   {
     "youtubeId": "sukb8JcMDvQ",
@@ -539,7 +524,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thiếu nữ thầm yêu ngài A Nan được đức phật cảm hóa - Kênh Minh Hiếu review phim.",
     "publishedDate": "Mới cập nhật",
     "isShort": false,
-    "id": "mh-v32"
+    "id": "mh-v31"
   },
   {
     "youtubeId": "f1nk0-rwyI4",
@@ -553,6 +538,21 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "🙏 Lần đầu Đức Phật trở về gặp cha sau khi thành đạo - Kênh Minh Hiếu review phim.",
     "publishedDate": "Mới cập nhật",
     "isShort": false,
+    "id": "mh-v32"
+  },
+  {
+    "youtubeId": "kES93_D1bxw",
+    "title": "Lên Kinh Tìm Chồng, Cô Gái Ôm Nhầm Tân Trạng Nguyên, Ai Ngờ Phu Quân Thật Là Thái Tử Lưu Lạc 18 Năm!",
+    "channel": "Minh Hiếu review phim",
+    "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
+    "category": "nghe-thuat-sang-tao",
+    "duration": "1:37:29",
+    "durationSeconds": 5849,
+    "thumbnail": "https://i.ytimg.com/vi/kES93_D1bxw/hqdefault.jpg",
+    "description": "Lên Kinh Tìm Chồng, Cô Gái Ôm Nhầm Tân Trạng Nguyên, Ai Ngờ Phu Quân Thật Là Thái Tử Lưu Lạc 18 Năm! - Kênh Minh Hiếu review phim.",
+    "publishedDate": "Video chính thức",
+    "isShort": false,
+    "views": "2 lượt xem",
     "id": "mh-v33"
   },
   {
