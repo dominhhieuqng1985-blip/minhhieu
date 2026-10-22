@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Lên Kinh Tìm Chồng, Cô Gái Ôm Nhầm Tân Trạng Nguyên, Ai Ngờ Phu Quân Thật Là Thái Tử Lưu Lạc 18 Năm! - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "1 lượt xem",
+    "views": "2 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -140,14 +140,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "oB3xmS-kP0Y",
-    "title": "Ngài A Nan bị thiếu nữ bỏ bùa y��u",
+    "title": "Ngài A Nan bị thiếu nữ bỏ bùa yêu",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "tam-ly-doi-song",
     "duration": "4:42",
     "durationSeconds": 282,
     "thumbnail": "https://i.ytimg.com/vi/oB3xmS-kP0Y/hqdefault.jpg",
-    "description": "Ngài A Nan bị thiếu nữ bỏ bùa y��u - Kênh Minh Hiếu review phim.",
+    "description": "Ngài A Nan bị thiếu nữ bỏ bùa yêu - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "0 lượt xem",
