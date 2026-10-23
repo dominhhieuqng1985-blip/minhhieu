@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "1 lượt xem",
+    "views": "3 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -120,7 +120,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "33 lượt xem",
+    "views": "35 lượt xem",
     "id": "mh-v4"
   },
   {
@@ -135,7 +135,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "em giận anh chi vậy? 😂| ca khúc vui tươi, hờn dỗi vu vơ - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "10 lượt xem",
+    "views": "11 lượt xem",
     "id": "mh-v5"
   },
   {
@@ -165,7 +165,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Tôm ơi là tôm - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "11 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v7"
   },
   {
@@ -195,7 +195,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thương hoài cô gái miệt vườn - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "16 lượt xem",
+    "views": "17 lượt xem",
     "id": "mh-v9"
   },
   {
