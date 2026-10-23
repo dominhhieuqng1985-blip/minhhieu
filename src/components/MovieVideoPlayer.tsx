@@ -22,6 +22,8 @@ import {
   WatermarkSettings,
   getStoredAdSettings,
   getStoredWatermarkSettings,
+  fetchRemoteAdSettings,
+  AD_SETTINGS_UPDATED_EVENT,
 } from '../types/adConfig';
 import { VideoAdOverlay } from './VideoAdOverlay';
 import { WatermarkOverlay } from './WatermarkOverlay';
@@ -57,6 +59,26 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
   const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>(getStoredWatermarkSettings);
   const [isAdOpen, setIsAdOpen] = useState<boolean>(false);
   const [isAdSettingsModalOpen, setIsAdSettingsModalOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Cross-device sync: fetch remote settings from server or public json on mount
+    fetchRemoteAdSettings().then((remote) => {
+      if (remote) {
+        setAdSettings(remote.adSettings);
+        setWatermarkSettings(remote.watermarkSettings);
+      }
+    });
+
+    const handleUpdate = (e: any) => {
+      if (e.detail?.adSettings) setAdSettings(e.detail.adSettings);
+      if (e.detail?.watermarkSettings) setWatermarkSettings(e.detail.watermarkSettings);
+    };
+
+    window.addEventListener(AD_SETTINGS_UPDATED_EVENT, handleUpdate);
+    return () => {
+      window.removeEventListener(AD_SETTINGS_UPDATED_EVENT, handleUpdate);
+    };
+  }, []);
 
   const m3u8Url = activeEpisode?.link_m3u8;
   const embedUrl = activeEpisode?.link_embed;

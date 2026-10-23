@@ -8,9 +8,13 @@ import {
   Play,
   RotateCcw,
   Check,
-  Sparkles,
-  Sliders,
-  ShieldAlert,
+  Share2,
+  Copy,
+  Download,
+  Upload,
+  Globe,
+  CheckCircle2,
+  Cloud,
 } from 'lucide-react';
 import {
   AdSettings,
@@ -19,6 +23,9 @@ import {
   DEFAULT_WATERMARK_SETTINGS,
   saveStoredAdSettings,
   saveStoredWatermarkSettings,
+  saveRemoteAdSettings,
+  generateShareableConfigUrl,
+  decodeConfigFromBase64,
 } from '../types/adConfig';
 
 interface AdSettingsModalProps {
@@ -42,26 +49,91 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
 }) => {
   const [localAd, setLocalAd] = useState<AdSettings>(adSettings);
   const [localWatermark, setLocalWatermark] = useState<WatermarkSettings>(watermarkSettings);
-  const [activeTab, setActiveTab] = useState<'ad' | 'watermark'>('ad');
+  const [activeTab, setActiveTab] = useState<'ad' | 'watermark' | 'sync'>('ad');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
+  const [importJsonText, setImportJsonText] = useState<string>('');
+  const [importStatus, setImportStatus] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsSaving(true);
     onSaveAdSettings(localAd);
     onSaveWatermarkSettings(localWatermark);
     saveStoredAdSettings(localAd);
     saveStoredWatermarkSettings(localWatermark);
+
+    try {
+      await saveRemoteAdSettings(localAd, localWatermark);
+    } catch {}
+
+    setIsSaving(false);
     setSavedSuccess(true);
     setTimeout(() => {
       setSavedSuccess(false);
       onClose();
-    }, 700);
+    }, 900);
   };
 
   const handleResetDefaults = () => {
     setLocalAd(DEFAULT_AD_SETTINGS);
     setLocalWatermark(DEFAULT_WATERMARK_SETTINGS);
+  };
+
+  const handleCopyShareLink = () => {
+    const url = generateShareableConfigUrl(localAd, localWatermark);
+    if (url) {
+      navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    }
+  };
+
+  const handleExportJson = () => {
+    const data = {
+      adSettings: localAd,
+      watermarkSettings: localWatermark,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `minhhieu_ad_settings_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportJson = () => {
+    if (!importJsonText.trim()) return;
+    try {
+      let parsed: any;
+      if (importJsonText.includes('ad_cfg=')) {
+        const match = importJsonText.match(/ad_cfg=([^&]+)/);
+        if (match) parsed = decodeConfigFromBase64(decodeURIComponent(match[1]));
+      } else {
+        parsed = JSON.parse(importJsonText.trim());
+      }
+
+      if (parsed) {
+        if (parsed.adSettings) {
+          setLocalAd({ ...DEFAULT_AD_SETTINGS, ...parsed.adSettings });
+        }
+        if (parsed.watermarkSettings) {
+          setLocalWatermark({ ...DEFAULT_WATERMARK_SETTINGS, ...parsed.watermarkSettings });
+        }
+        setImportStatus('Nhập cấu hình thành công! Hãy bấm "Lưu Cài Đặt" để áp dụng.');
+        setTimeout(() => setImportStatus(null), 3000);
+      } else {
+        setImportStatus('Không tìm thấy dữ liệu cấu hình hợp lệ');
+      }
+    } catch (e: any) {
+      setImportStatus('Lỗi phân tích JSON: ' + e.message);
+    }
   };
 
   return (
@@ -78,7 +150,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                 <span>Cài Đặt Quảng Cáo &amp; Logo Video</span>
               </h3>
               <p className="text-xs text-slate-400">
-                Tùy chỉnh video quảng cáo phủ màn hình và logo watermark trong player
+                Tùy chỉnh video quảng cáo, watermark và đồng bộ đa thiết bị
               </p>
             </div>
           </div>
@@ -92,10 +164,10 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="p-2 border-b border-slate-800 bg-slate-950/50 flex items-center gap-2">
+        <div className="p-2 border-b border-slate-800 bg-slate-950/50 flex items-center gap-2 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('ad')}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+            className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
               activeTab === 'ad'
                 ? 'bg-amber-500 text-slate-950 shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -107,7 +179,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
 
           <button
             onClick={() => setActiveTab('watermark')}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+            className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
               activeTab === 'watermark'
                 ? 'bg-amber-500 text-slate-950 shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -116,11 +188,23 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
             <Image className="w-4 h-4" />
             <span>Chèn Logo / Watermark</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('sync')}
+            className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+              activeTab === 'sync'
+                ? 'bg-amber-500 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Globe className="w-4 h-4" />
+            <span>Đổi Máy &amp; Đồng Bộ</span>
+          </button>
         </div>
 
         {/* Content Body */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-xs text-slate-300">
-          {activeTab === 'ad' ? (
+          {activeTab === 'ad' && (
             <div className="space-y-4">
               {/* Toggle Enable */}
               <div className="flex items-center justify-between p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
@@ -230,7 +314,9 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                 </label>
               </div>
             </div>
-          ) : (
+          )}
+
+          {activeTab === 'watermark' && (
             <div className="space-y-4">
               {/* Watermark Toggle */}
               <div className="flex items-center justify-between p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
@@ -334,6 +420,94 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
               </div>
             </div>
           )}
+
+          {activeTab === 'sync' && (
+            <div className="space-y-4">
+              {/* Cloud Sync Status */}
+              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0">
+                  <Cloud className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-bold text-white text-sm">Đồng Bộ Lưu Trữ Đa Thiết Bị</h4>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Khi bạn bấm <strong className="text-amber-400">"Lưu Cài Đặt"</strong>, hệ thống tự động ghi nhớ cấu hình vào máy chủ (<code className="text-amber-300 font-mono">public/ad-settings.json</code>) để khi đổi máy khác, mở điện thoại hoặc trình duyệt khác, toàn bộ video quảng cáo và logo watermark sẽ tự động được tải về!
+                  </p>
+                </div>
+              </div>
+
+              {/* Shareable Link (1-Click Sync on Any Device) */}
+              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white text-xs flex items-center gap-1.5">
+                    <Share2 className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Link Đồng Bộ Cài Đặt (Mở trên máy mới):</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-semibold">1 cú click là xong</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Gửi đường link này qua Zalo, Facebook hoặc bookmark trên máy tính/điện thoại khác để áp dụng tức thì:
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCopyShareLink}
+                    className="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md shadow-amber-500/20"
+                  >
+                    {copiedLink ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-950" />
+                        <span>Đã Sao Chép Link Cấu Hình Vào Bộ Nhớ Tạm!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        <span>Sao Chép Link Cài Đặt (Mở Trên Máy Mới)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Import / Export JSON */}
+              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white text-xs flex items-center gap-1.5">
+                    <Download className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Sao Lưu &amp; Nhập Mã Cấu Hình (JSON):</span>
+                  </span>
+                  <button
+                    onClick={handleExportJson}
+                    className="text-[11px] text-amber-400 hover:underline flex items-center gap-1 font-semibold"
+                  >
+                    <span>Tải file .json</span>
+                  </button>
+                </div>
+
+                <div className="space-y-1.5">
+                  <textarea
+                    rows={3}
+                    placeholder="Dán nội dung file JSON cấu hình hoặc dán link chứa ?ad_cfg=... vào đây rồi nhấn Nhập Cấu Hình"
+                    value={importJsonText}
+                    onChange={(e) => setImportJsonText(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-[11px] font-mono text-slate-200 focus:outline-none focus:border-amber-500"
+                  />
+                  {importStatus && (
+                    <p className={`text-[11px] font-semibold ${importStatus.includes('thành công') ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {importStatus}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleImportJson}
+                    disabled={!importJsonText.trim()}
+                    className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 font-semibold rounded-lg flex items-center gap-1.5 text-[11px] transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Nhập Cấu Hình Từ Đoạn Mã Trên</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer Actions */}
@@ -364,10 +538,11 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
 
             <button
               onClick={handleSave}
-              className="px-5 py-2 rounded-xl text-xs font-bold text-slate-950 bg-amber-500 hover:bg-amber-400 shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 active:scale-95"
+              disabled={isSaving}
+              className="px-5 py-2 rounded-xl text-xs font-bold text-slate-950 bg-amber-500 hover:bg-amber-400 shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-60"
             >
               {savedSuccess ? <Check className="w-4 h-4" /> : null}
-              <span>{savedSuccess ? 'Đã Lưu!' : 'Lưu Cài Đặt'}</span>
+              <span>{savedSuccess ? 'Đã Lưu & Đồng Bộ!' : isSaving ? 'Đang Lưu...' : 'Lưu Cho Mọi Máy'}</span>
             </button>
           </div>
         </div>

@@ -55,6 +55,7 @@ import { GlobalYouTubeSearchModal } from './components/GlobalYouTubeSearchModal'
 import { TextToSpeechStudio } from './components/TextToSpeechStudio';
 import { MovieCinemaView } from './components/MovieCinemaView';
 import { formatSeconds } from './utils/youtube';
+import { checkUrlConfigParam, fetchRemoteAdSettings } from './types/adConfig';
 import {
   DEFAULT_CHANNEL_INFO,
   DEFAULT_VIDEOS,
@@ -176,6 +177,12 @@ export default function App() {
   const [newVideosAlert, setNewVideosAlert] = useState<string | null>(null);
   const [isGithubSyncModalOpen, setIsGithubSyncModalOpen] = useState<boolean>(false);
   const [isScanningDeleted, setIsScanningDeleted] = useState<boolean>(false);
+
+  // Cross-device ad settings initialization
+  useEffect(() => {
+    checkUrlConfigParam();
+    fetchRemoteAdSettings();
+  }, []);
 
   // Auto filter out any videos marked as deleted/removed on YouTube
   useEffect(() => {

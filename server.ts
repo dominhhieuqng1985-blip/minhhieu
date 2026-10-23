@@ -1982,6 +1982,51 @@ app.get('/api/movie/detail/:slug', async (req, res) => {
   }
 });
 
+// =========================================================================
+// AD & WATERMARK SETTINGS PERSISTENCE API (Cross-device synchronization)
+// =========================================================================
+const AD_SETTINGS_FILE = path.resolve(__dirname, 'public', 'ad-settings.json');
+
+app.get(['/api/settings/ads', '/minhhieu/api/settings/ads'], (_req, res) => {
+  try {
+    if (fs.existsSync(AD_SETTINGS_FILE)) {
+      const content = fs.readFileSync(AD_SETTINGS_FILE, 'utf-8');
+      const data = JSON.parse(content);
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.json({ success: true, ...data });
+    }
+  } catch (err: any) {
+    console.warn('Error reading ad-settings.json:', err.message);
+  }
+  return res.json({ success: true, adSettings: null, watermarkSettings: null });
+});
+
+app.post(['/api/settings/ads', '/minhhieu/api/settings/ads'], (req, res) => {
+  try {
+    const { adSettings, watermarkSettings } = req.body;
+    const payload = {
+      updatedAt: new Date().toISOString(),
+      adSettings: adSettings || null,
+      watermarkSettings: watermarkSettings || null,
+    };
+    fs.mkdirSync(path.dirname(AD_SETTINGS_FILE), { recursive: true });
+    fs.writeFileSync(AD_SETTINGS_FILE, JSON.stringify(payload, null, 2), 'utf-8');
+
+    // Also update dist/ad-settings.json if dist directory exists
+    const distDir = path.resolve(__dirname, 'dist');
+    if (fs.existsSync(distDir)) {
+      try {
+        fs.writeFileSync(path.resolve(distDir, 'ad-settings.json'), JSON.stringify(payload, null, 2), 'utf-8');
+      } catch {}
+    }
+
+    return res.json({ success: true, message: 'Đã lưu cài đặt quảng cáo thành công cho mọi thiết bị', ...payload });
+  } catch (err: any) {
+    console.error('Error saving ad-settings.json:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Lỗi lưu cấu hình quảng cáo' });
+  }
+});
+
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
   if (process.env.NODE_ENV === 'production') {
