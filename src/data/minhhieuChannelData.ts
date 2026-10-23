@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "0 lượt xem",
+    "views": "1 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -120,7 +120,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "31 lượt xem",
+    "views": "33 lượt xem",
     "id": "mh-v4"
   },
   {
@@ -223,8 +223,9 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "durationSeconds": 386,
     "thumbnail": "https://i.ytimg.com/vi/aUVV8wlj1KE/hqdefault.jpg",
     "description": "Âm mưu hảm hại đức phật của cô gái bị bại lộ - Kênh Minh Hiếu review phim.",
-    "publishedDate": "Mới cập nhật",
+    "publishedDate": "Video chính thức",
     "isShort": false,
+    "views": "6 lượt xem",
     "id": "mh-v11"
   },
   {
