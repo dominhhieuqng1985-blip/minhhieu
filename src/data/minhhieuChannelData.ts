@@ -223,9 +223,8 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "durationSeconds": 386,
     "thumbnail": "https://i.ytimg.com/vi/aUVV8wlj1KE/hqdefault.jpg",
     "description": "Âm mưu hảm hại đức phật của cô gái bị bại lộ - Kênh Minh Hiếu review phim.",
-    "publishedDate": "Video chính thức",
+    "publishedDate": "Mới cập nhật",
     "isShort": false,
-    "views": "6 lượt xem",
     "id": "mh-v11"
   },
   {
