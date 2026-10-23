@@ -32,6 +32,7 @@ interface SidebarLeftProps {
   onToggleCollapse: () => void;
   activeSection: string;
   onNavigate: (section: string) => void;
+  onOpenGlobalSearch?: () => void;
   onSelectMovieCategory?: (categorySlug: string) => void;
   onSelectMovieGenre?: (genreSlug: string) => void;
   onSelectMovieTab?: (tab: string) => void;
@@ -82,6 +83,7 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
   onToggleCollapse,
   activeSection,
   onNavigate,
+  onOpenGlobalSearch,
   onSelectMovieGenre,
   onSelectMovieTab,
   categories = [],
@@ -369,20 +371,18 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
                     <span>Tải Media (VidKraken)</span>
                   </button>
 
-                  <button
-                    onClick={() => {
-                      onNavigate('converter');
-                      onClose();
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      activeSection === 'converter'
-                        ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-900'
-                    }`}
-                  >
-                    <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                    <span>Word ↔ PDF &amp; OCR</span>
-                  </button>
+                  {onOpenGlobalSearch && (
+                    <button
+                      onClick={() => {
+                        onOpenGlobalSearch();
+                        onClose();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-300 hover:text-white bg-red-600/15 hover:bg-red-600/25 border border-red-500/30 transition-all"
+                    >
+                      <Search className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      <span>Tìm Kiếm Toàn YouTube</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => {

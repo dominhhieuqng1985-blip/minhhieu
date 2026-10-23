@@ -1083,6 +1083,111 @@ app.post('/api/podcast/batch-meta', async (req, res) => {
   }
 });
 
+// Endpoint: Search across all of YouTube with auto link/ID resolution
+app.get(['/api/youtube/search', '/minhhieu/api/youtube/search'], async (req, res) => {
+  try {
+    const q = ((req.query.q as string) || '').trim();
+    if (!q) {
+      return res.status(400).json({ error: 'Missing query parameter q' });
+    }
+
+    // Check if query is a direct video ID or YouTube URL
+    const idMatch =
+      q.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/|live\/))([a-zA-Z0-9_-]{11})/) ||
+      (q.length === 11 && q.match(/^[a-zA-Z0-9_-]{11}$/) ? [, q] : null);
+
+    if (idMatch && idMatch[1]) {
+      const vidId = idMatch[1];
+      try {
+        const oRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${vidId}&format=json`, {
+          headers: YOUTUBE_HEADERS,
+        });
+        if (oRes.ok) {
+          const d = await oRes.json();
+          return res.json({
+            results: [
+              {
+                youtubeId: vidId,
+                title: d.title || 'Video YouTube',
+                channel: d.author_name || 'YouTube Video',
+                duration: '10:00',
+                thumbnail: d.thumbnail_url || `https://i.ytimg.com/vi/${vidId}/hqdefault.jpg`,
+                isShort: q.includes('shorts'),
+              },
+            ],
+            query: q,
+          });
+        }
+      } catch {}
+    }
+
+    // Search on YouTube HTML
+    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&hl=vi&gl=VN`;
+    const ytRes = await fetch(searchUrl, { headers: YOUTUBE_HEADERS });
+    if (!ytRes.ok) {
+      return res.status(ytRes.status).json({ error: 'YouTube search failed' });
+    }
+
+    const html = await ytRes.text();
+    const videos: any[] = [];
+
+    // 1. Try lockup blocks
+    const lockupItems = parseLockupBlocks(html);
+    for (const item of lockupItems) {
+      if (!videos.some((v) => v.youtubeId === item.youtubeId)) {
+        videos.push(item);
+      }
+    }
+
+    // 2. Parse videoRenderer blocks
+    const vrBlocks = html.split('"videoRenderer":');
+    for (let i = 1; i < vrBlocks.length && videos.length < 35; i++) {
+      const b = vrBlocks[i];
+      const vidMatch = b.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+      const titleMatch =
+        b.match(/"title":\{"runs":\[\{"text":"(.*?)"\}/) ||
+        b.match(/"title":\{"accessibility":\{"accessibilityData":\{"label":"(.*?)"\}/);
+      const ownerMatch =
+        b.match(/"ownerText":\{"runs":\[\{"text":"(.*?)"/) ||
+        b.match(/"longBylineText":\{"runs":\[\{"text":"(.*?)"/);
+      const lengthMatch =
+        b.match(/"lengthText":\{.*?"simpleText":"(.*?)"/) ||
+        b.match(/"thumbnailOverlayTimeStatusRenderer":\{"text":\{"simpleText":"(.*?)"/);
+      const viewMatch =
+        b.match(/"viewCountText":\{.*?"simpleText":"(.*?)"/) ||
+        b.match(/"shortViewCountText":\{.*?"simpleText":"(.*?)"/);
+
+      if (vidMatch && titleMatch) {
+        const vidId = vidMatch[1];
+        let title = titleMatch[1];
+        try {
+          title = JSON.parse('"' + title + '"');
+        } catch {}
+        const channel = ownerMatch ? ownerMatch[1] : 'YouTube Creator';
+        const duration = lengthMatch ? lengthMatch[1] : '05:00';
+        const views = viewMatch ? viewMatch[1] : '';
+
+        if (!videos.some((v) => v.youtubeId === vidId)) {
+          videos.push({
+            youtubeId: vidId,
+            title,
+            channel,
+            duration,
+            views,
+            thumbnail: `https://i.ytimg.com/vi/${vidId}/hqdefault.jpg`,
+            isShort: duration === '0:60' || duration === '00:60' || title.toLowerCase().includes('#shorts'),
+          });
+        }
+      }
+    }
+
+    return res.json({ results: videos, query: q });
+  } catch (err: any) {
+    console.error('YouTube search error:', err);
+    return res.status(500).json({ error: err.message || 'Lỗi tìm kiếm YouTube' });
+  }
+});
+
 // Endpoint: AI Podcast Companion using Gemini 3.8 Flash
 app.post('/api/podcast/ai', async (req, res) => {
   try {

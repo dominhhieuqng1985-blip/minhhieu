@@ -51,7 +51,7 @@ import { ConnectModal } from './components/ConnectModal';
 import { AddVideoModal } from './components/AddVideoModal';
 import { GithubSyncModal } from './components/GithubSyncModal';
 import { VidKrakenDownloader } from './components/VidKrakenDownloader';
-import { DocumentConverterStudio } from './components/DocumentConverterStudio';
+import { GlobalYouTubeSearchModal } from './components/GlobalYouTubeSearchModal';
 import { TextToSpeechStudio } from './components/TextToSpeechStudio';
 import { MovieCinemaView } from './components/MovieCinemaView';
 import { formatSeconds } from './utils/youtube';
@@ -241,11 +241,12 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
   const [isAddVideoModalOpen, setIsAddVideoModalOpen] = useState<boolean>(false);
+  const [isGlobalSearchModalOpen, setIsGlobalSearchModalOpen] = useState<boolean>(false);
 
-  // 3-Column Layout States
+  // 3-Column Layout States: Right sidebar defaults to HIDDEN (user request)
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState<boolean>(false);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState<boolean>(false);
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState<boolean>(true);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState<boolean>(false);
 
   // Movie category & selection from sidebar
   const [movieTab, setMovieTab] = useState<string>('latest');
@@ -1142,6 +1143,7 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         onOpenConnectModal={() => setIsConnectModalOpen(true)}
+        onOpenGlobalSearch={() => setIsGlobalSearchModalOpen(true)}
         favoritesCount={favorites.length}
         onToggleLeftSidebar={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
         isLeftSidebarOpen={isLeftSidebarOpen}
@@ -1185,13 +1187,12 @@ export default function App() {
           videoCounts={videoCounts}
           favoritesCount={favorites.length}
           historyCount={channelVideos.length}
+          onOpenGlobalSearch={() => setIsGlobalSearchModalOpen(true)}
         />
 
         {/* Column 2: Center Main Content Workspace */}
         <div className="flex-1 min-w-0 p-3 sm:p-5 lg:p-6 space-y-6">
-          {activeNav === 'converter' ? (
-            <DocumentConverterStudio onShowToast={showToast} />
-          ) : activeNav === 'tts' ? (
+          {activeNav === 'tts' ? (
             <TextToSpeechStudio onShowToast={showToast} />
           ) : activeNav === 'downloader' ? (
             <VidKrakenDownloader
@@ -1240,6 +1241,15 @@ export default function App() {
                 className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-500 font-mono focus:outline-none focus:border-amber-500"
               />
             </div>
+
+            <button
+              onClick={() => setIsGlobalSearchModalOpen(true)}
+              className="w-full sm:w-auto px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md shadow-red-600/20 transition-all shrink-0 active:scale-95"
+              title="Tìm kiếm bất kỳ video nào trên toàn bộ mạng YouTube"
+            >
+              <Search className="w-4 h-4" />
+              <span>Tìm Trên Toàn YouTube</span>
+            </button>
 
             <button
               onClick={() => fetchFullChannelData(urlInput)}
@@ -1903,7 +1913,7 @@ export default function App() {
             Mở kênh trên YouTube
           </a>
           <span>·</span>
-          <span>Website Đa Chức Năng 3 Cột: Video, Podcast, Rạp Phim &amp; Studio AI</span>
+          <span>coppyright Đỗ Minh Hiếu chương trình thử nghiệm</span>
         </div>
       </div>
     </footer>
@@ -1943,6 +1953,42 @@ export default function App() {
         totalVideos={channelVideos.length}
         lastCheckedTime={lastCheckedTime}
       />
+
+      {/* Global YouTube Search Modal */}
+      <GlobalYouTubeSearchModal
+        isOpen={isGlobalSearchModalOpen}
+        onClose={() => setIsGlobalSearchModalOpen(false)}
+        onPlayEpisode={(ep) => {
+          setActiveQueue((prev) => [ep, ...prev.filter((p) => p.youtubeId !== ep.youtubeId)]);
+          setCurrentEpisode(ep);
+          showToast(`Đang phát: "${ep.title}"`);
+          // Scroll to player
+          document.getElementById('player-workspace')?.scrollIntoView({ behavior: 'smooth' });
+        }}
+        onAddToQueue={(ep) => {
+          handleAddCustomVideo(ep);
+        }}
+        onOpenDownloader={(ep) => {
+          setCurrentEpisode(ep);
+          setPlayerSidebarTab('download');
+          document.getElementById('player-workspace')?.scrollIntoView({ behavior: 'smooth' });
+        }}
+        onShowToast={showToast}
+      />
+
+      {/* Floating Toggle Button for Right Sidebar when collapsed */}
+      {!isRightSidebarOpen && (
+        <button
+          onClick={() => setIsRightSidebarOpen(true)}
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-slate-900/90 hover:bg-amber-500 text-slate-300 hover:text-slate-950 border-l border-y border-slate-700/80 px-2 py-3 rounded-l-2xl shadow-2xl backdrop-blur-md transition-all flex flex-col items-center gap-1.5 group active:scale-95"
+          title="Mở Bảng Phát & Trợ Lý AI Bên Phải"
+        >
+          <Radio className="w-4 h-4 text-amber-400 group-hover:text-slate-950" />
+          <span className="text-[10px] font-bold [writing-mode:vertical-rl] tracking-wider uppercase">
+            Bảng Phát
+          </span>
+        </button>
+      )}
     </div>
   );
 }

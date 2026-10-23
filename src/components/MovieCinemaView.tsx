@@ -60,6 +60,7 @@ import {
   getYears,
   getMovieDetail,
 } from '../utils/movieApi';
+import { MovieVideoPlayer } from './MovieVideoPlayer';
 
 interface MovieCinemaViewProps {
   onSendToTTS?: (text: string) => void;
@@ -757,38 +758,15 @@ export const MovieCinemaView: React.FC<MovieCinemaViewProps> = ({
                 isTheaterMode ? 'max-w-none w-full' : ''
               }`}
             >
-              {/* VIDEO EMBED CONTAINER WITH AMBIENT GLOW */}
-              <div className="relative rounded-3xl overflow-hidden bg-black border border-slate-800 shadow-2xl group">
-                <div className="aspect-video w-full bg-slate-950 relative">
-                  {activeEpisode?.link_embed ? (
-                    <iframe
-                      src={activeEpisode.link_embed}
-                      title={`${currentMovieDetail.name} - ${activeEpisode.name}`}
-                      className="w-full h-full border-0 absolute inset-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 space-y-3">
-                      <Film className="w-12 h-12 text-slate-600" />
-                      <p className="text-sm font-semibold">Tập phim này hiện chưa có nguồn phát hợp lệ.</p>
-                      <p className="text-xs text-slate-500">Vui lòng chọn nguồn phát khác bên dưới.</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Top Overlay Badge */}
-                <div className="absolute top-4 left-4 z-10 pointer-events-none flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md border border-slate-700 text-white text-xs font-bold shadow-lg">
-                    {currentMovieDetail.name}
-                  </span>
-                  {activeEpisode && (
-                    <span className="px-2.5 py-1 rounded-full bg-rose-600/90 text-white text-xs font-mono font-bold shadow-lg">
-                      {activeEpisode.name.startsWith('Tập') ? activeEpisode.name : `Tập ${activeEpisode.name}`}
-                    </span>
-                  )}
-                </div>
-              </div>
+              {/* VIDEO EMBED CONTAINER WITH DUAL ENGINE & AD/WATERMARK */}
+              <MovieVideoPlayer
+                movie={currentMovieDetail}
+                activeEpisode={activeEpisode}
+                onPrevEpisode={handlePrevEpisode}
+                onNextEpisode={handleNextEpisode}
+                hasPrevEpisode={currentEpisodes[activeServerIndex]?.server_data.findIndex((e) => e.slug === activeEpisode?.slug) > 0}
+                hasNextEpisode={currentEpisodes[activeServerIndex]?.server_data.findIndex((e) => e.slug === activeEpisode?.slug) < (currentEpisodes[activeServerIndex]?.server_data.length || 0) - 1}
+              />
 
               {/* ACTION TOOLBAR UNDER PLAYER */}
               <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-3 shadow-xl">

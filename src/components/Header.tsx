@@ -16,6 +16,7 @@ interface HeaderProps {
   activeSection: string;
   onNavigate: (section: string) => void;
   onOpenConnectModal: () => void;
+  onOpenGlobalSearch?: () => void;
   favoritesCount: number;
   onToggleLeftSidebar?: () => void;
   isLeftSidebarOpen?: boolean;
@@ -27,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeSection,
   onNavigate,
   onOpenConnectModal,
+  onOpenGlobalSearch,
   favoritesCount,
   onToggleLeftSidebar,
   isLeftSidebarOpen,
@@ -105,15 +107,16 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Tải VidKraken</span>
           </button>
 
-          <button
-            onClick={() => onNavigate('converter')}
-            className={`hover:text-slate-100 transition-colors whitespace-nowrap py-1.5 px-3 rounded-lg flex items-center gap-1.5 ${
-              activeSection === 'converter' ? 'text-blue-400 font-bold bg-blue-500/10' : ''
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5 text-blue-400" />
-            <span>Word ↔ PDF</span>
-          </button>
+          {onOpenGlobalSearch && (
+            <button
+              onClick={onOpenGlobalSearch}
+              className="hover:text-slate-100 transition-colors whitespace-nowrap py-1.5 px-3 rounded-lg flex items-center gap-1.5 bg-red-600/15 hover:bg-red-600/25 border border-red-500/30 text-red-300 shadow-sm"
+              title="Tìm kiếm trên toàn bộ mạng YouTube"
+            >
+              <Search className="w-3.5 h-3.5 text-red-400" />
+              <span>Tìm Toàn YouTube</span>
+            </button>
+          )}
 
           <button
             onClick={() => onNavigate('tts')}
@@ -188,14 +191,15 @@ export const Header: React.FC<HeaderProps> = ({
           Tải Media
         </button>
 
-        <button
-          onClick={() => onNavigate('converter')}
-          className={`whitespace-nowrap px-2.5 py-1 rounded-md shrink-0 ${
-            activeSection === 'converter' ? 'text-blue-400 font-bold bg-blue-500/10' : ''
-          }`}
-        >
-          Word ↔ PDF
-        </button>
+        {onOpenGlobalSearch && (
+          <button
+            onClick={onOpenGlobalSearch}
+            className="whitespace-nowrap px-2.5 py-1 rounded-md shrink-0 text-red-400 font-bold bg-red-500/10 border border-red-500/20 flex items-center gap-1"
+          >
+            <Search className="w-3 h-3" />
+            <span>Tìm YouTube</span>
+          </button>
+        )}
 
         <button
           onClick={() => onNavigate('tts')}

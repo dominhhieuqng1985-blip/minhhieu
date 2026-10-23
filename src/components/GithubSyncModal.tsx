@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Info,
   Mail,
+  Download,
 } from 'lucide-react';
 
 interface GithubSyncModalProps {
@@ -45,6 +46,34 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2500);
+  };
+
+  const handleExportFullBackup = () => {
+    try {
+      const backupData: Record<string, any> = {
+        exportedAt: new Date().toISOString(),
+        version: '2.0',
+        channel: 'Minh Hiếu review phim',
+        savedVideos: localStorage.getItem('casttube_user_saved_videos') ? JSON.parse(localStorage.getItem('casttube_user_saved_videos')!) : [],
+        favorites: localStorage.getItem('casttube_user_favorites') ? JSON.parse(localStorage.getItem('casttube_user_favorites')!) : [],
+        notes: localStorage.getItem('casttube_user_notes') ? JSON.parse(localStorage.getItem('casttube_user_notes')!) : [],
+        subscriptions: localStorage.getItem('casttube_user_subs') ? JSON.parse(localStorage.getItem('casttube_user_subs')!) : [],
+        adSettings: localStorage.getItem('minhhieu_ad_settings_v2') ? JSON.parse(localStorage.getItem('minhhieu_ad_settings_v2')!) : null,
+        watermarkSettings: localStorage.getItem('minhhieu_watermark_settings_v2') ? JSON.parse(localStorage.getItem('minhhieu_watermark_settings_v2')!) : null,
+      };
+
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `minhhieu_tube_backup_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert('Lỗi xuất dữ liệu: ' + e.message);
+    }
   };
 
   return (
@@ -96,6 +125,26 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? 'animate-spin' : ''}`} />
               <span>{isChecking ? 'Đang quét YouTube...' : 'Quét video mới ngay'}</span>
+            </button>
+          </div>
+
+          {/* Full GitHub Backup & Cross-Device Persistence Card */}
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-white font-bold">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>Sao Lưu &amp; Xuất Toàn Bộ Dữ Liệu Lên GitHub</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Xuất trọn gói toàn bộ video, podcast, ghi chú, phim yêu thích, và cài đặt quảng cáo/logo thành 1 file JSON duy nhất để lưu trữ lâu dài trên GitHub.
+              </p>
+            </div>
+            <button
+              onClick={handleExportFullBackup}
+              className="px-4 py-2 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-2 transition-all active:scale-95 shrink-0 shadow-md"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Tải file sao lưu (.json)</span>
             </button>
           </div>
 

@@ -31,9 +31,19 @@ import {
   X,
   CheckCircle2,
   Tv,
+  Settings,
 } from 'lucide-react';
 import { PodcastEpisode } from '../types/podcast';
 import { formatSeconds } from '../utils/youtube';
+import {
+  AdSettings,
+  WatermarkSettings,
+  getStoredAdSettings,
+  getStoredWatermarkSettings,
+} from '../types/adConfig';
+import { VideoAdOverlay } from './VideoAdOverlay';
+import { WatermarkOverlay } from './WatermarkOverlay';
+import { AdSettingsModal } from './AdSettingsModal';
 
 declare global {
   interface Window {
@@ -146,6 +156,20 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   const [isApiReady, setIsApiReady] = useState<boolean>(false);
   const [isCcActive, setIsCcActive] = useState<boolean>(false);
   const [isBrokenVideo, setIsBrokenVideo] = useState<boolean>(false);
+
+  // Ad & Watermark states
+  const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
+  const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>(getStoredWatermarkSettings);
+  const [isAdOpen, setIsAdOpen] = useState<boolean>(false);
+  const [isAdSettingsModalOpen, setIsAdSettingsModalOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (adSettings.enabled && adSettings.showInYouTube) {
+      setIsAdOpen(true);
+    } else {
+      setIsAdOpen(false);
+    }
+  }, [episode.id, adSettings.enabled, adSettings.showInYouTube]);
 
   // Like & Dislike state
   const [hasLiked, setHasLiked] = useState<boolean>(() => {
@@ -558,6 +582,15 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
 
         {/* Real YouTube Direct Interaction Button */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsAdSettingsModalOpen(true)}
+            className="px-2.5 py-1 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-semibold rounded-full flex items-center gap-1.5 text-xs transition-colors"
+            title="Cài đặt quảng cáo phủ video và logo watermark"
+          >
+            <Settings className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Cài Đặt QC &amp; Logo</span>
+          </button>
+
           <a
             href={directTargetUrl}
             target="_blank"
@@ -627,6 +660,19 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
 
           {/* Centered Shorts Card 9:16 */}
           <div className="relative w-full max-w-[380px] sm:max-w-[400px] aspect-[9/16] rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl flex flex-col">
+            {/* Watermark Logo */}
+            <WatermarkOverlay settings={watermarkSettings} />
+
+            {/* Video Ad Overlay */}
+            {isAdOpen && (
+              <VideoAdOverlay
+                settings={adSettings}
+                onAdFinished={() => setIsAdOpen(false)}
+                onOpenSettings={() => setIsAdSettingsModalOpen(true)}
+                targetMediaTitle={episode.title}
+              />
+            )}
+
             {/* The actual YouTube iframe */}
             <div className="relative flex-1 w-full h-full bg-black">
               <div id="casttube-yt-iframe" className="w-full h-full object-cover" />
@@ -851,6 +897,19 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
         <div className="flex flex-col">
           {/* Main Video Screen */}
           <div className="relative w-full bg-black aspect-video max-h-[500px] flex items-center justify-center overflow-hidden">
+            {/* Watermark Logo */}
+            <WatermarkOverlay settings={watermarkSettings} />
+
+            {/* Video Ad Overlay */}
+            {isAdOpen && (
+              <VideoAdOverlay
+                settings={adSettings}
+                onAdFinished={() => setIsAdOpen(false)}
+                onOpenSettings={() => setIsAdSettingsModalOpen(true)}
+                targetMediaTitle={episode.title}
+              />
+            )}
+
             <div
               className={`w-full h-full ${
                 displayMode === 'video' ? 'block' : 'opacity-0 pointer-events-none absolute inset-0'
@@ -1403,6 +1462,17 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
           </div>
         </div>
       )}
+
+      {/* Ad & Watermark Settings Modal */}
+      <AdSettingsModal
+        isOpen={isAdSettingsModalOpen}
+        onClose={() => setIsAdSettingsModalOpen(false)}
+        adSettings={adSettings}
+        watermarkSettings={watermarkSettings}
+        onSaveAdSettings={(s) => setAdSettings(s)}
+        onSaveWatermarkSettings={(w) => setWatermarkSettings(w)}
+        onTriggerTestAd={() => setIsAdOpen(true)}
+      />
     </div>
   );
 };
