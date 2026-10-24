@@ -19,11 +19,11 @@ export interface WatermarkSettings {
 
 export const DEFAULT_AD_SETTINGS: AdSettings = {
   enabled: true,
-  // High quality sample trailer / ad video (Direct MP4 or YouTube)
-  videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+  // Link mặc định quảng cáo trên toàn trang theo yêu cầu: Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka
+  videoUrl: 'https://youtu.be/Co2OgH2FGr0?si=pBe3YR7Em398Ayqf',
   redirectUrl: 'https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1',
   skipDelaySeconds: 5,
-  adTitle: 'Quảng Cáo Tài Trợ - Minh Hiếu TuBe',
+  adTitle: 'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Review Phim',
   showInMovie: true,
   showInYouTube: true,
 };
@@ -99,7 +99,14 @@ export function getStoredAdSettings(): AdSettings {
       // 2. Read localStorage
       const stored = localStorage.getItem(STORAGE_KEY_AD_SETTINGS);
       if (stored) {
-        return { ...DEFAULT_AD_SETTINGS, ...JSON.parse(stored) };
+        const parsed = JSON.parse(stored);
+        // Automatically upgrade obsolete generic Google sample video to user's desired default
+        if (!parsed.videoUrl || parsed.videoUrl.includes('ForBiggerBlazes')) {
+          parsed.videoUrl = DEFAULT_AD_SETTINGS.videoUrl;
+          parsed.adTitle = DEFAULT_AD_SETTINGS.adTitle;
+          localStorage.setItem(STORAGE_KEY_AD_SETTINGS, JSON.stringify(parsed));
+        }
+        return { ...DEFAULT_AD_SETTINGS, ...parsed };
       }
     }
   } catch {}

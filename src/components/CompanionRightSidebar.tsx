@@ -115,7 +115,7 @@ export const CompanionRightSidebar: React.FC<CompanionRightSidebarProps> = ({
     : null;
 
   return (
-    <aside className="w-full lg:w-96 bg-slate-950/95 border-l border-slate-800/80 flex flex-col h-[calc(100vh-4rem)] sticky top-16 z-30 shrink-0">
+    <aside className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 lg:static lg:w-96 lg:h-[calc(100vh-4rem)] lg:sticky lg:top-16 bg-slate-950/98 lg:bg-slate-950/95 border-l border-slate-800/80 flex flex-col shadow-2xl shrink-0 animate-in slide-in-from-right duration-200">
       {/* Top Header Card */}
       <div className="p-4 border-b border-slate-800 flex items-center justify-between gap-2 bg-slate-900/60 shrink-0">
         <div className="flex items-center gap-2 min-w-0">

@@ -1169,17 +1169,22 @@ export default function App() {
           activeSection={activeNav}
           onNavigate={(section) => {
             setActiveNav(section);
+            if (section === 'movies') {
+              setIsRightSidebarOpen(false);
+            }
             setIsLeftSidebarOpen(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           onSelectMovieGenre={(slug) => {
             setActiveNav('movies');
+            setIsRightSidebarOpen(false);
             setMovieGenreSlug(slug);
             setMovieTab('genre');
             setIsLeftSidebarOpen(false);
           }}
           onSelectMovieTab={(tab) => {
             setActiveNav('movies');
+            setIsRightSidebarOpen(false);
             if (tab.startsWith('actor:')) {
               setMovieActorSlug(tab.replace('actor:', ''));
               setMovieTab('actors');
@@ -1212,6 +1217,8 @@ export default function App() {
               initialTab={movieTab}
               initialGenreSlug={movieGenreSlug}
               initialActorSlug={movieActorSlug}
+              isRightSidebarOpen={isRightSidebarOpen}
+              onToggleRightSidebar={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
               onPlayMovieInUniversalPlayer={(movie, ep, serverName, episodes) => {
                 const sIndex = episodes.findIndex((s) => s.server_name === serverName);
                 setActiveMovieState({
@@ -1220,7 +1227,8 @@ export default function App() {
                   activeServerIndex: sIndex >= 0 ? sIndex : 0,
                   episodes,
                 });
-                setIsRightSidebarOpen(true);
+                // In movie tab: Column 3 always stays hidden by default as requested:
+                // "ở tab phim luôn luôn hiển thị 2 cột, cột 3 luôn ẩn khi nào cần thì nhấn chuột để mở ra"
               }}
               onSendToTTS={(text) => {
                 setActiveNav('tts');
