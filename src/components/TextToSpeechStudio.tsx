@@ -57,6 +57,7 @@ import {
 import { hasBackend, isStaticHost, getCustomBackendUrl } from '../utils/api';
 import { VoiceManagerModal } from './VoiceManagerModal';
 import { EverAiProxyModal } from './EverAiProxyModal';
+import { useAdminAuth } from '../context/AdminAuthContext';
 
 interface TextToSpeechStudioProps {
   initialText?: string;
@@ -110,6 +111,15 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
   // Backend Proxy Modal for GitHub Pages & 405 CORS Resolution
   const [isProxyModalOpen, setIsProxyModalOpen] = useState<boolean>(false);
   const [lastCorsError, setLastCorsError] = useState<boolean>(false);
+  const { requireAdmin } = useAdminAuth();
+
+  const handleOpenProxySettings = () => {
+    requireAdmin(
+      () => setIsProxyModalOpen(true),
+      'Cấu Hình Máy Chủ Proxy & API EverAI',
+      'Thiết lập máy chủ backend trung gian và API key giọng đọc yêu cầu quyền Quản trị viên.'
+    );
+  };
 
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -443,7 +453,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
               {hasBackend() ? (
                 <button
                   type="button"
-                  onClick={() => setIsProxyModalOpen(true)}
+                  onClick={handleOpenProxySettings}
                   className="px-2.5 py-0.5 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 hover:bg-emerald-900/60 text-[11px] font-semibold flex items-center gap-1 transition-all"
                   title="Nhấn để cấu hình hoặc kiểm tra Backend"
                 >
@@ -453,7 +463,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
               ) : isStaticHost ? (
                 <button
                   type="button"
-                  onClick={() => setIsProxyModalOpen(true)}
+                  onClick={handleOpenProxySettings}
                   className="px-2.5 py-0.5 rounded-lg bg-amber-950/70 border border-amber-600/80 text-amber-300 hover:bg-amber-900/70 text-[11px] font-bold flex items-center gap-1 transition-all shadow-sm shadow-amber-500/20 animate-pulse"
                   title="Trình duyệt trên GitHub Pages bị lỗi 405 OPTIONS khi gọi trực tiếp EverAI. Nhấn để kết nối proxy."
                 >
@@ -468,7 +478,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
             <div className="flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
-                onClick={() => setIsProxyModalOpen(true)}
+                onClick={handleOpenProxySettings}
                 className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs flex items-center gap-1.5 border border-slate-700 transition-all"
                 title="Khắc phục lỗi 405 OPTIONS và cấu hình Backend URL cho GitHub Pages"
               >
@@ -635,7 +645,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
                     <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-500/20">
                       <button
                         type="button"
-                        onClick={() => setIsProxyModalOpen(true)}
+                        onClick={handleOpenProxySettings}
                         className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all"
                       >
                         <Server className="w-3.5 h-3.5" />

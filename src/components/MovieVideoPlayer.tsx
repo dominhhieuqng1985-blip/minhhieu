@@ -34,6 +34,7 @@ import {
 import { VideoAdOverlay } from './VideoAdOverlay';
 import { WatermarkOverlay } from './WatermarkOverlay';
 import { AdSettingsModal } from './AdSettingsModal';
+import { useAdminAuth } from '../context/AdminAuthContext';
 
 interface MovieVideoPlayerProps {
   movie: MovieDetail;
@@ -74,6 +75,15 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
   const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>(getStoredWatermarkSettings);
   const [isAdOpen, setIsAdOpen] = useState<boolean>(false);
   const [isAdSettingsModalOpen, setIsAdSettingsModalOpen] = useState<boolean>(false);
+  const { requireAdmin } = useAdminAuth();
+
+  const handleOpenAdSettings = () => {
+    requireAdmin(
+      () => setIsAdSettingsModalOpen(true),
+      'Cài Đặt Quảng Cáo Rạp Phim & Logo',
+      'Cấu hình quảng cáo video và logo rạp phim yêu cầu quyền Quản trị viên.'
+    );
+  };
 
   useEffect(() => {
     // Cross-device sync: fetch remote settings from server or public json on mount
@@ -351,7 +361,7 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
 
           {/* Ad & Logo Settings Button */}
           <button
-            onClick={() => setIsAdSettingsModalOpen(true)}
+            onClick={handleOpenAdSettings}
             className="px-3 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-semibold transition-colors flex items-center gap-1.5"
             title="Cài đặt video quảng cáo và logo watermark"
           >
@@ -383,7 +393,7 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
           <VideoAdOverlay
             settings={adSettings}
             onAdFinished={() => setIsAdOpen(false)}
-            onOpenSettings={() => setIsAdSettingsModalOpen(true)}
+            onOpenSettings={handleOpenAdSettings}
             targetMediaTitle={movie.name}
           />
         )}

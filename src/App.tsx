@@ -56,6 +56,7 @@ import { TextToSpeechStudio } from './components/TextToSpeechStudio';
 import { MovieCinemaView } from './components/MovieCinemaView';
 import { formatSeconds } from './utils/youtube';
 import { checkUrlConfigParam, fetchRemoteAdSettings } from './types/adConfig';
+import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext';
 import {
   DEFAULT_CHANNEL_INFO,
   DEFAULT_VIDEOS,
@@ -119,7 +120,8 @@ export function getMergedInitialVideos(): PodcastEpisode[] {
   return DEFAULT_VIDEOS.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
 }
 
-export default function App() {
+function AppContent() {
+  const { isAdmin, requireAdmin, openAdminModal, logout } = useAdminAuth();
   const initialVideos = getMergedInitialVideos();
   const deletedIds = getBlacklistedDeletedIds();
   const initialPodcasts = DEFAULT_PODCASTS.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
@@ -1149,7 +1151,13 @@ export default function App() {
           setActiveNav(section);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
-        onOpenConnectModal={() => setIsConnectModalOpen(true)}
+        onOpenConnectModal={() =>
+          requireAdmin(
+            () => setIsConnectModalOpen(true),
+            'Kết Nối & Thay Đổi Kênh YouTube',
+            'Kết nối kênh YouTube mới hoặc thay đổi ID kênh yêu cầu quyền Quản trị viên.'
+          )
+        }
         onOpenGlobalSearch={() => setIsGlobalSearchModalOpen(true)}
         favoritesCount={favorites.length}
         onToggleLeftSidebar={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
@@ -1318,11 +1326,17 @@ export default function App() {
 
             {/* Official Subscribe Button, Check Updates & Auto-Play Toggle */}
             <div className="flex items-center gap-3 flex-wrap">
-              {/* Quick Add Video / Shorts Button */}
+              {/* Quick Add Video / Shorts Button (Protected by Admin) */}
               <button
-                onClick={() => setIsAddVideoModalOpen(true)}
+                onClick={() =>
+                  requireAdmin(
+                    () => setIsAddVideoModalOpen(true),
+                    'Thêm Video Mới Vào Kênh',
+                    'Thêm video hoặc Shorts YouTube mới vào kênh yêu cầu quyền Quản trị viên.'
+                  )
+                }
                 className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
-                title="Dán link video hoặc Shorts vừa tải lên YouTube để thêm ngay vào kênh"
+                title="Dán link video hoặc Shorts vừa tải lên YouTube để thêm ngay vào kênh (Yêu cầu quyền Admin)"
               >
                 <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
                 <span>Thêm video mới</span>
@@ -1339,22 +1353,34 @@ export default function App() {
                 <span>{isCheckingUpdates ? 'Đang kiểm tra...' : 'Kiểm tra video mới'}</span>
               </button>
 
-              {/* GitHub Sync Guide & Status Button */}
+              {/* GitHub Sync Guide & Status Button (Protected by Admin) */}
               <button
-                onClick={() => setIsGithubSyncModalOpen(true)}
+                onClick={() =>
+                  requireAdmin(
+                    () => setIsGithubSyncModalOpen(true),
+                    'Cấu Hình & Đồng Bộ Kênh Lên GitHub',
+                    'Truy cập công cụ đồng bộ GitHub Actions và quản lý dữ liệu yêu cầu quyền Quản trị viên.'
+                  )
+                }
                 className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
-                title="Xem hướng dẫn và kích hoạt đồng bộ tự động lên GitHub"
+                title="Xem hướng dẫn và kích hoạt đồng bộ tự động lên GitHub (Yêu cầu quyền Admin)"
               >
                 <Github className="w-3.5 h-3.5 text-amber-400" />
                 <span>Đồng bộ GitHub</span>
               </button>
 
-              {/* Scan & Purge Deleted YouTube Videos Button */}
+              {/* Scan & Purge Deleted YouTube Videos Button (Protected by Admin) */}
               <button
-                onClick={handleScanDeletedVideos}
+                onClick={() =>
+                  requireAdmin(
+                    handleScanDeletedVideos,
+                    'Quét & Dọn Dẹp Video Lỗi Trên YouTube',
+                    'Thao tác quét và loại bỏ vĩnh viễn các video đã bị xóa hoặc đặt riêng tư yêu cầu quyền Quản trị viên.'
+                  )
+                }
                 disabled={isScanningDeleted}
                 className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-red-950/40 hover:bg-red-900/50 border border-red-500/40 text-red-300 flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
-                title="Quét và tự động xóa các video đã bị gỡ hoặc đặt riêng tư trên YouTube"
+                title="Quét và tự động xóa các video đã bị gỡ hoặc đặt riêng tư trên YouTube (Yêu cầu quyền Admin)"
               >
                 {isScanningDeleted ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
@@ -1463,9 +1489,15 @@ export default function App() {
               </a>
 
               <button
-                onClick={() => setIsGithubSyncModalOpen(true)}
+                onClick={() =>
+                  requireAdmin(
+                    () => setIsGithubSyncModalOpen(true),
+                    'Quản Lý & Sao Lưu Dữ Liệu Kênh',
+                    'Xem trạng thái đồng bộ GitHub Actions và tải bản sao lưu yêu cầu quyền Quản trị viên.'
+                  )
+                }
                 className="flex-1 md:flex-none px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 flex items-center justify-center gap-1.5 transition-all active:scale-95"
-                title="Xem hướng dẫn tự động đồng bộ video lên GitHub"
+                title="Xem hướng dẫn tự động đồng bộ video lên GitHub (Yêu cầu quyền Admin)"
               >
                 <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
                 <span>Hướng dẫn</span>
@@ -2007,3 +2039,12 @@ export default function App() {
     </div>
   );
 }
+
+export default function App() {
+  return (
+    <AdminAuthProvider>
+      <AppContent />
+    </AdminAuthProvider>
+  );
+}
+

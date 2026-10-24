@@ -10,7 +10,13 @@ import {
   Radio,
   Play,
   Search,
+  Shield,
+  ShieldCheck,
+  Lock,
+  LogOut,
+  KeyRound,
 } from 'lucide-react';
+import { useAdminAuth } from '../context/AdminAuthContext';
 
 interface HeaderProps {
   activeSection: string;
@@ -35,6 +41,16 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleRightSidebar,
   isRightSidebarOpen,
 }) => {
+  const { isAdmin, requireAdmin, openAdminModal, logout } = useAdminAuth();
+
+  const handleProtectedConnect = () => {
+    requireAdmin(
+      onOpenConnectModal,
+      'Kết Nối & Thay Đổi Kênh YouTube',
+      'Thao tác thay đổi ID kênh YouTube hoặc liên kết kênh mới yêu cầu quyền Quản trị viên.'
+    );
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800">
       <div className="w-full px-3 sm:px-6 h-16 flex items-center justify-between gap-3">
@@ -129,13 +145,44 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </nav>
 
-        {/* Right Section: Actions & Companion Sidebar Toggle */}
+        {/* Right Section: Actions, Admin Widget & Companion Sidebar Toggle */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Quick Connect Button */}
+          {/* Admin Status / Login Widget */}
+          {isAdmin ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/15 border border-amber-500/40 rounded-xl text-amber-300 text-xs font-semibold shadow-sm">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="hidden sm:inline font-mono">minhhieuvnbt</span>
+              <button
+                onClick={() => openAdminModal('Cài Đặt Quản Trị Viên', 'Đang đăng nhập với quyền Admin minhhieuvnbt.')}
+                className="p-1 text-slate-400 hover:text-amber-300 rounded hover:bg-amber-500/20 transition-colors ml-0.5"
+                title="Đổi mật khẩu / Quản lý tài khoản Admin"
+              >
+                <KeyRound className="w-3 h-3 text-amber-400" />
+              </button>
+              <button
+                onClick={logout}
+                className="p-1 text-slate-400 hover:text-red-400 rounded hover:bg-red-500/20 transition-colors"
+                title="Đăng xuất & Khóa các khu vực cài đặt"
+              >
+                <LogOut className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => openAdminModal('Đăng Nhập Quản Trị Viên', 'Nhập tài khoản để mở khóa toàn bộ khu vực cài đặt và thiết lập.')}
+              className="px-2.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-amber-400 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 rounded-xl transition-all flex items-center gap-1.5"
+              title="Đăng nhập Quản trị viên (Khóa cài đặt)"
+            >
+              <Lock className="w-3.5 h-3.5 text-slate-400" />
+              <span className="hidden sm:inline">Admin</span>
+            </button>
+          )}
+
+          {/* Quick Connect Button (Protected by Admin) */}
           <button
-            onClick={onOpenConnectModal}
+            onClick={handleProtectedConnect}
             className="px-3 py-1.5 text-xs font-semibold text-slate-950 bg-amber-500 hover:bg-amber-400 rounded-xl transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
-            title="Kết nối kênh YouTube tùy chỉnh"
+            title="Kết nối kênh YouTube tùy chỉnh (Yêu cầu quyền Admin)"
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             <span className="hidden sm:inline">Thêm kênh</span>

@@ -46,6 +46,7 @@ import {
 import { VideoAdOverlay } from './VideoAdOverlay';
 import { WatermarkOverlay } from './WatermarkOverlay';
 import { AdSettingsModal } from './AdSettingsModal';
+import { useAdminAuth } from '../context/AdminAuthContext';
 
 declare global {
   interface Window {
@@ -164,6 +165,15 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>(getStoredWatermarkSettings);
   const [isAdOpen, setIsAdOpen] = useState<boolean>(false);
   const [isAdSettingsModalOpen, setIsAdSettingsModalOpen] = useState<boolean>(false);
+  const { requireAdmin } = useAdminAuth();
+
+  const handleOpenAdSettings = () => {
+    requireAdmin(
+      () => setIsAdSettingsModalOpen(true),
+      'Cài Đặt Quảng Cáo & Watermark Logo',
+      'Thay đổi cấu hình quảng cáo phủ video và logo thương hiệu yêu cầu quyền Quản trị viên.'
+    );
+  };
 
   useEffect(() => {
     // Cross-device sync: fetch remote settings from server or public json on mount
@@ -605,7 +615,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
         {/* Real YouTube Direct Interaction Button */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setIsAdSettingsModalOpen(true)}
+            onClick={handleOpenAdSettings}
             className="px-2.5 py-1 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-semibold rounded-full flex items-center gap-1.5 text-xs transition-colors"
             title="Cài đặt quảng cáo phủ video và logo watermark"
           >
@@ -690,7 +700,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
               <VideoAdOverlay
                 settings={adSettings}
                 onAdFinished={() => setIsAdOpen(false)}
-                onOpenSettings={() => setIsAdSettingsModalOpen(true)}
+                onOpenSettings={handleOpenAdSettings}
                 targetMediaTitle={episode.title}
               />
             )}
@@ -927,7 +937,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
               <VideoAdOverlay
                 settings={adSettings}
                 onAdFinished={() => setIsAdOpen(false)}
-                onOpenSettings={() => setIsAdSettingsModalOpen(true)}
+                onOpenSettings={handleOpenAdSettings}
                 targetMediaTitle={episode.title}
               />
             )}
