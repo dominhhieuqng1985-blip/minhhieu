@@ -71,7 +71,8 @@ jobs:
             public/studio.xml \
             public/feed.xml \
             public/rss.xml \
-            public/ad-settings.json
+            public/ad-settings.json \
+            public/CNAME
 
           if ! git diff --cached --quiet; then
             git commit -m "chore(auto-sync): update YouTube channel data [skip ci]"

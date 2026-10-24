@@ -37,8 +37,8 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({
 
   if (!isOpen) return null;
 
-  const studoUrl = 'https://dominhhieuqng1985-blip.github.io/minhhieu/studo.xml';
-  const studioUrl = 'https://dominhhieuqng1985-blip.github.io/minhhieu/studio.xml';
+  const studoUrl = 'https://www.vemaybaynhauyen.com/studo.xml';
+  const studioUrl = 'https://www.vemaybaynhauyen.com/studio.xml';
   const ownerEmail = 'chieuthuaroi19852@gmail.com';
   const repoUrl = 'https://github.com/dominhhieuqng1985-blip/minhhieu';
 

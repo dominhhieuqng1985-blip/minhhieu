@@ -396,8 +396,8 @@ export const DEFAULT_PODCASTS: PodcastEpisode[] = [
   }
 
   const channelTitle = 'Minh Hiếu review phim';
-  const channelLink = 'https://dominhhieuqng1985-blip.github.io/minhhieu/';
-  const feedUrl = 'https://dominhhieuqng1985-blip.github.io/minhhieu/studo.xml';
+  const channelLink = 'https://www.vemaybaynhauyen.com/';
+  const feedUrl = 'https://www.vemaybaynhauyen.com/studo.xml';
   const channelDesc = 'Kênh Podcast chính thức của Minh Hiếu review phim (@minhhieureviewphim). Tổng hợp các bộ phim Phật giáo ý nghĩa, truyện ma rùng rợn, bài học tâm lý cuộc sống và âm nhạc chọn lọc.';
   const author = 'Minh Hiếu';
   const email = 'chieuthuaroi19852@gmail.com';

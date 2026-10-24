@@ -1250,7 +1250,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
             {episode.description || 'Nội dung video chọn lọc từ kênh YouTube Minh Hiếu review phim.'}
             <div className="mt-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-1">
               <p>🔗 Kênh YouTube: <a href={channelUrl} target="_blank" rel="noopener noreferrer" className="text-red-400 underline">{channelUrl}</a></p>
-              <p>📻 Podcast RSS: <code className="text-amber-400">https://dominhhieuqng1985-blip.github.io/minhhieu/studo.xml</code></p>
+              <p>📻 Podcast RSS: <code className="text-amber-400">https://www.vemaybaynhauyen.com/studo.xml</code></p>
               <p>🎬 ID Video: <code className="text-slate-300">{episode.youtubeId}</code></p>
             </div>
           </div>
