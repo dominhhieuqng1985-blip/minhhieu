@@ -9,6 +9,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { AdSettings } from '../types/adConfig';
+import { resolveAdvertiserName } from './AdcashBanner';
 import {
   ADCASH_INSTREAM_VAST_TAG_URL,
   ParsedVastAd,
@@ -315,6 +316,11 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
       ? vastAd.adTitle
       : settings.adTitle || 'Nhà tài trợ kênh Minh Hiếu TuBe';
 
+  const advertiserName = resolveAdvertiserName(
+    settings,
+    adMode === 'vast' && vastAd?.adTitle ? vastAd.adTitle : undefined
+  );
+
   const activeRedirectUrl =
     adMode === 'vast' && vastAd?.clickThroughUrl
       ? vastAd.clickThroughUrl
@@ -330,7 +336,7 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-30 bg-black flex flex-col justify-between overflow-hidden animate-in fade-in select-none">
+    <div className="absolute inset-0 z-40 bg-black flex flex-col justify-between overflow-hidden animate-in fade-in select-none">
       {/* Hidden safe external link anchor (avoids window.open popup blocking) */}
       {activeRedirectUrl && (
         <a
@@ -377,12 +383,17 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
         )}
       </div>
 
-      {/* Top Subtle Info Bar (YouTube minimalist style - no yellow badges) */}
-      <div className="relative z-40 px-3.5 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-b from-black/75 via-black/25 to-transparent flex items-center justify-between gap-3 text-white pointer-events-none">
-        <div className="flex items-center gap-1.5 min-w-0 text-[11px] text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-          <span className="font-medium text-white/90 shrink-0">Quảng cáo</span>
-          <span className="text-white/40 shrink-0">·</span>
-          <span className="truncate max-w-[200px] sm:max-w-sm text-white/75">{activeTitle}</span>
+      {/* Top Info Bar: Quảng cáo: [Tên nhà quảng cáo] */}
+      <div className="relative z-40 px-3.5 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-b from-black/85 via-black/30 to-transparent flex items-center justify-between gap-3 text-white pointer-events-none select-none">
+        <div className="flex items-center gap-1.5 min-w-0 text-xs text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+          <span className="font-bold text-amber-400 shrink-0">Quảng cáo:</span>
+          <span className="font-medium text-white/95 truncate max-w-[180px] sm:max-w-sm">{advertiserName}</span>
+          {activeTitle && activeTitle !== advertiserName && (
+            <>
+              <span className="text-white/40 shrink-0 hidden sm:inline">·</span>
+              <span className="text-white/75 truncate hidden sm:inline max-w-xs">{activeTitle}</span>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0 pointer-events-auto">
@@ -413,10 +424,10 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
         </div>
       </div>
 
-      {/* Bottom YouTube-Style Minimalist Bar: Quiet sponsor link on left, unboxed small "Bỏ qua >|" on right */}
+      {/* Bottom Bar: "Xem ngay" button matching 728x90 banner style + Skip button */}
       {adMode !== 'checking_vast' && (
         <div className="relative z-40 px-3.5 py-3 sm:px-5 sm:py-4 bg-gradient-to-t from-black/85 via-black/35 to-transparent flex items-end justify-between gap-4 text-white">
-          {/* Minimal Destination Link */}
+          {/* Xem ngay button matching 728x90 */}
           {activeRedirectUrl ? (
             <a
               href={activeRedirectUrl}
@@ -428,10 +439,10 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
                   fireVastPixels(vastAd.clickTrackingUrls);
                 }
               }}
-              className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-normal text-white/80 hover:text-white transition-colors truncate max-w-[190px] sm:max-w-xs drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]"
+              className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-white/10 hover:bg-red-600 text-white text-xs sm:text-[13px] font-medium inline-flex items-center gap-1.5 sm:gap-2 transition-colors whitespace-nowrap shadow-lg backdrop-blur-sm cursor-pointer group pointer-events-auto"
             >
-              <span className="truncate">Truy cập trang tài trợ</span>
-              <ExternalLink className="w-3 h-3 shrink-0 opacity-85" />
+              <span>Xem ngay</span>
+              <ExternalLink className="w-3.5 h-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
             </a>
           ) : (
             <div />

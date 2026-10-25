@@ -15,6 +15,7 @@ export interface AdSettings {
   // Display banner fallback when external ad network has no fill
   enableBannerFallback?: boolean;
   bannerImageUrl?: string;
+  sponsorName?: string;
 }
 
 export interface WatermarkSettings {
@@ -33,6 +34,7 @@ export const DEFAULT_AD_SETTINGS: AdSettings = {
   redirectUrl: 'https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1',
   skipDelaySeconds: 5,
   adTitle: 'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Review Phim',
+  sponsorName: 'Minh Hiếu Review Phim',
   showInMovie: true,
   showInYouTube: true,
   enablePreRoll: true,

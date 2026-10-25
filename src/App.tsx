@@ -35,6 +35,7 @@ import {
   Github,
   HelpCircle,
   Download,
+  Settings,
 } from 'lucide-react';
 import { PodcastEpisode, PodcastNote, PodcastSeries, PodcastPlaylist } from './types/podcast';
 import { Header } from './components/Header';
@@ -50,13 +51,31 @@ import { FullPlaylistQueue } from './components/FullPlaylistQueue';
 import { ConnectModal } from './components/ConnectModal';
 import { AddVideoModal } from './components/AddVideoModal';
 import { GithubSyncModal } from './components/GithubSyncModal';
+import { ChannelSettingsModal } from './components/ChannelSettingsModal';
+import { AdSettingsModal } from './components/AdSettingsModal';
 import { VidKrakenDownloader } from './components/VidKrakenDownloader';
 import { GlobalYouTubeSearchModal } from './components/GlobalYouTubeSearchModal';
 import { TextToSpeechStudio } from './components/TextToSpeechStudio';
 import { MovieCinemaView } from './components/MovieCinemaView';
-import { AdcashBanner, AdcashVideoSlider } from './components/AdcashBanner';
+import {
+  AdcashBanner,
+  AdcashVideoSlider,
+  AdcashRectangle336x280,
+  AdcashRectangle300x250,
+  ADCASH_RECTANGLE_336X280_ZONE_ID,
+  ADCASH_RECTANGLE_300X250_ZONE_ID,
+} from './components/AdcashBanner';
 import { formatSeconds } from './utils/youtube';
-import { checkUrlConfigParam, fetchRemoteAdSettings } from './types/adConfig';
+import {
+  checkUrlConfigParam,
+  fetchRemoteAdSettings,
+  AdSettings,
+  WatermarkSettings,
+  getStoredAdSettings,
+  getStoredWatermarkSettings,
+  saveStoredAdSettings,
+  saveStoredWatermarkSettings,
+} from './types/adConfig';
 import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext';
 import {
   DEFAULT_CHANNEL_INFO,
@@ -180,6 +199,10 @@ function AppContent() {
   const [newVideosAlert, setNewVideosAlert] = useState<string | null>(null);
   const [isGithubSyncModalOpen, setIsGithubSyncModalOpen] = useState<boolean>(false);
   const [isScanningDeleted, setIsScanningDeleted] = useState<boolean>(false);
+  const [isChannelSettingsModalOpen, setIsChannelSettingsModalOpen] = useState<boolean>(false);
+  const [isAdSettingsModalOpen, setIsAdSettingsModalOpen] = useState<boolean>(false);
+  const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
+  const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>(getStoredWatermarkSettings);
 
   // Cross-device ad settings initialization
   useEffect(() => {
@@ -1159,6 +1182,7 @@ function AppContent() {
             'Kết nối kênh YouTube mới hoặc thay đổi ID kênh yêu cầu quyền Quản trị viên.'
           )
         }
+        onOpenSettings={() => setIsChannelSettingsModalOpen(true)}
         onOpenGlobalSearch={() => setIsGlobalSearchModalOpen(true)}
         favoritesCount={favorites.length}
         onToggleLeftSidebar={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
@@ -1328,90 +1352,8 @@ function AppContent() {
               </div>
             </div>
 
-            {/* Official Subscribe Button, Check Updates & Auto-Play Toggle */}
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Quick Add Video / Shorts Button (Protected by Admin) */}
-              <button
-                onClick={() =>
-                  requireAdmin(
-                    () => setIsAddVideoModalOpen(true),
-                    'Thêm Video Mới Vào Kênh',
-                    'Thêm video hoặc Shorts YouTube mới vào kênh yêu cầu quyền Quản trị viên.'
-                  )
-                }
-                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
-                title="Dán link video hoặc Shorts vừa tải lên YouTube để thêm ngay vào kênh (Yêu cầu quyền Admin)"
-              >
-                <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
-                <span>Thêm video mới</span>
-              </button>
-
-              {/* Check & Auto-Sync New Videos Button */}
-              <button
-                onClick={() => checkForNewVideos(true)}
-                disabled={isCheckingUpdates}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
-                title="Kiểm tra ngay xem kênh có video mới nào vừa tải lên không"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isCheckingUpdates ? 'animate-spin text-emerald-400' : ''}`} />
-                <span>{isCheckingUpdates ? 'Đang kiểm tra...' : 'Kiểm tra video mới'}</span>
-              </button>
-
-              {/* GitHub Sync Guide & Status Button (Protected by Admin) */}
-              <button
-                onClick={() =>
-                  requireAdmin(
-                    () => setIsGithubSyncModalOpen(true),
-                    'Cấu Hình & Đồng Bộ Kênh Lên GitHub',
-                    'Truy cập công cụ đồng bộ GitHub Actions và quản lý dữ liệu yêu cầu quyền Quản trị viên.'
-                  )
-                }
-                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-amber-300 flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
-                title="Xem hướng dẫn và kích hoạt đồng bộ tự động lên GitHub (Yêu cầu quyền Admin)"
-              >
-                <Github className="w-3.5 h-3.5 text-amber-400" />
-                <span>Đồng bộ GitHub</span>
-              </button>
-
-              {/* Scan & Purge Deleted YouTube Videos Button (Protected by Admin) */}
-              <button
-                onClick={() =>
-                  requireAdmin(
-                    handleScanDeletedVideos,
-                    'Quét & Dọn Dẹp Video Lỗi Trên YouTube',
-                    'Thao tác quét và loại bỏ vĩnh viễn các video đã bị xóa hoặc đặt riêng tư yêu cầu quyền Quản trị viên.'
-                  )
-                }
-                disabled={isScanningDeleted}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-red-950/40 hover:bg-red-900/50 border border-red-500/40 text-red-300 flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
-                title="Quét và tự động xóa các video đã bị gỡ hoặc đặt riêng tư trên YouTube (Yêu cầu quyền Admin)"
-              >
-                {isScanningDeleted ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
-                ) : (
-                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                )}
-                <span>{isScanningDeleted ? 'Đang quét...' : 'Xóa video đã gỡ trên YT'}</span>
-              </button>
-
-              {/* Autoplay Next Toggle */}
-              <button
-                onClick={() => {
-                  const next = !isAutoplayNext;
-                  setIsAutoplayNext(next);
-                  showToast(next ? 'Đã BẬT tự động phát tập tiếp theo' : 'Đã TẮT tự động phát tập tiếp theo');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-all ${
-                  isAutoplayNext
-                    ? 'bg-amber-500/15 border-amber-500/50 text-amber-300'
-                    : 'bg-slate-950 border-slate-800 text-slate-400'
-                }`}
-                title="Tự động phát tập kế tiếp khi video kết thúc"
-              >
-                <Check className={`w-3.5 h-3.5 ${isAutoplayNext ? 'text-amber-400' : 'opacity-40'}`} />
-                <span>Tự động phát tập tiếp theo</span>
-              </button>
-
+            {/* Official Subscribe Button, Consolidated Channel Settings & Auto-Play Toggle */}
+            <div className="flex items-center gap-2.5 flex-wrap">
               {/* YouTube Official-Style Subscribe Button */}
               <a
                 href={channelInfo.subscribeUrl}
@@ -1424,6 +1366,34 @@ function AppContent() {
                 <span className="text-red-600 font-black">▶</span>
                 <span>{subscribedChannels.includes(channelInfo.name) ? 'Đã đăng ký 🔔' : 'Đăng ký kênh'}</span>
               </a>
+
+              {/* Consolidated Channel Settings & Utilities Button */}
+              <button
+                onClick={() => setIsChannelSettingsModalOpen(true)}
+                className="px-4 py-2 rounded-full text-xs font-bold bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-amber-200 border border-amber-500/40 flex items-center gap-2 shadow-sm transition-all active:scale-95"
+                title="Mở toàn bộ công cụ cài đặt, thêm video, quảng cáo, RSS và đồng bộ kênh"
+              >
+                <Settings className="w-3.5 h-3.5 text-amber-400" />
+                <span>Cài Đặt Kênh</span>
+              </button>
+
+              {/* Autoplay Next Toggle */}
+              <button
+                onClick={() => {
+                  const next = !isAutoplayNext;
+                  setIsAutoplayNext(next);
+                  showToast(next ? 'Đã BẬT tự động phát tập tiếp theo' : 'Đã TẮT tự động phát tập tiếp theo');
+                }}
+                className={`px-3.5 py-2 rounded-full text-xs font-semibold border flex items-center gap-1.5 transition-all ${
+                  isAutoplayNext
+                    ? 'bg-amber-500/15 border-amber-500/50 text-amber-300'
+                    : 'bg-slate-950 border-slate-800 text-slate-400'
+                }`}
+                title="Tự động phát tập kế tiếp khi video kết thúc"
+              >
+                <Check className={`w-3.5 h-3.5 ${isAutoplayNext ? 'text-amber-400' : 'opacity-40'}`} />
+                <span className="hidden sm:inline">Tự động phát tiếp</span>
+              </button>
             </div>
           </div>
 
@@ -1443,38 +1413,34 @@ function AppContent() {
             </div>
           )}
 
-          {/* Podcast RSS Feed Section (studo.xml) */}
-          <div className="mt-3 p-4 bg-gradient-to-r from-amber-950/30 via-slate-950 to-slate-900 border border-amber-500/30 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
-            <div className="flex items-start gap-3 min-w-0">
-              <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 shrink-0 mt-0.5">
-                <Rss className="w-5 h-5" />
+          {/* Sleek Compact Podcast RSS Feed Strip */}
+          <div className="mt-3 px-4 py-2.5 bg-gradient-to-r from-amber-950/30 via-slate-950 to-slate-900 border border-amber-500/30 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-md">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-400 shrink-0">
+                <Rss className="w-4 h-4" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-500/15 px-2.5 py-0.5 rounded-md border border-amber-500/30">
+                  <span className="font-bold text-amber-300">
                     📡 Podcast RSS Feed (studo.xml)
                   </span>
-                  <span className="text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Chuẩn YouTube Studio &amp; Podcast Apps
+                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    YouTube Studio &amp; Podcast Apps
                   </span>
                 </div>
-                <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
-                  URL nguồn cấp dữ liệu để lấy Podcast từ kênh YouTube hoặc nạp lên <strong className="text-white">YouTube Studio</strong> (Mục Tạo &gt; Podcast mới &gt; Gửi nguồn cấp dữ liệu RSS), Apple Podcasts, Spotify:
+                <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                  URL cấp dữ liệu: <span className="font-mono text-amber-300/90 select-all">https://www.vemaybaynhauyen.com/studo.xml</span>
                 </p>
-                <div className="mt-1.5 flex items-center gap-2 text-xs font-mono text-amber-300/90 break-all bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-                  <span className="select-all">https://www.vemaybaynhauyen.com/studo.xml</span>
-                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => {
                   navigator.clipboard.writeText('https://www.vemaybaynhauyen.com/studo.xml');
-                  showToast('📋 Đã sao chép liên kết studo.xml vào clipboard!');
+                  showToast('📋 Đã sao chép liên kết studo.xml!');
                 }}
-                className="flex-1 md:flex-none px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center gap-1.5 shadow transition-all active:scale-95"
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
                 title="Sao chép link studo.xml"
               >
                 <Copy className="w-3.5 h-3.5" />
@@ -1485,26 +1451,20 @@ function AppContent() {
                 href="./studo.xml"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 md:flex-none px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-all active:scale-95"
                 title="Mở xem trực tiếp file studo.xml"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span>Mở studo.xml</span>
+                <span>Mở</span>
               </a>
 
               <button
-                onClick={() =>
-                  requireAdmin(
-                    () => setIsGithubSyncModalOpen(true),
-                    'Quản Lý & Sao Lưu Dữ Liệu Kênh',
-                    'Xem trạng thái đồng bộ GitHub Actions và tải bản sao lưu yêu cầu quyền Quản trị viên.'
-                  )
-                }
-                className="flex-1 md:flex-none px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 flex items-center justify-center gap-1.5 transition-all active:scale-95"
-                title="Xem hướng dẫn tự động đồng bộ video lên GitHub (Yêu cầu quyền Admin)"
+                onClick={() => setIsChannelSettingsModalOpen(true)}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95"
+                title="Xem cài đặt & hướng dẫn đầy đủ"
               >
-                <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
-                <span>Hướng dẫn</span>
+                <Settings className="w-3.5 h-3.5 text-amber-400" />
+                <span>Tất cả cài đặt</span>
               </button>
             </div>
           </div>
@@ -1654,6 +1614,11 @@ function AppContent() {
                     onSeekToTime={handleSeek}
                   />
                 )}
+
+                {/* Adcash Medium Rectangle 300x250 (Zone 12358790) in Player Companion Area */}
+                <div className="pt-3 flex justify-center">
+                  <AdcashBanner zoneId="12358790" format="300x250" />
+                </div>
               </div>
             </div>
           </section>
@@ -1712,6 +1677,12 @@ function AppContent() {
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
               />
             </div>
+          </div>
+
+          {/* Adcash Sponsored Dual Placement: Large Rectangle 336x280 (Zone 12358782) & Medium Rectangle 300x250 (Zone 12358790) */}
+          <div className="py-3 px-3 rounded-3xl bg-slate-900/40 border border-slate-800/80 flex flex-wrap items-center justify-center gap-6">
+            <AdcashBanner zoneId="12358782" format="336x280" />
+            <AdcashBanner zoneId="12358790" format="300x250" />
           </div>
 
           {/* VIEW TAB 1 & 2: FULL UNABRIDGED VIDEO LIST WITH POSITION & THUMBNAILS */}
@@ -1879,14 +1850,10 @@ function AppContent() {
           )}
         </section>
 
-        {/* VidKraken Studio & Downloader Section */}
-        <section id="downloader-section" className="space-y-4 pt-6 border-t border-slate-800">
-          <VidKrakenDownloader
-            currentEpisode={currentEpisode}
-            onAddToQueue={handleAddCustomVideo}
-            onShowToast={showToast}
-          />
-          </section>
+        {/* Adcash Large Rectangle 336x280 (Zone 12358782) */}
+        <div className="py-6 border-t border-slate-800/80 flex justify-center">
+          <AdcashBanner zoneId="12358782" format="336x280" />
+        </div>
         </div>
         )}
 
@@ -2038,6 +2005,49 @@ function AppContent() {
           document.getElementById('player-workspace')?.scrollIntoView({ behavior: 'smooth' });
         }}
         onShowToast={showToast}
+      />
+
+      {/* Consolidated Channel Settings & Utilities Modal */}
+      <ChannelSettingsModal
+        isOpen={isChannelSettingsModalOpen}
+        onClose={() => setIsChannelSettingsModalOpen(false)}
+        onOpenAddVideo={() => setIsAddVideoModalOpen(true)}
+        onCheckUpdates={() => checkForNewVideos(true)}
+        isCheckingUpdates={isCheckingUpdates}
+        lastCheckedTime={lastCheckedTime}
+        onOpenGithubSync={() => setIsGithubSyncModalOpen(true)}
+        onScanDeletedVideos={() => {
+          requireAdmin(
+            handleScanDeletedVideos,
+            'Quét & Dọn Dẹp Video Lỗi Trên YouTube',
+            'Thao tác quét và loại bỏ vĩnh viễn các video đã bị xóa hoặc đặt riêng tư yêu cầu quyền Quản trị viên.'
+          );
+        }}
+        isScanningDeleted={isScanningDeleted}
+        onOpenAdSettings={() => setIsAdSettingsModalOpen(true)}
+        isAutoplayNext={isAutoplayNext}
+        onToggleAutoplay={() => {
+          const next = !isAutoplayNext;
+          setIsAutoplayNext(next);
+          showToast(next ? 'Đã BẬT tự động phát tập tiếp theo' : 'Đã TẮT tự động phát tập tiếp theo');
+        }}
+        onShowToast={showToast}
+      />
+
+      {/* Cross-Device Ad & Watermark Settings Modal */}
+      <AdSettingsModal
+        isOpen={isAdSettingsModalOpen}
+        onClose={() => setIsAdSettingsModalOpen(false)}
+        adSettings={adSettings}
+        watermarkSettings={watermarkSettings}
+        onSaveAdSettings={(newAd) => {
+          setAdSettings(newAd);
+          saveStoredAdSettings(newAd);
+        }}
+        onSaveWatermarkSettings={(newWm) => {
+          setWatermarkSettings(newWm);
+          saveStoredWatermarkSettings(newWm);
+        }}
       />
 
       {/* Floating Toggle Button for Right Sidebar when collapsed */}

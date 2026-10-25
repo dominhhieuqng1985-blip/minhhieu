@@ -8,6 +8,7 @@ import {
   Settings,
   Sparkles,
   Maximize2,
+  Minimize2,
   Tv,
   Smartphone,
   AlertCircle,
@@ -59,8 +60,85 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
   onShowToast,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const hasEndedTriggered = useRef<boolean>(false);
+
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  // Fullscreen container handler ensuring Watermark and Video Ads are preserved
+  const toggleFullscreen = () => {
+    const elem = playerContainerRef.current;
+    if (!elem) return;
+
+    const doc = document as any;
+    const isFs = Boolean(
+      doc.fullscreenElement ||
+      doc.webkitFullscreenElement ||
+      doc.mozFullScreenElement ||
+      doc.msFullscreenElement
+    );
+
+    if (!isFs) {
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => setIsFullscreen(true));
+      } else if ((elem as any).webkitRequestFullscreen) {
+        (elem as any).webkitRequestFullscreen();
+      } else if ((elem as any).mozRequestFullScreen) {
+        (elem as any).mozRequestFullScreen();
+      } else if ((elem as any).msRequestFullscreen) {
+        (elem as any).msRequestFullscreen();
+      } else {
+        setIsFullscreen(true);
+      }
+    } else {
+      if (doc.exitFullscreen) {
+        doc.exitFullscreen().catch(() => {});
+      } else if (doc.webkitExitFullscreen) {
+        doc.webkitExitFullscreen();
+      } else if (doc.mozCancelFullScreen) {
+        doc.mozCancelFullScreen();
+      } else if (doc.msExitFullscreen) {
+        doc.msExitFullscreen();
+      }
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      const doc = document as any;
+      const fsEl =
+        doc.fullscreenElement ||
+        doc.webkitFullscreenElement ||
+        doc.mozFullScreenElement ||
+        doc.msFullscreenElement;
+
+      // If browser entered fullscreen on raw video, exit and make the container fullscreen
+      if (fsEl && fsEl === videoRef.current && playerContainerRef.current) {
+        if (doc.exitFullscreen) {
+          doc.exitFullscreen().then(() => {
+            playerContainerRef.current?.requestFullscreen().catch(() => {});
+          }).catch(() => {});
+        }
+        return;
+      }
+
+      setIsFullscreen(Boolean(fsEl));
+    };
+
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    document.addEventListener('mozfullscreenchange', handleFsChange);
+    document.addEventListener('MSFullscreenChange', handleFsChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+      document.removeEventListener('mozfullscreenchange', handleFsChange);
+      document.removeEventListener('MSFullscreenChange', handleFsChange);
+    };
+  }, []);
 
   // Engine: 'hls' (Direct native/HLS video stream - best for phones and VLC) | 'embed' (Iframe embed)
   const [engine, setEngine] = useState<'hls' | 'embed'>('hls');
@@ -422,6 +500,20 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
             <span className="hidden sm:inline">Cài Đặt QC</span>
           </button>
 
+          {/* Fullscreen Button */}
+          <button
+            onClick={toggleFullscreen}
+            className={`px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+              isFullscreen
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white'
+            }`}
+            title={isFullscreen ? 'Thu nhỏ (Thoát toàn màn hình)' : 'Phóng to toàn màn hình (Bảo toàn logo & QC)'}
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-amber-400" /> : <Maximize2 className="w-3.5 h-3.5 text-amber-400" />}
+            <span>{isFullscreen ? 'Thu Nhỏ' : 'Toàn Màn Hình'}</span>
+          </button>
+
           {/* External Tab Link */}
           {(embedUrl || m3u8Url) && (
             <button
@@ -436,9 +528,17 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
         </div>
       </div>
 
-      {/* VIDEO CONTAINER - Constrained on mobile (max-h-[35vh]) so it never covers the entire phone screen */}
-      <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-black border border-slate-800 shadow-2xl group w-full aspect-video min-h-[190px] max-h-[35vh] sm:max-h-[75vh]">
-        {/* Watermark Overlay */}
+      {/* VIDEO CONTAINER - Responsive container that expands to full viewport/screen when in fullscreen */}
+      <div
+        ref={playerContainerRef}
+        onDoubleClick={toggleFullscreen}
+        className={`relative overflow-hidden bg-black shadow-2xl group w-full flex items-center justify-center transition-all duration-200 select-none ${
+          isFullscreen
+            ? 'fixed inset-0 z-50 w-screen h-screen max-w-none max-h-none rounded-none border-0'
+            : 'rounded-2xl sm:rounded-3xl border border-slate-800 aspect-video min-h-[190px] max-h-[35vh] sm:max-h-[75vh]'
+        }`}
+      >
+        {/* Watermark Overlay (Preserved inside Fullscreen DOM container) */}
         <WatermarkOverlay settings={watermarkSettings} />
 
         {/* Pre-Ad Countdown Notice ("Quảng cáo sắp bắt đầu sau Xs") */}
@@ -447,7 +547,7 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
           totalSeconds={preAdTotalSeconds}
         />
 
-        {/* Video Ad Overlay */}
+        {/* Video Ad Overlay (Preserved inside Fullscreen DOM container) */}
         {isAdOpen && (
           <VideoAdOverlay
             key={adInstanceKey}
@@ -457,6 +557,19 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
             targetMediaTitle={movie.name}
           />
         )}
+
+        {/* Floating Fullscreen / Exit Fullscreen Button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFullscreen();
+          }}
+          className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-30 p-2 rounded-xl bg-black/65 hover:bg-black/90 backdrop-blur-md text-white/90 hover:text-white border border-white/20 transition-all shadow-lg active:scale-95"
+          title={isFullscreen ? 'Thu nhỏ (Thoát toàn màn hình)' : 'Phóng to toàn màn hình'}
+        >
+          {isFullscreen ? <Minimize2 className="w-4 h-4 text-amber-400" /> : <Maximize2 className="w-4 h-4" />}
+        </button>
 
         {/* Next Episode Auto Transition Overlay */}
         {nextCountdown !== null && (
@@ -497,6 +610,7 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
             <video
               ref={videoRef}
               controls
+              controlsList="nofullscreen"
               loop={false}
               playsInline
               webkit-playsinline="true"
@@ -593,6 +707,15 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
               <span>{copiedType === 'embed' ? 'Đã chép Embed!' : 'Chép Embed'}</span>
             </button>
           )}
+
+          <button
+            onClick={toggleFullscreen}
+            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-[11px] flex items-center gap-1 transition-all active:scale-95"
+            title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
+          >
+            {isFullscreen ? <Minimize2 className="w-3 h-3 text-amber-400" /> : <Maximize2 className="w-3 h-3 text-amber-400" />}
+            <span>{isFullscreen ? 'Thu Nhỏ' : 'Toàn Màn Hình'}</span>
+          </button>
 
           <button
             onClick={() => setIsLinkModalOpen(true)}

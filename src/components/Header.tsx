@@ -15,6 +15,7 @@ import {
   Lock,
   LogOut,
   KeyRound,
+  Settings,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
@@ -22,6 +23,7 @@ interface HeaderProps {
   activeSection: string;
   onNavigate: (section: string) => void;
   onOpenConnectModal: () => void;
+  onOpenSettings?: () => void;
   onOpenGlobalSearch?: () => void;
   favoritesCount: number;
   onToggleLeftSidebar?: () => void;
@@ -34,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeSection,
   onNavigate,
   onOpenConnectModal,
+  onOpenSettings,
   onOpenGlobalSearch,
   favoritesCount,
   onToggleLeftSidebar,
@@ -187,6 +190,18 @@ export const Header: React.FC<HeaderProps> = ({
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             <span className="hidden sm:inline">Thêm kênh</span>
           </button>
+
+          {/* Unified Channel & App Settings Button */}
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className="p-2 text-slate-400 hover:text-amber-400 hover:bg-slate-850 rounded-xl border border-slate-800/80 transition-all shrink-0"
+              title="Trung tâm cài đặt & quản trị kênh"
+              aria-label="Cài đặt kênh"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
 
           {/* Toggle Right Companion Sidebar */}
           {onToggleRightSidebar && (

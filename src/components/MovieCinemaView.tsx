@@ -1023,6 +1023,11 @@ export const MovieCinemaView: React.FC<MovieCinemaViewProps> = ({
                         );
                       })}
                     </div>
+
+                    {/* Sponsored Medium Rectangle 300x250 Adcash Zone 12358790 */}
+                    <div className="pt-3 border-t border-slate-800/80 flex justify-center">
+                      <AdcashBanner zoneId="12358790" format="300x250" />
+                    </div>
                   </div>
                 )}
 

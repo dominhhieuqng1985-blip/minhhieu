@@ -288,7 +288,21 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-white">Tiêu Đề / Tên Nhà Tài Trợ:</label>
+                  <label className="font-bold text-white">Tên Nhà Quảng Cáo (Hiển thị ở nhãn "Quảng cáo: [Tên]"):</label>
+                  <input
+                    type="text"
+                    placeholder="Minh Hiếu Review Phim"
+                    value={localAd.sponsorName ?? ''}
+                    onChange={(e) => setLocalAd({ ...localAd, sponsorName: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
+                  />
+                  <p className="text-[11px] text-slate-400">
+                    Tự động hiển thị trên các banner 728x90, 336x280, 300x250 dưới dạng: <strong className="text-amber-400 font-semibold">Quảng cáo: {localAd.sponsorName || 'Minh Hiếu Review Phim'}</strong>
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-white">Tiêu Đề Video / Nội Dung Quảng Cáo:</label>
                   <input
                     type="text"
                     value={localAd.adTitle}

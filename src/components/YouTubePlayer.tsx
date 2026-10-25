@@ -32,6 +32,8 @@ import {
   CheckCircle2,
   Tv,
   Settings,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { PodcastEpisode } from '../types/podcast';
 import { formatSeconds } from '../utils/youtube';
@@ -48,6 +50,7 @@ import { WatermarkOverlay } from './WatermarkOverlay';
 import { AdSettingsModal } from './AdSettingsModal';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useVideoAdScheduler } from '../hooks/useVideoAdScheduler';
+import { AdcashBanner } from './AdcashBanner';
 
 declare global {
   interface Window {
@@ -131,7 +134,74 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   onOpenDownloader,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoAreaRef = useRef<HTMLDivElement>(null);
+  const shortsAreaRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
+
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  // Fullscreen container handler ensuring Watermark and Video Ads are preserved
+  const toggleFullscreen = () => {
+    const targetEl = isShortView ? shortsAreaRef.current : videoAreaRef.current;
+    if (!targetEl) return;
+
+    const doc = document as any;
+    const isCurrentlyFs = Boolean(
+      doc.fullscreenElement ||
+      doc.webkitFullscreenElement ||
+      doc.mozFullScreenElement ||
+      doc.msFullscreenElement
+    );
+
+    if (!isCurrentlyFs) {
+      if (targetEl.requestFullscreen) {
+        targetEl.requestFullscreen().catch(() => setIsFullscreen(true));
+      } else if ((targetEl as any).webkitRequestFullscreen) {
+        (targetEl as any).webkitRequestFullscreen();
+      } else if ((targetEl as any).mozRequestFullScreen) {
+        (targetEl as any).mozRequestFullScreen();
+      } else if ((targetEl as any).msRequestFullscreen) {
+        (targetEl as any).msRequestFullscreen();
+      } else {
+        setIsFullscreen(true);
+      }
+    } else {
+      if (doc.exitFullscreen) {
+        doc.exitFullscreen().catch(() => {});
+      } else if (doc.webkitExitFullscreen) {
+        doc.webkitExitFullscreen();
+      } else if (doc.mozCancelFullScreen) {
+        doc.mozCancelFullScreen();
+      } else if (doc.msExitFullscreen) {
+        doc.msExitFullscreen();
+      }
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      const doc = document as any;
+      const fsEl =
+        doc.fullscreenElement ||
+        doc.webkitFullscreenElement ||
+        doc.mozFullScreenElement ||
+        doc.msFullscreenElement;
+      setIsFullscreen(Boolean(fsEl));
+    };
+
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    document.addEventListener('mozfullscreenchange', handleFsChange);
+    document.addEventListener('MSFullscreenChange', handleFsChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+      document.removeEventListener('mozfullscreenchange', handleFsChange);
+      document.removeEventListener('MSFullscreenChange', handleFsChange);
+    };
+  }, []);
 
   // Detect if video is Shorts
   const isVideoShort = Boolean(
@@ -330,7 +400,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
         controls: 1,
         modestbranding: 1,
         rel: 0,
-        fs: 1,
+        fs: 0,
         cc_load_policy: isCcActive ? 1 : 0,
         enablejsapi: 1,
         origin: window.location.origin,
@@ -743,7 +813,14 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
           />
 
           {/* Centered Shorts Card 9:16 */}
-          <div className="relative w-full max-w-[380px] sm:max-w-[400px] aspect-[9/16] rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl flex flex-col">
+          <div
+            ref={shortsAreaRef}
+            className={`relative overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl flex flex-col transition-all duration-200 ${
+              isFullscreen
+                ? 'fixed inset-0 z-50 w-screen h-screen max-w-none max-h-none rounded-none border-0 aspect-auto items-center justify-center'
+                : 'w-full max-w-[380px] sm:max-w-[400px] aspect-[9/16] rounded-2xl'
+            }`}
+          >
             {/* Watermark Logo */}
             <WatermarkOverlay settings={watermarkSettings} />
 
@@ -771,6 +848,20 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
 
             {/* Shorts Right Action Bar (Overlayed) */}
             <div className="absolute right-2 sm:right-3 bottom-16 sm:bottom-20 z-20 flex flex-col items-center gap-3.5">
+              {/* Fullscreen Button */}
+              <button
+                onClick={toggleFullscreen}
+                className="flex flex-col items-center group active:scale-90 transition-transform"
+                title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
+              >
+                <div className="w-11 h-11 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md">
+                  {isFullscreen ? <Minimize2 className="w-5 h-5 text-amber-400" /> : <Maximize2 className="w-5 h-5" />}
+                </div>
+                <span className="text-[10px] font-semibold text-white mt-1 drop-shadow">
+                  {isFullscreen ? 'Thu nhỏ' : 'Phóng to'}
+                </span>
+              </button>
+
               {/* Like Button */}
               <button
                 onClick={handleLike}
@@ -987,8 +1078,16 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
         /* ============================================================== */
         <div className="flex flex-col">
           {/* Main Video Screen */}
-          <div className="relative w-full bg-black aspect-video max-h-[500px] flex items-center justify-center overflow-hidden">
-            {/* Watermark Logo */}
+          <div
+            ref={videoAreaRef}
+            onDoubleClick={toggleFullscreen}
+            className={`relative w-full bg-black flex items-center justify-center overflow-hidden transition-all duration-200 select-none ${
+              isFullscreen
+                ? 'fixed inset-0 z-50 w-screen h-screen max-w-none max-h-none rounded-none aspect-auto'
+                : 'aspect-video max-h-[500px]'
+            }`}
+          >
+            {/* Watermark Logo (Preserved inside Fullscreen DOM container) */}
             <WatermarkOverlay settings={watermarkSettings} />
 
             {/* Pre-Ad Countdown Notice ("Quảng cáo sắp bắt đầu sau Xs") */}
@@ -997,7 +1096,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
               totalSeconds={preAdTotalSeconds}
             />
 
-            {/* Video Ad Overlay */}
+            {/* Video Ad Overlay (Preserved inside Fullscreen DOM container) */}
             {isAdOpen && (
               <VideoAdOverlay
                 key={adInstanceKey}
@@ -1007,6 +1106,19 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
                 targetMediaTitle={episode.title}
               />
             )}
+
+            {/* Floating Fullscreen / Exit Fullscreen Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFullscreen();
+              }}
+              className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-30 p-2 rounded-xl bg-black/65 hover:bg-black/90 backdrop-blur-md text-white/90 hover:text-white border border-white/20 transition-all shadow-lg active:scale-95"
+              title={isFullscreen ? 'Thu nhỏ (Thoát toàn màn hình)' : 'Phóng to toàn màn hình'}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4 text-amber-400" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
 
             <div
               className={`w-full h-full ${
@@ -1144,6 +1256,16 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
                 title={displayMode === 'video' ? 'Chuyển sang chế độ Âm thanh' : 'Chuyển sang chế độ Video'}
               >
                 {displayMode === 'video' ? <Headphones className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+              </button>
+
+              <button
+                onClick={toggleFullscreen}
+                className={`p-1.5 rounded transition-colors ${
+                  isFullscreen ? 'text-amber-400 bg-amber-500/20' : 'text-slate-400 hover:text-white'
+                }`}
+                title={isFullscreen ? 'Thu nhỏ (Thoát toàn màn hình)' : 'Phóng to toàn màn hình'}
+              >
+                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
             </div>
           </div>
@@ -1337,6 +1459,11 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
           >
             {isDescriptionExpanded ? 'Ẩn bớt' : '...thêm'}
           </button>
+        </div>
+
+        {/* Adcash Large Rectangle 336x280 (Zone 12358782) */}
+        <div className="py-2.5 flex justify-center">
+          <AdcashBanner zoneId="12358782" format="336x280" />
         </div>
 
         {/* ============================================================== */}
