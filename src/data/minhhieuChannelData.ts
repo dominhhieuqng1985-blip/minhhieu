@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Thành Thái Tử Ăn Mày, Anh Nhặt Tú Cầu Cưới Vợ Xấu Thức Tỉnh Thần Vương Hệ Thống - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "5 lượt xem",
+    "views": "6 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -405,7 +405,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Thành Thư Sinh Nghèo,Dùng Kiến Thức Hiện Đại Đảo Ngược Cục Diện Khiến Cả Hoàng Tộc Nể Sợ - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "11 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v23"
   },
   {
