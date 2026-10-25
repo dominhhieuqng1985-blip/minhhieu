@@ -2027,6 +2027,36 @@ app.post(['/api/settings/ads', '/minhhieu/api/settings/ads'], (req, res) => {
   }
 });
 
+// VAST XML Proxy fallback for third-party Wrapper redirects lacking CORS headers
+app.get(['/api/vast-proxy', '/minhhieu/api/vast-proxy'], async (req, res) => {
+  try {
+    const tagUrl = String(req.query.url || '').trim();
+    if (!tagUrl || (!tagUrl.startsWith('http://') && !tagUrl.startsWith('https://'))) {
+      return res.status(400).send('<?xml version="1.0" encoding="UTF-8"?><VAST version="4.0"></VAST>');
+    }
+    const headers: Record<string, string> = {
+      Accept: 'application/xml, text/xml, */*',
+      'User-Agent':
+        (req.headers['user-agent'] as string) ||
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    };
+    if (req.headers['accept-language']) {
+      headers['Accept-Language'] = String(req.headers['accept-language']);
+    }
+    if (req.headers['x-forwarded-for']) {
+      headers['X-Forwarded-For'] = String(req.headers['x-forwarded-for']);
+    }
+    const upstream = await fetch(tagUrl, { headers });
+    const xml = await upstream.text();
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(upstream.ok ? 200 : upstream.status).send(xml);
+  } catch {
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><VAST version="4.0"></VAST>');
+  }
+});
+
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
   if (process.env.NODE_ENV === 'production') {

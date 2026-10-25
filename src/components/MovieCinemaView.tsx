@@ -63,6 +63,7 @@ import {
   getMovieDetail,
 } from '../utils/movieApi';
 import { MovieVideoPlayer } from './MovieVideoPlayer';
+import { AdcashBanner } from './AdcashBanner';
 
 interface MovieCinemaViewProps {
   onSendToTTS?: (text: string) => void;
@@ -872,6 +873,9 @@ export const MovieCinemaView: React.FC<MovieCinemaViewProps> = ({
                   </button>
                 </div>
               </div>
+
+              {/* Adcash Display Banner 728x90 (Zone 12358102) under Cinema Player */}
+              <AdcashBanner zoneId="12358102" format="728x90" />
 
               {/* TABS CONTAINER UNDER PLAYER: EPISODES | AI COMPANION | COMMENTS | NOTES */}
               <div className="rounded-3xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">

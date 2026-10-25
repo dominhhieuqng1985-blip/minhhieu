@@ -54,6 +54,7 @@ import { VidKrakenDownloader } from './components/VidKrakenDownloader';
 import { GlobalYouTubeSearchModal } from './components/GlobalYouTubeSearchModal';
 import { TextToSpeechStudio } from './components/TextToSpeechStudio';
 import { MovieCinemaView } from './components/MovieCinemaView';
+import { AdcashBanner, AdcashVideoSlider } from './components/AdcashBanner';
 import { formatSeconds } from './utils/youtube';
 import { checkUrlConfigParam, fetchRemoteAdSettings } from './types/adConfig';
 import { AdminAuthProvider, useAdminAuth } from './context/AdminAuthContext';
@@ -1212,6 +1213,9 @@ function AppContent() {
 
         {/* Column 2: Center Main Content Workspace */}
         <div className="flex-1 min-w-0 p-3 sm:p-5 lg:p-6 space-y-6">
+          {/* Adcash Display Banner 728x90 (Zone 12358102) */}
+          <AdcashBanner zoneId="12358102" format="728x90" />
+
           {activeNav === 'tts' ? (
             <TextToSpeechStudio onShowToast={showToast} />
           ) : activeNav === 'downloader' ? (
@@ -1885,7 +1889,20 @@ function AppContent() {
           </section>
         </div>
         )}
+
+          {/* Adcash Display Banner 728x90 (Zone 12358102) */}
+          <AdcashBanner zoneId="12358102" format="728x90" />
       </div>
+
+      {/* Right Sticky Vertical Skyscraper Ad Rail 160x600 (Zone 12358110) when Right Sidebar is closed */}
+      {!isRightSidebarOpen && (
+        <aside
+          aria-label="Sponsored Skyscraper"
+          className="hidden xl:flex flex-col items-center shrink-0 w-[184px] py-6 pr-3 sticky top-16 self-start"
+        >
+          <AdcashBanner zoneId="12358110" format="160x600" />
+        </aside>
+      )}
 
       {/* Column 3: Right Companion & Player Sidebar */}
       <CompanionRightSidebar
@@ -2036,6 +2053,8 @@ function AppContent() {
           </span>
         </button>
       )}
+      {/* Adcash Video Slider (Zone 12358158) - Bottom-right floating muted autoplay player */}
+      <AdcashVideoSlider zoneId="12358158" />
     </div>
   );
 }

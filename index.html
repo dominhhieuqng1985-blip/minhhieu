@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script id="aclib" type="text/javascript" src="https://acscdn.com/script/aclib.js"></script>
     <title>Minh Hiếu TuBe - Video, Podcast &amp; Rạp Chiếu Phim Đa Chức Năng</title>
     <meta name="description" content="Minh Hiếu TuBe - Nền tảng xem video YouTube, nghe Podcast, rạp chiếu phim thông minh và bộ công cụ AI đa chức năng." />
     <meta property="og:title" content="Minh Hiếu TuBe - Video, Podcast &amp; Rạp Chiếu Phim Đa Chức Năng" />
@@ -14,6 +15,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
   <body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-amber-500/30 selection:text-amber-200">
+    <script type="text/javascript">
+      if (typeof aclib !== 'undefined' && typeof aclib.runVideoSlider === 'function') {
+        window.__ADCASH_VIDEO_SLIDER_ZONES__ = window.__ADCASH_VIDEO_SLIDER_ZONES__ || {};
+        window.__ADCASH_VIDEO_SLIDER_ZONES__['12358158'] = true;
+        aclib.runVideoSlider({
+          zoneId: '12358158',
+        });
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { FilterOption } from '../types/movie';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { AdcashBanner } from './AdcashBanner';
 
 interface SidebarLeftProps {
   isOpen: boolean;
@@ -506,6 +507,13 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
                   </span>
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Section 8: Adcash Vertical Skyscraper 160x600 (Zone 12358110) */}
+          {!isCollapsed && (
+            <div className="border-t border-slate-900 pt-3 flex justify-center">
+              <AdcashBanner zoneId="12358110" format="160x600" />
             </div>
           )}
         </div>
