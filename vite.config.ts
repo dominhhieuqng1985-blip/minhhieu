@@ -14,11 +14,7 @@ export default defineConfig(({ mode }) => {
     base: process.env.VITE_BASE || '/',
 
     plugins: [react(), tailwindcss()],
-
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
+    
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

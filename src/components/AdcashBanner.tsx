@@ -5,6 +5,7 @@ import {
   WatermarkSettings,
   getStoredAdSettings,
   getStoredWatermarkSettings,
+  normalizeAdSettings,
   AD_SETTINGS_UPDATED_EVENT,
 } from '../types/adConfig';
 
@@ -55,8 +56,8 @@ function ensureAdcashLibrary(): HTMLScriptElement | null {
   return scriptEl;
 }
 
-function extractYouTubeId(url: string): string | null {
-  if (!url) return null;
+function extractYouTubeId(url: unknown): string | null {
+  if (typeof url !== 'string' || !url) return null;
   const match = url.match(
     /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
   );
@@ -64,10 +65,10 @@ function extractYouTubeId(url: string): string | null {
 }
 
 function resolveBannerImage(adSettings: AdSettings): string {
-  if (adSettings.bannerImageUrl && adSettings.bannerImageUrl.trim()) {
+  if (typeof adSettings?.bannerImageUrl === 'string' && adSettings.bannerImageUrl.trim()) {
     return adSettings.bannerImageUrl.trim();
   }
-  const ytId = extractYouTubeId(adSettings.videoUrl);
+  const ytId = extractYouTubeId(adSettings?.videoUrl);
   if (ytId) {
     return `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
   }
@@ -75,10 +76,15 @@ function resolveBannerImage(adSettings: AdSettings): string {
 }
 
 export function resolveAdvertiserName(adSettings: AdSettings, dynamicAdTitle?: string): string {
-  if (adSettings.sponsorName && adSettings.sponsorName.trim()) {
+  if (typeof adSettings?.sponsorName === 'string' && adSettings.sponsorName.trim()) {
     return adSettings.sponsorName.trim();
   }
-  const titleToCheck = dynamicAdTitle || adSettings.adTitle;
+  const titleToCheck =
+    typeof dynamicAdTitle === 'string' && dynamicAdTitle.trim()
+      ? dynamicAdTitle
+      : typeof adSettings?.adTitle === 'string'
+      ? adSettings.adTitle
+      : '';
   if (titleToCheck && titleToCheck.trim()) {
     const parts = titleToCheck.split(/\s*[-–|•]\s*/);
     if (parts.length > 1) {
@@ -133,7 +139,7 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
     const handleUpdate = (e: Event) => {
       const customEv = e as CustomEvent;
       if (customEv.detail?.adSettings) {
-        setAdSettings(customEv.detail.adSettings);
+        setAdSettings(normalizeAdSettings(customEv.detail.adSettings));
         setThumbFailed(false);
       } else {
         setAdSettings(getStoredAdSettings());
@@ -722,7 +728,7 @@ export const AdcashVideoSlider: React.FC<AdcashVideoSliderProps> = ({
     const handleUpdate = (e: Event) => {
       const customEv = e as CustomEvent;
       if (customEv.detail?.adSettings) {
-        setAdSettings(customEv.detail.adSettings);
+        setAdSettings(normalizeAdSettings(customEv.detail.adSettings));
       } else {
         setAdSettings(getStoredAdSettings());
       }

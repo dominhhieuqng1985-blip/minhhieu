@@ -21,6 +21,7 @@ import {
   WatermarkSettings,
   DEFAULT_AD_SETTINGS,
   DEFAULT_WATERMARK_SETTINGS,
+  normalizeAdSettings,
   saveStoredAdSettings,
   saveStoredWatermarkSettings,
   saveRemoteAdSettings,
@@ -47,7 +48,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
   onSaveWatermarkSettings,
   onTriggerTestAd,
 }) => {
-  const [localAd, setLocalAd] = useState<AdSettings>(adSettings);
+  const [localAd, setLocalAd] = useState<AdSettings>(() => normalizeAdSettings(adSettings));
   const [localWatermark, setLocalWatermark] = useState<WatermarkSettings>(watermarkSettings);
   const [activeTab, setActiveTab] = useState<'ad' | 'watermark' | 'sync'>('ad');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
@@ -58,7 +59,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
 
   React.useEffect(() => {
     if (isOpen) {
-      setLocalAd(adSettings);
+      setLocalAd(normalizeAdSettings(adSettings));
       setLocalWatermark(watermarkSettings);
     }
   }, [isOpen, adSettings, watermarkSettings]);
@@ -128,7 +129,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
 
       if (parsed) {
         if (parsed.adSettings) {
-          setLocalAd({ ...DEFAULT_AD_SETTINGS, ...parsed.adSettings });
+          setLocalAd(normalizeAdSettings(parsed.adSettings));
         }
         if (parsed.watermarkSettings) {
           setLocalWatermark({ ...DEFAULT_WATERMARK_SETTINGS, ...parsed.watermarkSettings });
@@ -292,12 +293,12 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                   <input
                     type="text"
                     placeholder="Minh Hiếu Review Phim"
-                    value={localAd.sponsorName ?? ''}
+                    value={typeof localAd.sponsorName === 'string' ? localAd.sponsorName : ''}
                     onChange={(e) => setLocalAd({ ...localAd, sponsorName: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
                   />
                   <p className="text-[11px] text-slate-400">
-                    Tự động hiển thị trên các banner 728x90, 336x280, 300x250 dưới dạng: <strong className="text-amber-400 font-semibold">Quảng cáo: {localAd.sponsorName || 'Minh Hiếu Review Phim'}</strong>
+                    Tự động hiển thị trên các banner 728x90, 336x280, 300x250 dưới dạng: <strong className="text-amber-400 font-semibold">Quảng cáo: {(typeof localAd.sponsorName === 'string' && localAd.sponsorName.trim()) || 'Minh Hiếu Review Phim'}</strong>
                   </p>
                 </div>
 

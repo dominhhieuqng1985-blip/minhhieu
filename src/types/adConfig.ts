@@ -34,7 +34,7 @@ export const DEFAULT_AD_SETTINGS: AdSettings = {
   redirectUrl: 'https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1',
   skipDelaySeconds: 5,
   adTitle: 'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Review Phim',
-  sponsorName: true,
+  sponsorName: 'Minh Hiếu Review Phim',
   showInMovie: true,
   showInYouTube: true,
   enablePreRoll: true,
@@ -45,6 +45,64 @@ export const DEFAULT_AD_SETTINGS: AdSettings = {
   enableBannerFallback: true,
   bannerImageUrl: '',
 };
+
+export function normalizeAdSettings(raw?: Partial<AdSettings> | Record<string, unknown> | null): AdSettings {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const merged = { ...DEFAULT_AD_SETTINGS, ...src } as Record<string, unknown>;
+
+  const rawVideoUrl = typeof merged.videoUrl === 'string' ? merged.videoUrl : '';
+  const isObsoleteSample = !rawVideoUrl.trim() || rawVideoUrl.includes('ForBiggerBlazes');
+
+  return {
+    enabled: typeof merged.enabled === 'boolean' ? merged.enabled : DEFAULT_AD_SETTINGS.enabled,
+    videoUrl: isObsoleteSample ? DEFAULT_AD_SETTINGS.videoUrl : rawVideoUrl,
+    redirectUrl:
+      typeof merged.redirectUrl === 'string' ? merged.redirectUrl : DEFAULT_AD_SETTINGS.redirectUrl,
+    skipDelaySeconds:
+      typeof merged.skipDelaySeconds === 'number' && !Number.isNaN(merged.skipDelaySeconds)
+        ? merged.skipDelaySeconds
+        : DEFAULT_AD_SETTINGS.skipDelaySeconds,
+    adTitle:
+      isObsoleteSample || typeof merged.adTitle !== 'string'
+        ? DEFAULT_AD_SETTINGS.adTitle
+        : merged.adTitle,
+    sponsorName:
+      typeof merged.sponsorName === 'string'
+        ? merged.sponsorName
+        : DEFAULT_AD_SETTINGS.sponsorName,
+    showInMovie:
+      typeof merged.showInMovie === 'boolean' ? merged.showInMovie : DEFAULT_AD_SETTINGS.showInMovie,
+    showInYouTube:
+      typeof merged.showInYouTube === 'boolean'
+        ? merged.showInYouTube
+        : DEFAULT_AD_SETTINGS.showInYouTube,
+    enablePreRoll:
+      typeof merged.enablePreRoll === 'boolean'
+        ? merged.enablePreRoll
+        : DEFAULT_AD_SETTINGS.enablePreRoll,
+    enableMidRoll:
+      typeof merged.enableMidRoll === 'boolean'
+        ? merged.enableMidRoll
+        : DEFAULT_AD_SETTINGS.enableMidRoll,
+    enablePostRoll:
+      typeof merged.enablePostRoll === 'boolean'
+        ? merged.enablePostRoll
+        : DEFAULT_AD_SETTINGS.enablePostRoll,
+    enableRandomRoll:
+      typeof merged.enableRandomRoll === 'boolean'
+        ? merged.enableRandomRoll
+        : DEFAULT_AD_SETTINGS.enableRandomRoll,
+    preAdNoticeSeconds:
+      typeof merged.preAdNoticeSeconds === 'number' && !Number.isNaN(merged.preAdNoticeSeconds)
+        ? merged.preAdNoticeSeconds
+        : DEFAULT_AD_SETTINGS.preAdNoticeSeconds,
+    enableBannerFallback:
+      typeof merged.enableBannerFallback === 'boolean'
+        ? merged.enableBannerFallback
+        : DEFAULT_AD_SETTINGS.enableBannerFallback,
+    bannerImageUrl: typeof merged.bannerImageUrl === 'string' ? merged.bannerImageUrl : '',
+  };
+}
 
 export const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
   enabled: true,
@@ -96,7 +154,7 @@ export function checkUrlConfigParam(): { adSettings?: AdSettings; watermarkSetti
     if (cfg) {
       const decoded = decodeConfigFromBase64(cfg);
       if (decoded && (decoded.adSettings || decoded.watermarkSettings)) {
-        if (decoded.adSettings) saveStoredAdSettings(decoded.adSettings);
+        if (decoded.adSettings) saveStoredAdSettings(normalizeAdSettings(decoded.adSettings));
         if (decoded.watermarkSettings) saveStoredWatermarkSettings(decoded.watermarkSettings);
         return decoded;
       }
@@ -111,20 +169,22 @@ export function getStoredAdSettings(): AdSettings {
       // 1. Check URL param first (e.g. from share link on new device)
       const urlConfig = checkUrlConfigParam();
       if (urlConfig?.adSettings) {
-        return { ...DEFAULT_AD_SETTINGS, ...urlConfig.adSettings };
+        return normalizeAdSettings(urlConfig.adSettings);
       }
 
       // 2. Read localStorage
       const stored = localStorage.getItem(STORAGE_KEY_AD_SETTINGS);
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Automatically upgrade obsolete generic Google sample video to user's desired default
-        if (!parsed.videoUrl || parsed.videoUrl.includes('ForBiggerBlazes')) {
-          parsed.videoUrl = DEFAULT_AD_SETTINGS.videoUrl;
-          parsed.adTitle = DEFAULT_AD_SETTINGS.adTitle;
-          localStorage.setItem(STORAGE_KEY_AD_SETTINGS, JSON.stringify(parsed));
+        const normalized = normalizeAdSettings(parsed);
+        if (
+          typeof parsed?.sponsorName !== 'string' ||
+          !parsed?.videoUrl ||
+          (typeof parsed?.videoUrl === 'string' && parsed.videoUrl.includes('ForBiggerBlazes'))
+        ) {
+          localStorage.setItem(STORAGE_KEY_AD_SETTINGS, JSON.stringify(normalized));
         }
-        return { ...DEFAULT_AD_SETTINGS, ...parsed };
+        return normalized;
       }
     }
   } catch {}
@@ -134,9 +194,10 @@ export function getStoredAdSettings(): AdSettings {
 export function saveStoredAdSettings(settings: AdSettings): void {
   try {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY_AD_SETTINGS, JSON.stringify(settings));
+      const normalized = normalizeAdSettings(settings);
+      localStorage.setItem(STORAGE_KEY_AD_SETTINGS, JSON.stringify(normalized));
       window.dispatchEvent(
-        new CustomEvent(AD_SETTINGS_UPDATED_EVENT, { detail: { adSettings: settings } })
+        new CustomEvent(AD_SETTINGS_UPDATED_EVENT, { detail: { adSettings: normalized } })
       );
     }
   } catch {}
@@ -198,7 +259,7 @@ export async function fetchRemoteAdSettings(): Promise<{
         if (text && !text.trim().startsWith('<')) {
           const data = JSON.parse(text);
           if (data && (data.adSettings || data.watermarkSettings)) {
-            const finalAd = data.adSettings ? { ...DEFAULT_AD_SETTINGS, ...data.adSettings } : null;
+            const finalAd = data.adSettings ? normalizeAdSettings(data.adSettings) : null;
             const finalWatermark = data.watermarkSettings
               ? { ...DEFAULT_WATERMARK_SETTINGS, ...data.watermarkSettings }
               : null;

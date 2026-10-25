@@ -143,16 +143,20 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
   };
 
   // Detect whether fallback default ad video is YouTube or direct HTML5 video
+  const safeVideoUrl = typeof settings?.videoUrl === 'string' ? settings.videoUrl : '';
   const isDefaultYouTubeAd = Boolean(
     adMode === 'default' &&
-      (settings.videoUrl.includes('youtube.com') || settings.videoUrl.includes('youtu.be'))
+      (safeVideoUrl.includes('youtube.com') || safeVideoUrl.includes('youtu.be'))
   );
 
   const getYouTubeEmbedUrl = (url: string) => {
     let videoId = '';
-    const match = url.match(
-      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
-    );
+    const match =
+      typeof url === 'string'
+        ? url.match(
+            /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
+          )
+        : null;
     if (match) {
       videoId = match[1];
     } else {
