@@ -945,14 +945,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "OILEwjXxeRY",
-    "title": "Tập 3 căn nhà cuối con đường",
+    "title": "Tập 3 căn nhà cuối con đường, 20 lư���t xem – phát video ngắn",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "00:60",
     "durationSeconds": 60,
     "thumbnail": "https://i.ytimg.com/vi/OILEwjXxeRY/hqdefault.jpg",
-    "description": "Shorts: Tập 3 căn nhà cuối con đường - Kênh Minh Hiếu review phim.",
+    "description": "Shorts: Tập 3 căn nhà cuối con đường, 20 lư���t xem – phát video ngắn - Kênh Minh Hiếu review phim.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
     "id": "mh-v60"
