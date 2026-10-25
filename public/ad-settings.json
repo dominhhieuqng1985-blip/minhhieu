@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-23T11:44:41.981Z",
+  "updatedAt": "2026-10-24T21:35:00.000Z",
   "adSettings": {
     "enabled": true,
     "videoUrl": "https://youtu.be/Co2OgH2FGr0?si=pBe3YR7Em398Ayqf",
@@ -7,7 +7,14 @@
     "skipDelaySeconds": 5,
     "adTitle": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Review Phim",
     "showInMovie": true,
-    "showInYouTube": true
+    "showInYouTube": true,
+    "enablePreRoll": true,
+    "enableMidRoll": true,
+    "enablePostRoll": true,
+    "enableRandomRoll": true,
+    "preAdNoticeSeconds": 5,
+    "enableBannerFallback": true,
+    "bannerImageUrl": ""
   },
   "watermarkSettings": {
     "enabled": true,

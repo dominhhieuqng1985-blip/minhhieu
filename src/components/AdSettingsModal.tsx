@@ -56,6 +56,13 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
   const [importJsonText, setImportJsonText] = useState<string>('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setLocalAd(adSettings);
+      setLocalWatermark(watermarkSettings);
+    }
+  }, [isOpen, adSettings, watermarkSettings]);
+
   if (!isOpen) return null;
 
   const handleSave = async () => {
@@ -291,8 +298,110 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                 </div>
               </div>
 
+              {/* Ad Break Timing Slots: Pre-roll, Mid-roll, Random, Post-roll */}
+              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-white text-xs">
+                    Thời Điểm Phát Quảng Cáo Trong Video:
+                  </span>
+                  <span className="text-[10px] text-slate-400">Có thể bật nhiều vị trí cùng lúc</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <label className="flex items-center gap-2 p-2.5 bg-slate-900 rounded-xl border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={localAd.enablePreRoll !== false}
+                      onChange={(e) => setLocalAd({ ...localAd, enablePreRoll: e.target.checked })}
+                      className="accent-amber-500 w-4 h-4 rounded"
+                    />
+                    <span className="text-xs font-medium text-slate-200">Đầu video (Pre-roll)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 p-2.5 bg-slate-900 rounded-xl border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={localAd.enableMidRoll !== false}
+                      onChange={(e) => setLocalAd({ ...localAd, enableMidRoll: e.target.checked })}
+                      className="accent-amber-500 w-4 h-4 rounded"
+                    />
+                    <span className="text-xs font-medium text-slate-200">Giữa video (Mid-roll)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 p-2.5 bg-slate-900 rounded-xl border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={localAd.enableRandomRoll !== false}
+                      onChange={(e) => setLocalAd({ ...localAd, enableRandomRoll: e.target.checked })}
+                      className="accent-amber-500 w-4 h-4 rounded"
+                    />
+                    <span className="text-xs font-medium text-slate-200">Ngẫu nhiên khi xem</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 p-2.5 bg-slate-900 rounded-xl border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={localAd.enablePostRoll !== false}
+                      onChange={(e) => setLocalAd({ ...localAd, enablePostRoll: e.target.checked })}
+                      className="accent-amber-500 w-4 h-4 rounded"
+                    />
+                    <span className="text-xs font-medium text-slate-200">Cuối video (Post-roll)</span>
+                  </label>
+                </div>
+
+                {/* Pre-Ad Countdown Seconds */}
+                <div className="pt-1 space-y-1">
+                  <label className="font-semibold text-slate-300 flex items-center justify-between text-[11px]">
+                    <span>Thông báo đếm ngược &quot;Quảng cáo sắp bắt đầu&quot;:</span>
+                    <span className="font-mono tabular-nums text-amber-400 font-bold">
+                      {localAd.preAdNoticeSeconds ?? 5}s
+                    </span>
+                  </label>
+                  <input
+                    type="range"
+                    min="2"
+                    max="10"
+                    step="1"
+                    value={localAd.preAdNoticeSeconds ?? 5}
+                    onChange={(e) =>
+                      setLocalAd({ ...localAd, preAdNoticeSeconds: parseInt(e.target.value, 10) })
+                    }
+                    className="w-full accent-amber-500 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Display Banner Fallback (728x90 & 160x600) */}
+              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h5 className="font-bold text-white text-xs">
+                      Banner Hiển Thị Dự Phòng (728×90 &amp; 160×600)
+                    </h5>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Tự động hiển thị banner kênh cài sẵn khi mạng quảng cáo ngoài chưa phân phối
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={localAd.enableBannerFallback !== false}
+                    onChange={(e) =>
+                      setLocalAd({ ...localAd, enableBannerFallback: e.target.checked })
+                    }
+                    className="accent-amber-500 w-4 h-4 rounded cursor-pointer"
+                  />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Link ảnh banner tùy chỉnh (để trống sẽ tự lấy ảnh thumbnail video quảng cáo)"
+                  value={localAd.bannerImageUrl || ''}
+                  onChange={(e) => setLocalAd({ ...localAd, bannerImageUrl: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-[11px] text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
               {/* Scope Toggles */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-2 gap-3 pt-1">
                 <label className="flex items-center gap-2 p-3 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer">
                   <input
                     type="checkbox"

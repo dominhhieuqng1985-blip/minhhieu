@@ -43,10 +43,11 @@ import {
   fetchRemoteAdSettings,
   AD_SETTINGS_UPDATED_EVENT,
 } from '../types/adConfig';
-import { VideoAdOverlay } from './VideoAdOverlay';
+import { VideoAdOverlay, PreAdCountdownNotice } from './VideoAdOverlay';
 import { WatermarkOverlay } from './WatermarkOverlay';
 import { AdSettingsModal } from './AdSettingsModal';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { useVideoAdScheduler } from '../hooks/useVideoAdScheduler';
 
 declare global {
   interface Window {
@@ -163,9 +164,54 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   // Ad & Watermark states
   const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
   const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>(getStoredWatermarkSettings);
-  const [isAdOpen, setIsAdOpen] = useState<boolean>(false);
   const [isAdSettingsModalOpen, setIsAdSettingsModalOpen] = useState<boolean>(false);
   const { requireAdmin } = useAdminAuth();
+
+  const pauseMainYouTubeVideo = () => {
+    if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+      try {
+        playerRef.current.pauseVideo();
+        setIsPlaying(false);
+      } catch {}
+    }
+  };
+
+  const resumeMainYouTubeVideo = () => {
+    if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
+      try {
+        playerRef.current.playVideo();
+        setIsPlaying(true);
+      } catch {}
+    }
+  };
+
+  const {
+    isAdOpen,
+    adInstanceKey,
+    preAdCountdown,
+    preAdTotalSeconds,
+    handleAdFinished,
+    interceptVideoEnded,
+    triggerManualAd,
+  } = useVideoAdScheduler({
+    mediaKey: episode.id,
+    adSettings,
+    scopeEnabled: Boolean(adSettings.enabled && adSettings.showInYouTube),
+    currentTime,
+    duration,
+    isMainPlaying: isPlaying,
+    onPauseMainVideo: pauseMainYouTubeVideo,
+    onResumeMainVideo: resumeMainYouTubeVideo,
+  });
+
+  const isAdOpenRef = useRef<boolean>(isAdOpen);
+  const interceptEndedRef = useRef(interceptVideoEnded);
+  const onEndedPropRef = useRef(onEnded);
+  useEffect(() => {
+    isAdOpenRef.current = isAdOpen;
+    interceptEndedRef.current = interceptVideoEnded;
+    onEndedPropRef.current = onEnded;
+  }, [isAdOpen, interceptVideoEnded, onEnded]);
 
   const handleOpenAdSettings = () => {
     requireAdmin(
@@ -194,14 +240,6 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
       window.removeEventListener(AD_SETTINGS_UPDATED_EVENT, handleUpdate);
     };
   }, []);
-
-  useEffect(() => {
-    if (adSettings.enabled && adSettings.showInYouTube) {
-      setIsAdOpen(true);
-    } else {
-      setIsAdOpen(false);
-    }
-  }, [episode.id, adSettings.enabled, adSettings.showInYouTube]);
 
   // Like & Dislike state
   const [hasLiked, setHasLiked] = useState<boolean>(() => {
@@ -305,22 +343,36 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
           if (dur && dur > 0) setDuration(dur);
 
           try {
-            event.target.playVideo();
-            setIsPlaying(true);
+            if (isAdOpenRef.current) {
+              event.target.pauseVideo();
+              setIsPlaying(false);
+            } else {
+              event.target.playVideo();
+              setIsPlaying(true);
+            }
           } catch (e) {
             // Autoplay policy
           }
         },
         onStateChange: (event: any) => {
           if (event.data === 1) {
-            setIsPlaying(true);
             const dur = event.target.getDuration();
             if (dur && dur > 0) setDuration(dur);
+            if (isAdOpenRef.current) {
+              try {
+                event.target.pauseVideo();
+              } catch {}
+              setIsPlaying(false);
+            } else {
+              setIsPlaying(true);
+            }
           } else if (event.data === 2) {
             setIsPlaying(false);
           } else if (event.data === 0) {
             setIsPlaying(false);
-            if (onEnded) onEnded();
+            interceptEndedRef.current(() => {
+              if (onEndedPropRef.current) onEndedPropRef.current();
+            });
           }
         },
         onError: (event: any) => {
@@ -695,11 +747,18 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
             {/* Watermark Logo */}
             <WatermarkOverlay settings={watermarkSettings} />
 
+            {/* Pre-Ad Countdown Notice ("Quảng cáo sắp bắt đầu sau Xs") */}
+            <PreAdCountdownNotice
+              secondsRemaining={preAdCountdown}
+              totalSeconds={preAdTotalSeconds}
+            />
+
             {/* Video Ad Overlay */}
             {isAdOpen && (
               <VideoAdOverlay
+                key={adInstanceKey}
                 settings={adSettings}
-                onAdFinished={() => setIsAdOpen(false)}
+                onAdFinished={handleAdFinished}
                 onOpenSettings={handleOpenAdSettings}
                 targetMediaTitle={episode.title}
               />
@@ -932,11 +991,18 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
             {/* Watermark Logo */}
             <WatermarkOverlay settings={watermarkSettings} />
 
+            {/* Pre-Ad Countdown Notice ("Quảng cáo sắp bắt đầu sau Xs") */}
+            <PreAdCountdownNotice
+              secondsRemaining={preAdCountdown}
+              totalSeconds={preAdTotalSeconds}
+            />
+
             {/* Video Ad Overlay */}
             {isAdOpen && (
               <VideoAdOverlay
+                key={adInstanceKey}
                 settings={adSettings}
-                onAdFinished={() => setIsAdOpen(false)}
+                onAdFinished={handleAdFinished}
                 onOpenSettings={handleOpenAdSettings}
                 targetMediaTitle={episode.title}
               />
@@ -1503,7 +1569,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
         watermarkSettings={watermarkSettings}
         onSaveAdSettings={(s) => setAdSettings(s)}
         onSaveWatermarkSettings={(w) => setWatermarkSettings(w)}
-        onTriggerTestAd={() => setIsAdOpen(true)}
+        onTriggerTestAd={triggerManualAd}
       />
     </div>
   );

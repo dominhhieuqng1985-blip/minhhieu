@@ -31,10 +31,11 @@ import {
   fetchRemoteAdSettings,
   AD_SETTINGS_UPDATED_EVENT,
 } from '../types/adConfig';
-import { VideoAdOverlay } from './VideoAdOverlay';
+import { VideoAdOverlay, PreAdCountdownNotice } from './VideoAdOverlay';
 import { WatermarkOverlay } from './WatermarkOverlay';
 import { AdSettingsModal } from './AdSettingsModal';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { useVideoAdScheduler } from '../hooks/useVideoAdScheduler';
 
 interface MovieVideoPlayerProps {
   movie: MovieDetail;
@@ -73,9 +74,58 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
   // Ad & Watermark states
   const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
   const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>(getStoredWatermarkSettings);
-  const [isAdOpen, setIsAdOpen] = useState<boolean>(false);
   const [isAdSettingsModalOpen, setIsAdSettingsModalOpen] = useState<boolean>(false);
+  const [movieCurrentTime, setMovieCurrentTime] = useState<number>(0);
+  const [movieDuration, setMovieDuration] = useState<number>(0);
+  const [isMoviePlaying, setIsMoviePlaying] = useState<boolean>(false);
   const { requireAdmin } = useAdminAuth();
+
+  const m3u8Url = activeEpisode?.link_m3u8;
+  const embedUrl = activeEpisode?.link_embed;
+  const isUsingEmbedMode = !(engine === 'hls' && m3u8Url) && Boolean(embedUrl);
+
+  const pauseMainMovieVideo = () => {
+    if (videoRef.current) {
+      try {
+        videoRef.current.pause();
+        setIsMoviePlaying(false);
+      } catch {}
+    }
+  };
+
+  const resumeMainMovieVideo = () => {
+    if (videoRef.current) {
+      try {
+        videoRef.current.play().catch(() => {});
+        setIsMoviePlaying(true);
+      } catch {}
+    }
+  };
+
+  const {
+    isAdOpen,
+    adInstanceKey,
+    preAdCountdown,
+    preAdTotalSeconds,
+    handleAdFinished,
+    interceptVideoEnded,
+    triggerManualAd,
+  } = useVideoAdScheduler({
+    mediaKey: `${movie.slug}:${activeEpisode?.slug || 'ep0'}`,
+    adSettings,
+    scopeEnabled: Boolean(adSettings.enabled && adSettings.showInMovie),
+    currentTime: movieCurrentTime,
+    duration: movieDuration,
+    isMainPlaying: isUsingEmbedMode ? true : isMoviePlaying,
+    isEmbedWithoutTimeline: isUsingEmbedMode,
+    onPauseMainVideo: pauseMainMovieVideo,
+    onResumeMainVideo: resumeMainMovieVideo,
+  });
+
+  const isAdOpenRef = useRef<boolean>(isAdOpen);
+  useEffect(() => {
+    isAdOpenRef.current = isAdOpen;
+  }, [isAdOpen]);
 
   const handleOpenAdSettings = () => {
     requireAdmin(
@@ -105,9 +155,6 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
     };
   }, []);
 
-  const m3u8Url = activeEpisode?.link_m3u8;
-  const embedUrl = activeEpisode?.link_embed;
-
   // Auto-play Next Episode states (Default: true)
   const [isAutoplayNext, setIsAutoplayNext] = useState<boolean>(() => {
     try {
@@ -119,15 +166,19 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
   const [nextCountdown, setNextCountdown] = useState<number | null>(null);
 
   const handleVideoEnded = () => {
-    if (hasNextEpisode && isAutoplayNext && onNextEpisode) {
-      setNextCountdown(3);
-    }
+    interceptVideoEnded(() => {
+      if (hasNextEpisode && isAutoplayNext && onNextEpisode) {
+        setNextCountdown(3);
+      }
+    });
   };
 
   // Reset countdown and ended trigger on episode change
   useEffect(() => {
     hasEndedTriggered.current = false;
     setNextCountdown(null);
+    setMovieCurrentTime(0);
+    setMovieDuration(0);
   }, [activeEpisode?.slug]);
 
   // Next episode countdown timer
@@ -149,10 +200,14 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
     return () => clearTimeout(timer);
   }, [nextCountdown, onNextEpisode, nextEpisodeName, onShowToast]);
 
-  // Monitor video progress to trigger auto next episode reliably even on mobile
+  // Monitor video progress to update ad scheduler timeline & trigger auto next episode reliably
   const handleTimeUpdate = () => {
     const v = videoRef.current;
     if (!v) return;
+    setMovieCurrentTime(v.currentTime || 0);
+    if (v.duration && v.duration > 0 && !Number.isNaN(v.duration)) {
+      setMovieDuration(v.duration);
+    }
     if (
       v.duration > 5 &&
       v.duration - v.currentTime <= 0.8 &&
@@ -183,16 +238,7 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
     };
     window.addEventListener('message', handleMsg);
     return () => window.removeEventListener('message', handleMsg);
-  }, [hasNextEpisode, isAutoplayNext]);
-
-  // Trigger ad when active episode or movie changes
-  useEffect(() => {
-    if (adSettings.enabled && adSettings.showInMovie) {
-      setIsAdOpen(true);
-    } else {
-      setIsAdOpen(false);
-    }
-  }, [activeEpisode?.slug, movie.slug, adSettings.enabled, adSettings.showInMovie]);
+  }, [hasNextEpisode, isAutoplayNext, interceptVideoEnded]);
 
   // HLS stream attachment
   useEffect(() => {
@@ -215,7 +261,12 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
       videoEl.load();
       videoEl.onloadedmetadata = () => {
         setIsVideoLoading(false);
-        videoEl.play().catch(() => {});
+        if (videoEl.duration && !Number.isNaN(videoEl.duration)) {
+          setMovieDuration(videoEl.duration);
+        }
+        if (!isAdOpenRef.current) {
+          videoEl.play().catch(() => {});
+        }
       };
       videoEl.onerror = () => {
         setIsVideoLoading(false);
@@ -235,7 +286,9 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setIsVideoLoading(false);
-        videoEl.play().catch(() => {});
+        if (!isAdOpenRef.current) {
+          videoEl.play().catch(() => {});
+        }
       });
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -388,11 +441,18 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
         {/* Watermark Overlay */}
         <WatermarkOverlay settings={watermarkSettings} />
 
+        {/* Pre-Ad Countdown Notice ("Quảng cáo sắp bắt đầu sau Xs") */}
+        <PreAdCountdownNotice
+          secondsRemaining={preAdCountdown}
+          totalSeconds={preAdTotalSeconds}
+        />
+
         {/* Video Ad Overlay */}
         {isAdOpen && (
           <VideoAdOverlay
+            key={adInstanceKey}
             settings={adSettings}
-            onAdFinished={() => setIsAdOpen(false)}
+            onAdFinished={handleAdFinished}
             onOpenSettings={handleOpenAdSettings}
             targetMediaTitle={movie.name}
           />
@@ -445,6 +505,15 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
               x5-video-player-fullscreen="true"
               className="w-full h-full object-contain"
               poster={movie.poster_url || movie.thumb_url}
+              onPlay={() => {
+                if (isAdOpenRef.current && videoRef.current) {
+                  videoRef.current.pause();
+                  setIsMoviePlaying(false);
+                } else {
+                  setIsMoviePlaying(true);
+                }
+              }}
+              onPause={() => setIsMoviePlaying(false)}
               onEnded={handleVideoEnded}
               onTimeUpdate={handleTimeUpdate}
             />
@@ -655,7 +724,7 @@ export const MovieVideoPlayer: React.FC<MovieVideoPlayerProps> = ({
         watermarkSettings={watermarkSettings}
         onSaveAdSettings={(s) => setAdSettings(s)}
         onSaveWatermarkSettings={(w) => setWatermarkSettings(w)}
-        onTriggerTestAd={() => setIsAdOpen(true)}
+        onTriggerTestAd={triggerManualAd}
       />
     </div>
   );

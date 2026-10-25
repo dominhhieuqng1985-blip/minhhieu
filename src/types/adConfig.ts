@@ -6,6 +6,15 @@ export interface AdSettings {
   adTitle: string;
   showInMovie: boolean;
   showInYouTube: boolean;
+  // Multi-point & random ad break placements
+  enablePreRoll?: boolean;
+  enableMidRoll?: boolean;
+  enablePostRoll?: boolean;
+  enableRandomRoll?: boolean;
+  preAdNoticeSeconds?: number;
+  // Display banner fallback when external ad network has no fill
+  enableBannerFallback?: boolean;
+  bannerImageUrl?: string;
 }
 
 export interface WatermarkSettings {
@@ -26,6 +35,13 @@ export const DEFAULT_AD_SETTINGS: AdSettings = {
   adTitle: 'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Review Phim',
   showInMovie: true,
   showInYouTube: true,
+  enablePreRoll: true,
+  enableMidRoll: true,
+  enablePostRoll: true,
+  enableRandomRoll: true,
+  preAdNoticeSeconds: 5,
+  enableBannerFallback: true,
+  bannerImageUrl: '',
 };
 
 export const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
