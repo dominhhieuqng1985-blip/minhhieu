@@ -106,8 +106,6 @@ export const GlobalYouTubeSearchModal: React.FC<GlobalYouTubeSearchModalProps> =
       .slice(0, 30);
   }, [query, localCatalog]);
 
-  if (!isOpen) return null;
-
   // Direct YouTube URL / Video ID Parser
   const parseDirectYouTubeId = (input: string): string | null => {
     const trimmed = input.trim();
@@ -288,6 +286,8 @@ export const GlobalYouTubeSearchModal: React.FC<GlobalYouTubeSearchModalProps> =
   const channelCount = localMatches.filter((i) => i.type === 'video').length;
   const podcastCount = localMatches.filter((i) => i.type === 'podcast').length;
   const globalCount = externalResults.length + (parseDirectYouTubeId(query) ? 1 : 0);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in">
