@@ -89,64 +89,72 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Center Section: Primary Navigation Tabs */}
-        <nav className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-slate-400 overflow-x-auto py-1 scrollbar-none">
-          <button
-            onClick={() => onNavigate('catalog')}
-            className={`hover:text-slate-100 transition-colors whitespace-nowrap py-1.5 px-3 rounded-lg flex items-center gap-1.5 ${
-              activeSection === 'catalog' ? 'text-red-400 font-bold bg-red-500/10 border border-red-500/20' : ''
-            }`}
-          >
-            <Radio className="w-3.5 h-3.5" />
-            <span>Kênh YouTube &amp; Podcast</span>
-          </button>
-
-          <button
-            onClick={() => onNavigate('movies')}
-            className={`hover:text-slate-100 transition-colors whitespace-nowrap py-1.5 px-3 rounded-lg flex items-center gap-1.5 ${
-              activeSection === 'movies'
-                ? 'text-rose-400 font-bold bg-rose-500/15 border border-rose-500/30 shadow-sm'
-                : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            <Film className="w-3.5 h-3.5 text-rose-400" />
-            <span>Rạp Phim Cinema</span>
-            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-black uppercase">
-              Hot
-            </span>
-          </button>
-
-          <button
-            onClick={() => onNavigate('downloader')}
-            className={`hover:text-slate-100 transition-colors whitespace-nowrap py-1.5 px-3 rounded-lg flex items-center gap-1.5 ${
-              activeSection === 'downloader' ? 'text-amber-400 font-bold bg-amber-500/10' : ''
-            }`}
-          >
-            <Download className="w-3.5 h-3.5 text-amber-400" />
-            <span>Tải VidKraken</span>
-          </button>
-
+        {/* Center Section: Sleek Quick Search Bar + Primary Navigation Tabs */}
+        <div className="flex-1 max-w-2xl mx-2 sm:mx-4 flex items-center justify-center gap-3 min-w-0">
           {onOpenGlobalSearch && (
             <button
+              type="button"
               onClick={onOpenGlobalSearch}
-              className="hover:text-slate-100 transition-colors whitespace-nowrap py-1.5 px-3 rounded-lg flex items-center gap-1.5 bg-red-600/15 hover:bg-red-600/25 border border-red-500/30 text-red-300 shadow-sm"
-              title="Tìm kiếm trên toàn bộ mạng YouTube"
+              className="w-full max-w-md flex items-center justify-between px-3.5 py-1.5 bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700 rounded-full text-xs transition-all shadow-inner group"
+              title="Tìm kiếm video, podcast, YouTube (Phím tắt: Ctrl+K / ⌘K)"
             >
-              <Search className="w-3.5 h-3.5 text-red-400" />
-              <span>Tìm Toàn YouTube</span>
+              <div className="flex items-center gap-2 truncate">
+                <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-red-400 transition-colors shrink-0" />
+                <span className="truncate">Tìm kiếm video, podcast, rạp phim...</span>
+              </div>
+              <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-slate-800 text-slate-400 border border-slate-700 rounded group-hover:border-slate-600 transition-colors shrink-0">
+                ⌘K
+              </kbd>
             </button>
           )}
 
-          <button
-            onClick={() => onNavigate('tts')}
-            className={`hover:text-slate-100 transition-colors whitespace-nowrap py-1.5 px-3 rounded-lg flex items-center gap-1.5 ${
-              activeSection === 'tts' ? 'text-rose-400 font-bold bg-rose-500/10' : ''
-            }`}
-          >
-            <Mic className="w-3.5 h-3.5 text-rose-400" />
-            <span>Studio Giọng Nói</span>
-          </button>
-        </nav>
+          <nav className="hidden xl:flex items-center gap-1.5 text-xs font-semibold text-slate-400 shrink-0">
+            <button
+              onClick={() => onNavigate('catalog')}
+              className={`hover:text-slate-100 transition-colors whitespace-nowrap py-1.5 px-2.5 rounded-lg flex items-center gap-1.5 ${
+                activeSection === 'catalog' ? 'text-red-400 font-bold bg-red-500/10 border border-red-500/20' : ''
+              }`}
+            >
+              <Radio className="w-3.5 h-3.5" />
+              <span>Kênh &amp; Podcast</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('movies')}
+              className={`hover:text-slate-100 transition-colors whitespace-nowrap py-1.5 px-2.5 rounded-lg flex items-center gap-1.5 ${
+                activeSection === 'movies'
+                  ? 'text-rose-400 font-bold bg-rose-500/15 border border-rose-500/30 shadow-sm'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Film className="w-3.5 h-3.5 text-rose-400" />
+              <span>Rạp Cinema</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-black uppercase">
+                Hot
+              </span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('downloader')}
+              className={`hover:text-slate-100 transition-colors whitespace-nowrap py-1.5 px-2.5 rounded-lg flex items-center gap-1.5 ${
+                activeSection === 'downloader' ? 'text-amber-400 font-bold bg-amber-500/10' : ''
+              }`}
+            >
+              <Download className="w-3.5 h-3.5 text-amber-400" />
+              <span>VidKraken</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('tts')}
+              className={`hover:text-slate-100 transition-colors whitespace-nowrap py-1.5 px-2.5 rounded-lg flex items-center gap-1.5 ${
+                activeSection === 'tts' ? 'text-rose-400 font-bold bg-rose-500/10' : ''
+              }`}
+            >
+              <Mic className="w-3.5 h-3.5 text-rose-400" />
+              <span>Studio Giọng Nói</span>
+            </button>
+          </nav>
+        </div>
 
         {/* Right Section: Actions, Admin Widget & Companion Sidebar Toggle */}
         <div className="flex items-center gap-2 shrink-0">

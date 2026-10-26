@@ -64,8 +64,8 @@ function extractYouTubeId(url: unknown): string | null {
   return match ? match[1] : null;
 }
 
-function resolveBannerImage(adSettings: AdSettings): string {
-  if (typeof adSettings?.bannerImageUrl === 'string' && adSettings.bannerImageUrl.trim()) {
+function resolveBannerImage(adSettings?: Partial<AdSettings> | null | Record<string, unknown>): string {
+  if (adSettings && typeof adSettings.bannerImageUrl === 'string' && adSettings.bannerImageUrl.trim()) {
     return adSettings.bannerImageUrl.trim();
   }
   const ytId = extractYouTubeId(adSettings?.videoUrl);
@@ -75,17 +75,21 @@ function resolveBannerImage(adSettings: AdSettings): string {
   return 'https://i.ytimg.com/vi/Co2OgH2FGr0/hqdefault.jpg';
 }
 
-export function resolveAdvertiserName(adSettings: AdSettings, dynamicAdTitle?: string): string {
-  if (typeof adSettings?.sponsorName === 'string' && adSettings.sponsorName.trim()) {
-    return adSettings.sponsorName.trim();
+export function resolveAdvertiserName(
+  adSettings?: Partial<AdSettings> | null | Record<string, unknown>,
+  dynamicAdTitle?: string
+): string {
+  if (adSettings && typeof adSettings.sponsorName === 'string') {
+    const trimmedSponsor = adSettings.sponsorName.trim();
+    if (trimmedSponsor) return trimmedSponsor;
   }
   const titleToCheck =
     typeof dynamicAdTitle === 'string' && dynamicAdTitle.trim()
-      ? dynamicAdTitle
-      : typeof adSettings?.adTitle === 'string'
-      ? adSettings.adTitle
+      ? dynamicAdTitle.trim()
+      : adSettings && typeof adSettings.adTitle === 'string'
+      ? adSettings.adTitle.trim()
       : '';
-  if (titleToCheck && titleToCheck.trim()) {
+  if (titleToCheck) {
     const parts = titleToCheck.split(/\s*[-–|•]\s*/);
     if (parts.length > 1) {
       const last = parts[parts.length - 1].trim();
@@ -93,7 +97,7 @@ export function resolveAdvertiserName(adSettings: AdSettings, dynamicAdTitle?: s
       const first = parts[0].trim();
       if (first.length >= 2 && first.length <= 40) return first;
     }
-    if (titleToCheck.length <= 35) return titleToCheck.trim();
+    if (titleToCheck.length <= 35) return titleToCheck;
   }
   return 'Minh Hiếu Review Phim';
 }

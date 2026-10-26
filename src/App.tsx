@@ -300,6 +300,18 @@ function AppContent() {
       .catch(() => {});
   }, []);
 
+  // Global search shortcut (Ctrl+K or ⌘K)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsGlobalSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   // Player seeking orchestration
   const [seekTargetTime, setSeekTargetTime] = useState<number | null>(null);
   const [playerCurrentSeconds, setPlayerCurrentSeconds] = useState<number>(0);
@@ -1276,54 +1288,24 @@ function AppContent() {
             /* Main Podcast Catalog & Player View */
             <div className="space-y-8">
         {/* Instant URL Search & Channel Banner Header */}
-        <div className="rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-7 shadow-2xl space-y-5">
-          {/* Top URL Input: Allows pasting any link and auto-fetches */}
-          <div className="flex flex-col sm:flex-row items-center gap-2.5">
-            <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Dán link kênh, podcasts hoặc video YouTube (ví dụ: https://www.youtube.com/@minhhieureviewphim)..."
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') fetchFullChannelData(urlInput);
-                }}
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-500 font-mono focus:outline-none focus:border-amber-500"
-              />
-            </div>
-
-            <button
-              onClick={() => setIsGlobalSearchModalOpen(true)}
-              className="w-full sm:w-auto px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md shadow-red-600/20 transition-all shrink-0 active:scale-95"
-              title="Tìm kiếm bất kỳ video nào trên toàn bộ mạng YouTube"
-            >
-              <Search className="w-4 h-4" />
-              <span>Tìm Trên Toàn YouTube</span>
-            </button>
-
-            <button
-              onClick={() => fetchFullChannelData(urlInput)}
-              disabled={isLoadingChannel || !urlInput.trim()}
-              className="w-full sm:w-auto px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md shadow-amber-500/10 transition-all shrink-0 active:scale-95"
-            >
-              {isLoadingChannel ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              <span>{isLoadingChannel ? 'Đang tải tự động...' : 'Tải lại toàn bộ'}</span>
-            </button>
-          </div>
-
-          {/* Channel Info Card with Subscribe Button */}
-          <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-800/80">
+        <div className="rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4">
+          {/* Top Channel Header: Avatar, Name, Stats & Primary Controls */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3.5 min-w-0">
-              <img
-                src={channelInfo.avatar}
-                alt={channelInfo.name}
-                referrerPolicy="no-referrer"
-                className="w-14 h-14 rounded-full object-cover border-2 border-amber-500/40 shadow-lg shrink-0"
-              />
+              <div className="relative shrink-0">
+                <img
+                  src={channelInfo.avatar}
+                  alt={channelInfo.name}
+                  referrerPolicy="no-referrer"
+                  className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500/40 shadow-lg"
+                />
+                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-600 border-2 border-slate-900 flex items-center justify-center text-white text-[9px] font-bold">
+                  ▶
+                </span>
+              </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-extrabold text-white truncate">
+                  <h1 className="text-lg sm:text-xl font-extrabold text-white truncate">
                     {channelInfo.name}
                   </h1>
                   <span className="text-xs text-amber-400 font-mono hidden sm:inline">
@@ -1331,30 +1313,19 @@ function AppContent() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5 flex-wrap">
-                  <span>{channelInfo.subscribers}</span>
+                  <span className="text-slate-300 font-medium">{channelInfo.subscribers}</span>
                   <span>·</span>
                   <span className="text-emerald-400 font-bold">
-                    {channelVideos.length} video ({videoCounts.long} video dài + {videoCounts.shorts} Shorts)
+                    {channelVideos.length} video ({videoCounts.long} dài + {videoCounts.shorts} Shorts)
                   </span>
                   <span>·</span>
-                  <span className="text-amber-400 font-semibold">{channelPodcasts.length} tập podcast</span>
-                  <span>·</span>
-                  <span>{channelPlaylists.length} danh sách phát</span>
-                </div>
-                <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1 flex-wrap">
-                  <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    Tự động kiểm tra video mới (mỗi 90s)
-                  </span>
-                  <span>·</span>
-                  <span>Lần kiểm tra gần nhất: {lastCheckedTime}</span>
+                  <span className="text-amber-400 font-semibold">{channelPodcasts.length} podcast</span>
                 </div>
               </div>
             </div>
 
-            {/* Official Subscribe Button, Consolidated Channel Settings & Auto-Play Toggle */}
-            <div className="flex items-center gap-2.5 flex-wrap">
-              {/* YouTube Official-Style Subscribe Button */}
+            {/* Official Subscribe Button, Channel Settings & Auto-Play Toggle */}
+            <div className="flex items-center gap-2 flex-wrap">
               <a
                 href={channelInfo.subscribeUrl}
                 target="_blank"
@@ -1367,24 +1338,22 @@ function AppContent() {
                 <span>{subscribedChannels.includes(channelInfo.name) ? 'Đã đăng ký 🔔' : 'Đăng ký kênh'}</span>
               </a>
 
-              {/* Consolidated Channel Settings & Utilities Button */}
               <button
                 onClick={() => setIsChannelSettingsModalOpen(true)}
-                className="px-4 py-2 rounded-full text-xs font-bold bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-amber-200 border border-amber-500/40 flex items-center gap-2 shadow-sm transition-all active:scale-95"
-                title="Mở toàn bộ công cụ cài đặt, thêm video, quảng cáo, RSS và đồng bộ kênh"
+                className="px-3.5 py-2 rounded-full text-xs font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+                title="Cài đặt kênh, quản trị video và quảng cáo"
               >
                 <Settings className="w-3.5 h-3.5 text-amber-400" />
-                <span>Cài Đặt Kênh</span>
+                <span>Cài Đặt</span>
               </button>
 
-              {/* Autoplay Next Toggle */}
               <button
                 onClick={() => {
                   const next = !isAutoplayNext;
                   setIsAutoplayNext(next);
                   showToast(next ? 'Đã BẬT tự động phát tập tiếp theo' : 'Đã TẮT tự động phát tập tiếp theo');
                 }}
-                className={`px-3.5 py-2 rounded-full text-xs font-semibold border flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-2 rounded-full text-xs font-semibold border flex items-center gap-1.5 transition-all ${
                   isAutoplayNext
                     ? 'bg-amber-500/15 border-amber-500/50 text-amber-300'
                     : 'bg-slate-950 border-slate-800 text-slate-400'
@@ -1392,16 +1361,51 @@ function AppContent() {
                 title="Tự động phát tập kế tiếp khi video kết thúc"
               >
                 <Check className={`w-3.5 h-3.5 ${isAutoplayNext ? 'text-amber-400' : 'opacity-40'}`} />
-                <span className="hidden sm:inline">Tự động phát tiếp</span>
+                <span className="hidden sm:inline">Tự động phát</span>
               </button>
             </div>
           </div>
 
+          {/* Quick URL Input Bar & Global Search Trigger */}
+          <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 border-t border-slate-800/80">
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Dán link kênh, video hoặc playlist YouTube (ví dụ: https://www.youtube.com/@minhhieureviewphim)..."
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') fetchFullChannelData(urlInput);
+                }}
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-500 font-mono focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <button
+              onClick={() => fetchFullChannelData(urlInput)}
+              disabled={isLoadingChannel || !urlInput.trim()}
+              className="w-full sm:w-auto px-4 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-bold rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 transition-all shrink-0 active:scale-95"
+            >
+              {isLoadingChannel ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              <span>{isLoadingChannel ? 'Đang tải...' : 'Nạp Kênh'}</span>
+            </button>
+
+            <button
+              onClick={() => setIsGlobalSearchModalOpen(true)}
+              className="w-full sm:w-auto px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-red-600/20 transition-all shrink-0 active:scale-95"
+              title="Mở bảng tìm kiếm toàn diện (Ctrl+K)"
+            >
+              <Search className="w-4 h-4" />
+              <span>Tìm Kiếm Toàn YouTube</span>
+            </button>
+          </div>
+
           {/* New Videos Alert Banner */}
           {newVideosAlert && (
-            <div className="mt-3 p-3.5 bg-gradient-to-r from-emerald-950/80 to-slate-900 border border-emerald-500/50 rounded-2xl flex items-center justify-between gap-3 text-xs text-emerald-200 shadow-lg">
-              <div className="flex items-center gap-2.5">
-                <span className="text-lg">🎉</span>
+            <div className="p-3 bg-gradient-to-r from-emerald-950/80 to-slate-900 border border-emerald-500/50 rounded-2xl flex items-center justify-between gap-3 text-xs text-emerald-200 shadow-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-base">🎉</span>
                 <span className="font-medium">{newVideosAlert}</span>
               </div>
               <button
@@ -1413,59 +1417,43 @@ function AppContent() {
             </div>
           )}
 
-          {/* Sleek Compact Podcast RSS Feed Strip */}
-          <div className="mt-3 px-4 py-2.5 bg-gradient-to-r from-amber-950/30 via-slate-950 to-slate-900 border border-amber-500/30 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-md">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-400 shrink-0">
-                <Rss className="w-4 h-4" />
+          {/* Sleek Compact Podcast RSS Feed Pill */}
+          <div className="px-3.5 py-2 bg-slate-950 border border-amber-500/25 rounded-2xl flex flex-wrap items-center justify-between gap-2.5 text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-1 rounded-md bg-amber-500/15 text-amber-400 shrink-0">
+                <Rss className="w-3.5 h-3.5" />
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-amber-300">
-                    📡 Podcast RSS Feed (studo.xml)
-                  </span>
-                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    YouTube Studio &amp; Podcast Apps
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                  URL cấp dữ liệu: <span className="font-mono text-amber-300/90 select-all">https://www.vemaybaynhauyen.com/studo.xml</span>
-                </p>
+              <div className="min-w-0 flex items-center gap-2 flex-wrap text-[11px]">
+                <span className="font-bold text-amber-300">Podcast RSS (studo.xml):</span>
+                <span className="font-mono text-slate-300 truncate select-all">
+                  https://www.vemaybaynhauyen.com/studo.xml
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => {
                   navigator.clipboard.writeText('https://www.vemaybaynhauyen.com/studo.xml');
-                  showToast('📋 Đã sao chép liên kết studo.xml!');
+                  showToast('📋 Đã sao chép link studo.xml!');
                 }}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1 transition-all active:scale-95"
                 title="Sao chép link studo.xml"
               >
-                <Copy className="w-3.5 h-3.5" />
-                <span>Sao chép URL</span>
+                <Copy className="w-3 h-3" />
+                <span>Sao chép</span>
               </button>
 
               <a
                 href="./studo.xml"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-all active:scale-95"
-                title="Mở xem trực tiếp file studo.xml"
+                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1 transition-all"
+                title="Mở file XML"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
+                <ExternalLink className="w-3 h-3" />
                 <span>Mở</span>
               </a>
-
-              <button
-                onClick={() => setIsChannelSettingsModalOpen(true)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95"
-                title="Xem cài đặt & hướng dẫn đầy đủ"
-              >
-                <Settings className="w-3.5 h-3.5 text-amber-400" />
-                <span>Tất cả cài đặt</span>
-              </button>
             </div>
           </div>
         </div>
@@ -2005,6 +1993,8 @@ function AppContent() {
           document.getElementById('player-workspace')?.scrollIntoView({ behavior: 'smooth' });
         }}
         onShowToast={showToast}
+        channelVideos={channelVideos}
+        channelPodcasts={channelPodcasts}
       />
 
       {/* Consolidated Channel Settings & Utilities Modal */}
