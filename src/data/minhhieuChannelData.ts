@@ -150,7 +150,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "37 lượt xem",
+    "views": "38 lượt xem",
     "id": "mh-v6"
   },
   {
@@ -335,14 +335,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "WjgrpSYEiJU",
-    "title": "Xuyên Không Về Cổ Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Th��n",
+    "title": "Xuyên Không Về Cổ Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "1:37:19",
     "durationSeconds": 5839,
     "thumbnail": "https://i.ytimg.com/vi/WjgrpSYEiJU/hqdefault.jpg",
-    "description": "Xuyên Không Về Cổ Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Th��n - Kênh Minh Hiếu review phim.",
+    "description": "Xuyên Không Về Cổ Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "3 lượt xem",
@@ -500,18 +500,32 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "ac1luP8sZY4",
-    "title": "Nữ Quân Y Xuyên Không Thành Nô Lệ Đào Mỏ, Mang Cả Kho Quân Nhu Hiện Đại Lập Thế Lực Đối Đầu Tiên Môn",
+    "title": "Nữ Quân Y Xuyên Kh��ng Thành Nô Lệ Đào Mỏ, Mang Cả Kho Quân Nhu Hiện Đại Lập Thế Lực Đối Đầu Tiên Môn",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "1:40:33",
     "durationSeconds": 6033,
     "thumbnail": "https://i.ytimg.com/vi/ac1luP8sZY4/hqdefault.jpg",
-    "description": "Nữ Quân Y Xuyên Không Thành Nô Lệ Đào Mỏ, Mang Cả Kho Quân Nhu Hiện Đại Lập Thế Lực Đối Đầu Tiên Môn - Kênh Minh Hiếu review phim.",
+    "description": "Nữ Quân Y Xuyên Kh��ng Thành Nô Lệ Đào Mỏ, Mang Cả Kho Quân Nhu Hiện Đại Lập Thế Lực Đối Đầu Tiên Môn - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "5 lượt xem",
     "id": "mh-v30"
+  },
+  {
+    "youtubeId": "OrUyLBzMNqg",
+    "title": "tâm an đờ nở hoa",
+    "channel": "Minh Hiếu review phim",
+    "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
+    "category": "nghe-thuat-sang-tao",
+    "duration": "03:30",
+    "durationSeconds": 210,
+    "thumbnail": "https://i.ytimg.com/vi/OrUyLBzMNqg/hqdefault.jpg",
+    "description": "tâm an đờ nở hoa - Kênh Minh Hiếu review phim.",
+    "publishedDate": "Mới cập nhật",
+    "isShort": false,
+    "id": "mh-v31"
   },
   {
     "youtubeId": "zcXkuUKHgBw",
@@ -525,7 +539,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "nhất kiếm phá cửu thiên - Kênh Minh Hiếu review phim.",
     "publishedDate": "Mới cập nhật",
     "isShort": false,
-    "id": "mh-v31"
+    "id": "mh-v32"
   },
   {
     "youtubeId": "sukb8JcMDvQ",
@@ -539,7 +553,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thiếu nữ thầm yêu ngài A Nan được đức phật cảm hóa - Kênh Minh Hiếu review phim.",
     "publishedDate": "Mới cập nhật",
     "isShort": false,
-    "id": "mh-v32"
+    "id": "mh-v33"
   },
   {
     "youtubeId": "f1nk0-rwyI4",
@@ -553,7 +567,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "🙏 Lần đầu Đức Phật trở về gặp cha sau khi thành đạo - Kênh Minh Hiếu review phim.",
     "publishedDate": "Mới cập nhật",
     "isShort": false,
-    "id": "mh-v33"
+    "id": "mh-v34"
   },
   {
     "youtubeId": "LHdjVV2RteU",
@@ -568,7 +582,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "6 lượt xem",
-    "id": "mh-v34"
+    "id": "mh-v35"
   },
   {
     "youtubeId": "KcmuoUKw1vc",
@@ -583,7 +597,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "23 lượt xem",
-    "id": "mh-v35"
+    "id": "mh-v36"
   },
   {
     "youtubeId": "t69IZJFJ5gA",
@@ -598,7 +612,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "149 lượt xem",
-    "id": "mh-v36"
+    "id": "mh-v37"
   },
   {
     "youtubeId": "QvEYI_EeeUU",
@@ -613,7 +627,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "59 lượt xem",
-    "id": "mh-v37"
+    "id": "mh-v38"
   },
   {
     "youtubeId": "svnjOq0LBMU",
@@ -628,7 +642,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "9 lượt xem",
-    "id": "mh-v38"
+    "id": "mh-v39"
   },
   {
     "youtubeId": "CA0LEy6twmE",
@@ -642,10 +656,10 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Tập 5: căn nhà cuối con đường #xuyênkhông #phimreview #phimai #tap5 - Kênh Minh Hiếu review phim.",
     "publishedDate": "Mới cập nhật",
     "isShort": false,
-    "id": "mh-v39"
+    "id": "mh-v40"
   },
   {
-    "id": "mh-v40",
+    "id": "mh-v41",
     "youtubeId": "tRrANL0fa2E",
     "title": "Phần 1-3 | Xuyên Không Thành Phế Vật , Dùng Trí Tuệ Hiện Đại Thâu Tóm 30 Vạn Thiết Kỵ Lập Quốc",
     "channel": "Minh Hiếu review phim",
@@ -660,7 +674,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "24 lượt xem"
   },
   {
-    "id": "mh-v41",
+    "id": "mh-v42",
     "youtubeId": "zAseyjtNzGo",
     "title": "P2 | Xuyên Không Giữa 2 Thế Giới, Bỏ Bạn Gái Đào Mỏ Mang Hàng Hiện Đại Buôn Sang Cổ Đại Thành Phú Hộ",
     "channel": "Minh Hiếu review phim",
@@ -675,7 +689,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "50 lượt xem"
   },
   {
-    "id": "mh-v42",
+    "id": "mh-v43",
     "youtubeId": "4mT6eBVRueQ",
     "title": "P1 Xuyên Không Giữa Hai Thế Giới, Bỏ Bạn Gái Đào Mỏ Mang Hàng Hiện Đại Buôn Sang Cổ Đại Thành Phú Hộ",
     "channel": "Minh Hiếu review phim",
@@ -690,7 +704,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "10 lượt xem"
   },
   {
-    "id": "mh-v43",
+    "id": "mh-v44",
     "youtubeId": "uPJJXYvxKF4",
     "title": "Xuyên Không Hai Thế Giới Cứu Chồng Thiên Tài Vợ Bao Mỹ Nam 100 Lượng Vàng Khiến Tướng Quân Phát Điên",
     "channel": "Minh Hiếu review phim",
@@ -705,7 +719,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "15 lượt xem"
   },
   {
-    "id": "mh-v44",
+    "id": "mh-v45",
     "youtubeId": "rGyFFT_yFII",
     "title": "Xuyên Không Giữa Hai Thế Giới, Cô Mang Quán Ăn Về Thời Đói Kém, Đổi Đời Cùng Chàng Trai Cực Phẩm",
     "channel": "Minh Hiếu review phim",
@@ -720,7 +734,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "52 lượt xem"
   },
   {
-    "id": "mh-v45",
+    "id": "mh-v46",
     "youtubeId": "OGlkw1r_xT4",
     "title": "Xuyên Không Đến Tu Tiên Giới, Chàng Trai Kích Hoạt Hệ Thống Tông Môn Mạnh Nhất Trấn Áp Cả Đại Lục",
     "channel": "Minh Hiếu review phim",
@@ -735,7 +749,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "20 lượt xem"
   },
   {
-    "id": "mh-v46",
+    "id": "mh-v47",
     "youtubeId": "6evxh_mzc0A",
     "title": "Xuyên Không Vào Tông Chủ Tông Môn Phế Vật Ta Kích Hoạt Hệ Thống Thu Đồ Hoàn Trả Gấp Vạn Lần Bá VL",
     "channel": "Minh Hiếu review phim",
@@ -750,7 +764,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "10 lượt xem"
   },
   {
-    "id": "mh-v47",
+    "id": "mh-v48",
     "youtubeId": "Wc1YkZNNyXo",
     "title": "Xuyên Không Về Thời Nguyên Thủy, Mang Kiến Thức Hiện Đại Tìm Lương Thực Quạng Sắt Thu Phục Bộ Lạc",
     "channel": "Minh Hiếu review phim",
@@ -765,7 +779,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "381 lượt xem"
   },
   {
-    "id": "mh-v48",
+    "id": "mh-v49",
     "youtubeId": "ONJjL15eJOA",
     "title": "Xuyên Không Về Thời Kỳ Bao Cấp. Cô Quay Xe Không Chịu Ly Hôn Chồng Thợ Săn 1m9 Thay Đổi Số Phận",
     "channel": "Minh Hiếu review phim",
@@ -780,7 +794,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "3 lượt xem"
   },
   {
-    "id": "mh-v49",
+    "id": "mh-v50",
     "youtubeId": "PR0I3Z-L2dM",
     "title": "Xuyên Không Thành Phế Vật, Thức Tỉnh Hệ Thống Kế Thừa Phong Ấn Cửu U Khiến Thiên Hạ Khiếp Sợ",
     "channel": "Minh Hiếu review phim",
@@ -795,7 +809,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "19 lượt xem"
   },
   {
-    "id": "mh-v50",
+    "id": "mh-v51",
     "youtubeId": "wSEdwn0bEuI",
     "title": "Tông Môn Ép Chàng Trai Rời Đi Nhưng Không Ngờ Anh Kích Hoạt Hệ Thống Cực Bá Đạo Và Trở Thành Vô Địch",
     "channel": "Minh Hiếu review phim",
@@ -810,7 +824,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "9 lượt xem"
   },
   {
-    "id": "mh-v51",
+    "id": "mh-v52",
     "youtubeId": "Go2HLH7nGF8",
     "title": "Xuyên Không Về Thời Nguyên Thủy, Mang Xe Tăng Vũ Khí Hiện Đại, Thu Phục Bộ Lạc",
     "channel": "Minh Hiếu review phim",
@@ -825,7 +839,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "28 lượt xem"
   },
   {
-    "id": "mh-v52",
+    "id": "mh-v53",
     "youtubeId": "-5NgspeAlyA",
     "title": "PhimXuyên Không Về Cổ Đại Được Phát Thiên Kim Tiểu Thư Làm Vợ , Anh Dẫn Đàn Chó Săn Vào Núi Làm Giàu",
     "channel": "Minh Hiếu review phim",
@@ -840,7 +854,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "6 lượt xem"
   },
   {
-    "id": "mh-v53",
+    "id": "mh-v54",
     "youtubeId": "gpMCr7WhdY0",
     "title": "P4| Xuyên Không Về Thời Nguyên Thủy, Mang Kiến Thức Văn Minh Hiện Đại Phát Triển Trồng Trọt Săn Bắn",
     "channel": "Minh Hiếu review phim",
@@ -855,7 +869,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "63 lượt xem"
   },
   {
-    "id": "mh-v54",
+    "id": "mh-v55",
     "youtubeId": "Xu3i5OqaP7c",
     "title": "P3| Xuyên Không Về Thời Nguyên Thủy, Mang Kiến Thức Văn Minh Hiện Đại Phát Triển Trồng Trọt Săn Bắn",
     "channel": "Minh Hiếu review phim",
@@ -870,7 +884,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "21 lượt xem"
   },
   {
-    "id": "mh-v55",
+    "id": "mh-v56",
     "youtubeId": "1O8ywjo1OCs",
     "title": "P2| Xuyên Không Về Thời Nguyên Thủy, Mang Kiến Thức Văn Minh Hiện Đại Phát Triển Trồng Trọt Săn Bắn",
     "channel": "Minh Hiếu review phim",
@@ -885,7 +899,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "9 lượt xem"
   },
   {
-    "id": "mh-v56",
+    "id": "mh-v57",
     "youtubeId": "q-R_qNI6-24",
     "title": "P1| Xuyên Không Về Thời Nguyên Thủy, Mang Kiến Thức Văn Minh Hiện Đại Phát Triển Trồng Trọt Săn Bắn",
     "channel": "Minh Hiếu review phim",
@@ -900,7 +914,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "5 lượt xem"
   },
   {
-    "id": "mh-v57",
+    "id": "mh-v58",
     "youtubeId": "RMXNCPtSu7U",
     "title": "PhimXuyên Không Mang Theo Cả Siêu Thị Hiện Đại Về Cổ Đại, Vừa Mở Cửa Đã Khiến Triều Đình Kinh Ngạc",
     "channel": "Minh Hiếu review phim",
@@ -915,7 +929,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "views": "7 lượt xem"
   },
   {
-    "id": "mh-v58",
+    "id": "mh-v59",
     "youtubeId": "GnKvGjbfelc",
     "title": "Xuyên không bị lưu đầy, chàng trai biến đất hoang thành trì phồn vinh cứu cả vạn người",
     "channel": "Minh Hiếu review phim",
@@ -928,20 +942,6 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "3 tuần trước",
     "isShort": false,
     "views": "38 lượt xem"
-  },
-  {
-    "youtubeId": "OrUyLBzMNqg",
-    "title": "tâm an đờ nở hoa",
-    "channel": "Minh Hiếu review phim",
-    "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
-    "category": "nghe-thuat-sang-tao",
-    "duration": "00:60",
-    "durationSeconds": 60,
-    "thumbnail": "https://i.ytimg.com/vi/OrUyLBzMNqg/hqdefault.jpg",
-    "description": "Shorts: tâm an đờ nở hoa - Kênh Minh Hiếu review phim.",
-    "publishedDate": "YouTube Shorts",
-    "isShort": true,
-    "id": "mh-v59"
   },
   {
     "youtubeId": "lpiKfekPrgc",
