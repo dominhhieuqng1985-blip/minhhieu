@@ -50,10 +50,10 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({ isOpen, onClose, o
 
     setIsLoadingMeta(true);
     try {
-      const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${parsed.id}&format=json`;
-      const res = await fetch(oembedUrl);
+      // noembed.com has open CORS (*), perfect for static GitHub Pages hosting
+      const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${parsed.id}`);
       if (!res.ok) {
-        throw new Error('Không thể tải thông tin oEmbed từ YouTube');
+        throw new Error('Không thể tải thông tin oEmbed từ noembed');
       }
       const data = await res.json();
       setPreviewData({
