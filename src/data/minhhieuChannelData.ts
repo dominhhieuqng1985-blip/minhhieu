@@ -148,9 +148,8 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "durationSeconds": 7772,
     "thumbnail": "https://i.ytimg.com/vi/wWLTeDAW8g0/hqdefault.jpg",
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
-    "publishedDate": "Video chính thức",
+    "publishedDate": "Mới cập nhật",
     "isShort": false,
-    "views": "39 lượt xem",
     "id": "mh-v6"
   },
   {
