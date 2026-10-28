@@ -56,7 +56,15 @@ import { AdSettingsModal } from './components/AdSettingsModal';
 import { VidKrakenDownloader } from './components/VidKrakenDownloader';
 import { GlobalYouTubeSearchModal } from './components/GlobalYouTubeSearchModal';
 import { TextToSpeechStudio } from './components/TextToSpeechStudio';
+import { TikTokDownloaderStudio } from './components/TikTokDownloaderStudio';
+import { TikTokVideoPlayer, PlayerErrorBoundary } from './components/TikTokVideoPlayer';
 import { MovieCinemaView } from './components/MovieCinemaView';
+import {
+  isTikTokEpisode,
+  isTikTokUrl,
+  fetchTikTokVideoData,
+  convertTikTokDataToEpisode,
+} from './utils/tiktokApi';
 import {
   AdcashBanner,
   AdcashVideoSlider,
@@ -349,8 +357,31 @@ function AppContent() {
     setLastCheckedTime(nowTime);
   };
 
-  // User manually adds a video or Shorts via URL
-  const handleAddCustomVideo = (newEp: PodcastEpisode) => {
+  // User manually adds a video, Shorts, or TikTok video via URL
+  const handleAddCustomVideo = (rawEp: PodcastEpisode) => {
+    const newEp: PodcastEpisode = {
+      ...rawEp,
+      id: String(rawEp.id || `custom-${Date.now()}`),
+      youtubeId: String(rawEp.youtubeId || rawEp.id || Date.now()),
+      title: String(rawEp.title || 'Video mới'),
+      channel: String(rawEp.channel || 'Minh Hiếu TuBe'),
+      description: String(rawEp.description || ''),
+      duration: String(rawEp.duration || '00:30'),
+      thumbnail: String(rawEp.thumbnail || ''),
+    };
+
+    // Ensure re-added custom video is removed from deleted blacklist if it was previously deleted
+    try {
+      const delStored = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
+      if (delStored) {
+        const delList: string[] = JSON.parse(delStored);
+        const filteredDel = delList.filter((id) => id !== newEp.youtubeId && id !== newEp.id);
+        if (filteredDel.length !== delList.length) {
+          localStorage.setItem(STORAGE_KEY_DELETED_VIDEOS, JSON.stringify(filteredDel));
+        }
+      }
+    } catch {}
+
     setChannelVideos((prev) => {
       const filtered = prev.filter((v) => v.youtubeId !== newEp.youtubeId);
       const nextList = [newEp, ...filtered];
@@ -372,12 +403,33 @@ function AppContent() {
       shorts: prev.shorts + (newEp.isShort ? 1 : 0),
     }));
 
-    showToast(`🎉 Đã thêm thành công: "${newEp.title}" vào kênh!`);
+    showToast(`🎉 Đã thêm & phát ngay: "${newEp.title}"!`);
   };
 
   // AUTOMATIC INITIAL FETCH ON STARTUP:
-  // Automatically loads all videos, shorts, podcasts, and playlists of @minhhieureviewphim
+  // Automatically loads all videos, shorts, podcasts, and playlists of @minhhieureviewphim (and supports TikTok video URLs!)
   const fetchFullChannelData = async (targetUrl = 'https://www.youtube.com/@minhhieureviewphim') => {
+    const trimmedUrl = targetUrl.trim();
+    if (!trimmedUrl) return;
+
+    // Direct TikTok video URL pasted in top bar -> resolve & play in dedicated TikTokVideoPlayer!
+    if (isTikTokUrl(trimmedUrl)) {
+      setIsLoadingChannel(true);
+      try {
+        const tkData = await fetchTikTokVideoData(trimmedUrl);
+        const tkEpisode = convertTikTokDataToEpisode(tkData, trimmedUrl);
+        handleAddCustomVideo(tkEpisode);
+        setTimeout(() => {
+          document.getElementById('player-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } catch (err: any) {
+        showToast(`⚠️ Không thể đọc link TikTok: ${err?.message || 'Vui lòng kiểm tra lại link'}`);
+      } finally {
+        setIsLoadingChannel(false);
+      }
+      return;
+    }
+
     setIsLoadingChannel(true);
 
     // If running on GitHub Pages without configured remote backend:
@@ -842,7 +894,9 @@ function AppContent() {
 
     if (!hasBackend()) {
       // Find matching items from local videos or series
-      const matched = channelVideos.filter(v => v.seriesTitle === playlistTitle || (!v.isShort && v.description.includes(playlistTitle)));
+      const matched = channelVideos.filter(
+        (v) => v.seriesTitle === playlistTitle || (!v.isShort && String(v.description || '').includes(playlistTitle))
+      );
       const epsToPlay = matched.length > 0 ? matched : channelVideos.slice(0, 15);
       setActiveQueue(epsToPlay);
       setActivePlaylistTitle(playlistTitle);
@@ -1066,19 +1120,22 @@ function AppContent() {
     showToast(`⚠️ Đã tự động loại bỏ video đã bị xóa trên YouTube! (${reason})`);
   };
 
-  // Scan and clean up deleted videos from the entire channel
+  // Scan and clean up deleted videos from the entire channel (ONLY checks 11-char YouTube IDs, never TikTok videos!)
   const handleScanDeletedVideos = async () => {
     setIsScanningDeleted(true);
     showToast('🔍 Đang kiểm tra trạng thái video trên YouTube...');
 
     const deletedFound: string[] = [];
-    const allIds = channelVideos.map((v) => v.youtubeId);
+    const youtubeOnlyVideos = channelVideos.filter(
+      (v) => !isTikTokEpisode(v) && /^[a-zA-Z0-9_-]{11}$/.test(String(v.youtubeId || ''))
+    );
+    const allIds = youtubeOnlyVideos.map((v) => v.youtubeId);
 
     // Try backend API first for fast bulk checking
     let checkedViaApi = false;
     try {
       const apiBase = getApiBaseUrl();
-      if (apiBase) {
+      if (apiBase && allIds.length > 0) {
         const res = await fetch(`${apiBase}youtube/check-alive`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1095,8 +1152,8 @@ function AppContent() {
     } catch {}
 
     // Fallback: check client-side via noembed
-    if (!checkedViaApi) {
-      const batch = channelVideos.slice(0, 30);
+    if (!checkedViaApi && youtubeOnlyVideos.length > 0) {
+      const batch = youtubeOnlyVideos.slice(0, 30);
       for (const v of batch) {
         try {
           const controller = new AbortController();
@@ -1160,10 +1217,11 @@ function AppContent() {
         list = channelPodcasts;
       }
     }
+    const q = searchQuery.toLowerCase();
     return list.filter((ep) => {
       const matchesSearch =
-        ep.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ep.channel.toLowerCase().includes(searchQuery.toLowerCase());
+        String(ep.title || '').toLowerCase().includes(q) ||
+        String(ep.channel || '').toLowerCase().includes(q);
       if (!matchesSearch) return false;
       if (activeNav === 'favorites') return favorites.includes(ep.id);
       return true;
@@ -1252,7 +1310,19 @@ function AppContent() {
           {/* Adcash Display Banner 728x90 (Zone 12358102) */}
           <AdcashBanner zoneId="12358102" format="728x90" />
 
-          {activeNav === 'tts' ? (
+          {activeNav === 'tiktok' ? (
+            <TikTokDownloaderStudio
+              onShowToast={showToast}
+              onAddToQueue={handleAddCustomVideo}
+              onPlayInMainPlayer={(ep) => {
+                handleAddCustomVideo(ep);
+                setActiveNav('catalog');
+                setTimeout(() => {
+                  document.getElementById('player-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+              }}
+            />
+          ) : activeNav === 'tts' ? (
             <TextToSpeechStudio onShowToast={showToast} />
           ) : activeNav === 'downloader' ? (
             <VidKrakenDownloader
@@ -1372,7 +1442,7 @@ function AppContent() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Dán link kênh, video hoặc playlist YouTube (ví dụ: https://www.youtube.com/@minhhieureviewphim)..."
+                placeholder="Dán link video TikTok hoặc kênh/video/playlist YouTube..."
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -1530,29 +1600,54 @@ function AppContent() {
               </div>
             </div>
 
-            {/* 2-Column Split: YouTube Player + Currently Playing Sidebar / AI / Notes */}
+            {/* 2-Column Split: Dedicated TikTok Player or YouTube Player + Companion Sidebar */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               <div className="lg:col-span-7">
-                <YouTubePlayer
-                  episode={currentEpisode}
-                  onAddNoteAtCurrentTime={(t) => {
-                    setPlayerCurrentSeconds(t);
-                    setPlayerSidebarTab('notes');
-                  }}
-                  seekTargetTime={seekTargetTime}
-                  onSeekHandled={() => setSeekTargetTime(null)}
-                  isSubscribed={subscribedChannels.includes(channelInfo.name)}
-                  onToggleSubscribe={handleToggleSubscribe}
-                  onNextEpisode={handleNextEpisode}
-                  onPrevEpisode={handlePrevEpisode}
-                  onEnded={handleEpisodeEnded}
-                  hasNextEpisode={hasNextEpisode}
-                  hasPrevEpisode={hasPrevEpisode}
-                  onVideoUnavailable={handleVideoUnavailable}
-                  onToggleFavorite={handleToggleFavorite}
-                  isFavorite={favorites.includes(currentEpisode.id)}
-                  onOpenDownloader={() => setPlayerSidebarTab('download')}
-                />
+                <PlayerErrorBoundary resetKey={currentEpisode.id}>
+                  {isTikTokEpisode(currentEpisode) ? (
+                    <TikTokVideoPlayer
+                      key={currentEpisode.id}
+                      variant="full"
+                      episode={currentEpisode}
+                      autoPlay={true}
+                      onAddNoteAtCurrentTime={(t) => {
+                        setPlayerCurrentSeconds(t);
+                        setPlayerSidebarTab('notes');
+                      }}
+                      seekTargetTime={seekTargetTime}
+                      onSeekHandled={() => setSeekTargetTime(null)}
+                      onNextEpisode={handleNextEpisode}
+                      onPrevEpisode={handlePrevEpisode}
+                      onEnded={handleEpisodeEnded}
+                      hasNextEpisode={hasNextEpisode}
+                      hasPrevEpisode={hasPrevEpisode}
+                      onToggleFavorite={handleToggleFavorite}
+                      isFavorite={favorites.includes(currentEpisode.id)}
+                      onShowToast={showToast}
+                    />
+                  ) : (
+                    <YouTubePlayer
+                      episode={currentEpisode}
+                      onAddNoteAtCurrentTime={(t) => {
+                        setPlayerCurrentSeconds(t);
+                        setPlayerSidebarTab('notes');
+                      }}
+                      seekTargetTime={seekTargetTime}
+                      onSeekHandled={() => setSeekTargetTime(null)}
+                      isSubscribed={subscribedChannels.includes(channelInfo.name)}
+                      onToggleSubscribe={handleToggleSubscribe}
+                      onNextEpisode={handleNextEpisode}
+                      onPrevEpisode={handlePrevEpisode}
+                      onEnded={handleEpisodeEnded}
+                      hasNextEpisode={hasNextEpisode}
+                      hasPrevEpisode={hasPrevEpisode}
+                      onVideoUnavailable={handleVideoUnavailable}
+                      onToggleFavorite={handleToggleFavorite}
+                      isFavorite={favorites.includes(currentEpisode.id)}
+                      onOpenDownloader={() => setPlayerSidebarTab('download')}
+                    />
+                  )}
+                </PlayerErrorBoundary>
               </div>
 
               <div className="lg:col-span-5">
@@ -1942,8 +2037,7 @@ function AppContent() {
         isOpen={isConnectModalOpen}
         onClose={() => setIsConnectModalOpen(false)}
         onAddEpisode={(ep) => {
-          setActiveQueue((prev) => [ep, ...prev]);
-          setCurrentEpisode(ep);
+          handleAddCustomVideo(ep);
         }}
         onBatchAddEpisodes={(eps, replace) => {
           if (replace) {

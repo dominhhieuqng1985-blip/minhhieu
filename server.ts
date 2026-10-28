@@ -1811,6 +1811,542 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ:
 });
 
 // =========================================================================
+// TIKTOK VIDEO RESOLVER, INLINE PLAYER STREAM & EXPLICIT DOWNLOAD PROXY
+// =========================================================================
+const DEFAULT_TIKTOK_VIDEO_URL = 'https://www.tiktok.com/@hiu.minh1093/video/7673836556217486612';
+const DEFAULT_TIKTOK_RAPIDAPI_KEY =
+  process.env.TIKTOK_RAPIDAPI_KEY || '22640ad209msha29ac75e0e57edfp1a2cbejsndd57d476497c';
+const DEFAULT_TIKTOK_RAPIDAPI_HOST = 'tiktok-video-downloader-api.p.rapidapi.com';
+
+function resolveTikwmAbsoluteUrl(u?: string): string {
+  if (!u || typeof u !== 'string') return '';
+  if (u.startsWith('http://') || u.startsWith('https://')) return u;
+  if (u.startsWith('//')) return `https:${u}`;
+  return `https://www.tikwm.com${u.startsWith('/') ? '' : '/'}${u}`;
+}
+
+/**
+ * Inspect first 64KB of an MP4 stream to detect video codec fourcc.
+ * TikTok's `hdplay` is frequently ByteVC1 / HEVC (`hvc1` / `hev1` / `bvc1`), which plays AUDIO-ONLY
+ * in browsers without hardware HEVC decoding, whereas `play` is H.264 (`avc1`) and plays everywhere.
+ */
+async function probeMp4VideoCodec(url?: string): Promise<'h264' | 'hevc' | 'unknown'> {
+  if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) return 'unknown';
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2800);
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Range: 'bytes=0-65535',
+        Referer: 'https://www.tiktok.com/',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok && res.status !== 206) return 'unknown';
+    const buf = Buffer.from(await res.arrayBuffer());
+    const latin = buf.toString('latin1');
+    if (latin.includes('avc1') || latin.includes('avc3')) return 'h264';
+    if (latin.includes('hvc1') || latin.includes('hev1') || latin.includes('bvc1') || latin.includes('bytevc1')) {
+      return 'hevc';
+    }
+    return 'unknown';
+  } catch {
+    return 'unknown';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function resolveTikTokVideoMetadataServer(rawUrl: string, customRapidKey?: string) {
+  const cleanUrl = (rawUrl || DEFAULT_TIKTOK_VIDEO_URL).trim();
+
+  // 1. Primary: TikWM API (returns direct inline MP4 streams supporting HTTP 206 Range)
+  try {
+    const tikwmEndpoint = `https://www.tikwm.com/api/?url=${encodeURIComponent(cleanUrl)}&hd=1`;
+    const wmRes = await fetch(tikwmEndpoint, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      },
+    });
+    if (wmRes.ok) {
+      const wmJson: any = await wmRes.json();
+      if (wmJson && wmJson.code === 0 && wmJson.data) {
+        const d = wmJson.data;
+        const rawPlayUrl = resolveTikwmAbsoluteUrl(d.play);
+        const rawHdPlayUrl = resolveTikwmAbsoluteUrl(d.hdplay);
+        const rawWmPlayUrl = resolveTikwmAbsoluteUrl(d.wmplay);
+
+        // Probe codecs in parallel so we NEVER serve an audio-only HEVC stream when H.264 is available
+        const [playCodec, hdCodec] = await Promise.all([
+          probeMp4VideoCodec(rawPlayUrl),
+          rawHdPlayUrl && rawHdPlayUrl !== rawPlayUrl
+            ? probeMp4VideoCodec(rawHdPlayUrl)
+            : Promise.resolve<'h264' | 'hevc' | 'unknown'>('unknown'),
+        ]);
+
+        let bestH264NoLogo = '';
+        if (hdCodec === 'h264' && rawHdPlayUrl) {
+          bestH264NoLogo = rawHdPlayUrl;
+        } else if (playCodec === 'h264' && rawPlayUrl) {
+          bestH264NoLogo = rawPlayUrl;
+        } else if (playCodec !== 'hevc' && rawPlayUrl) {
+          bestH264NoLogo = rawPlayUrl;
+        } else if (hdCodec !== 'hevc' && rawHdPlayUrl) {
+          bestH264NoLogo = rawHdPlayUrl;
+        }
+
+        // If both play & hdplay were HEVC, check wmplay as last non-transcoded H.264 candidate
+        if (!bestH264NoLogo && rawWmPlayUrl && rawWmPlayUrl !== rawPlayUrl) {
+          const wmCodec = await probeMp4VideoCodec(rawWmPlayUrl);
+          if (wmCodec === 'h264') {
+            bestH264NoLogo = rawWmPlayUrl;
+          }
+        }
+
+        const chosenPlayUrl = bestH264NoLogo || rawPlayUrl || rawHdPlayUrl || rawWmPlayUrl;
+        const chosenHdUrl =
+          hdCodec === 'h264' && rawHdPlayUrl ? rawHdPlayUrl : chosenPlayUrl;
+        const needsTranscode = !bestH264NoLogo && (playCodec === 'hevc' || hdCodec === 'hevc');
+
+        const coverUrl =
+          resolveTikwmAbsoluteUrl(d.origin_cover) ||
+          resolveTikwmAbsoluteUrl(d.cover) ||
+          resolveTikwmAbsoluteUrl(d.ai_dynamic_cover);
+        const desc = typeof d.title === 'string' ? d.title : '';
+        const hashtagMatches = Array.from(desc.matchAll(/#([\p{L}\p{N}_]+)/gu)).map((m) => ({
+          hashtagName: m[1],
+        }));
+        const username = String(d.author?.unique_id || 'tiktok_user');
+        const idStr = String(d.id || cleanUrl.match(/\/video\/(\d+)/)?.[1] || Date.now());
+        const canonicalUrl = `https://www.tiktok.com/@${username}/video/${idStr}`;
+
+        if (chosenPlayUrl) {
+          return {
+            id: idStr,
+            videoUrl: canonicalUrl,
+            author: {
+              id: d.author?.id ? String(d.author.id) : undefined,
+              username,
+              nickname: String(d.author?.nickname || username),
+              avatar: resolveTikwmAbsoluteUrl(d.author?.avatar),
+              verified: false,
+              signature: '',
+            },
+            description: desc,
+            cover: coverUrl,
+            duration: typeof d.duration === 'number' ? d.duration : 30,
+            musicTitle: d.music_info?.title ? String(d.music_info.title) : undefined,
+            stats: {
+              views: Number(d.play_count || 0),
+              likes: Number(d.digg_count || 0),
+              comments: Number(d.comment_count || 0),
+              shares: Number(d.share_count || 0),
+              saves: Number(d.collect_count || 0),
+            },
+            hashtags: hashtagMatches,
+            playUrl: chosenPlayUrl,
+            hdPlayUrl: chosenHdUrl,
+            wmPlayUrl: rawWmPlayUrl || chosenPlayUrl,
+            downloadUrl: chosenHdUrl || chosenPlayUrl,
+            needsTranscode,
+          };
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn('TikWM resolve warning:', err?.message || err);
+  }
+
+  // 2. Fallback: RapidAPI TikTok Downloader
+  const apiKey = (customRapidKey && customRapidKey.trim()) || DEFAULT_TIKTOK_RAPIDAPI_KEY;
+  const rapidEndpoint = `https://${DEFAULT_TIKTOK_RAPIDAPI_HOST}/media?videoUrl=${encodeURIComponent(cleanUrl)}`;
+  const rapidRes = await fetch(rapidEndpoint, {
+    headers: {
+      accept: 'application/json',
+      'x-rapidapi-host': DEFAULT_TIKTOK_RAPIDAPI_HOST,
+      'x-rapidapi-key': apiKey,
+    },
+  });
+
+  if (!rapidRes.ok) {
+    const errText = await rapidRes.text();
+    throw new Error(`Không thể lấy dữ liệu video TikTok (HTTP ${rapidRes.status}): ${errText.slice(0, 120)}`);
+  }
+
+  const rData: any = await rapidRes.json();
+  if (!rData || !rData.downloadUrl) {
+    throw new Error('Không tìm thấy luồng video từ link TikTok này.');
+  }
+
+  const candidateUrl = String(rData.playUrl || rData.downloadUrl);
+  const rapidCodec = await probeMp4VideoCodec(candidateUrl);
+
+  const idStr = String(rData.id || cleanUrl.match(/\/video\/(\d+)/)?.[1] || Date.now());
+  const username = String(rData.author?.username || 'tiktok_user');
+  return {
+    id: idStr,
+    videoUrl: `https://www.tiktok.com/@${username}/video/${idStr}`,
+    author: {
+      username,
+      nickname: String(rData.author?.nickname || username),
+      verified: Boolean(rData.author?.verified),
+      signature: typeof rData.author?.signature === 'string' ? rData.author.signature : '',
+      avatar: typeof rData.author?.avatar === 'string' ? rData.author.avatar : '',
+      id: rData.author?.id ? String(rData.author.id) : undefined,
+    },
+    description: typeof rData.description === 'string' ? rData.description : '',
+    cover: typeof rData.cover === 'string' ? rData.cover : '',
+    duration: typeof rData.duration === 'number' ? rData.duration : 30,
+    stats: rData.stats || undefined,
+    hashtags: Array.isArray(rData.hashtags) ? rData.hashtags : [],
+    locationCreated: rData.locationCreated,
+    playUrl: candidateUrl,
+    hdPlayUrl: rapidCodec === 'hevc' ? candidateUrl : String(rData.hdPlayUrl || candidateUrl),
+    downloadUrl: String(rData.downloadUrl),
+    needsTranscode: rapidCodec === 'hevc',
+  };
+}
+
+// Endpoint: Resolve TikTok Video Info & Playable Stream URLs
+app.get(['/api/tiktok/info', '/minhhieu/api/tiktok/info'], async (req, res) => {
+  try {
+    const rawUrl = String(req.query.url || DEFAULT_TIKTOK_VIDEO_URL).trim();
+    const customKey =
+      (req.headers['x-rapidapi-key'] as string) || (req.query.apiKey as string) || undefined;
+    const info = await resolveTikTokVideoMetadataServer(rawUrl, customKey);
+    res.setHeader('Cache-Control', 'private, max-age=120');
+    return res.json(info);
+  } catch (err: any) {
+    console.error('TikTok info error:', err?.message || err);
+    return res.status(500).json({
+      error: err?.message || 'Không thể phân tích đường dẫn TikTok. Vui lòng kiểm tra lại link.',
+    });
+  }
+});
+
+// Helper: Proxy TikTok video stream either INLINE (for <video> player) or ATTACHMENT (for explicit download)
+async function pipeTikTokMediaResponse(
+  req: express.Request,
+  res: express.Response,
+  asAttachment: boolean
+) {
+  req.setTimeout(600000);
+  res.setTimeout(600000);
+
+  let mediaUrl = String(req.query.url || '').trim();
+  const pageUrl = String(req.query.videoUrl || '').trim();
+  let forceTranscode = String(req.query.transcode || '') === '1';
+
+  // If caller passed a TikTok web page URL instead of a direct CDN MP4 URL, resolve it first
+  if (
+    (!mediaUrl && pageUrl) ||
+    (mediaUrl && mediaUrl.includes('tiktok.com/') && mediaUrl.includes('/video/'))
+  ) {
+    const info = await resolveTikTokVideoMetadataServer(pageUrl || mediaUrl);
+    mediaUrl = info.playUrl || info.hdPlayUrl || info.downloadUrl;
+    if (info.needsTranscode) {
+      forceTranscode = true;
+    }
+  }
+
+  if (!mediaUrl || (!mediaUrl.startsWith('http://') && !mediaUrl.startsWith('https://'))) {
+    return res.status(400).json({ error: 'Thiếu đường dẫn luồng video TikTok hợp lệ' });
+  }
+
+  // Safety check: if not already marked for transcode, and client requested byte 0 (initial load),
+  // ensure we never pipe a raw HEVC stream that would play audio-only in browsers!
+  if (!forceTranscode && (!req.headers.range || req.headers.range.startsWith('bytes=0-'))) {
+    const detectedCodec = await probeMp4VideoCodec(mediaUrl);
+    if (detectedCodec === 'hevc') {
+      // Try resolving H.264 stream from pageUrl first before falling back to FFmpeg transcode
+      let switchedToH264 = false;
+      if (pageUrl) {
+        try {
+          const freshInfo = await resolveTikTokVideoMetadataServer(pageUrl);
+          if (freshInfo.playUrl && !freshInfo.needsTranscode && freshInfo.playUrl !== mediaUrl) {
+            mediaUrl = freshInfo.playUrl;
+            switchedToH264 = true;
+          }
+        } catch {}
+      }
+      if (!switchedToH264) {
+        forceTranscode = true;
+      }
+    }
+  }
+
+  // Live FFmpeg H.264 (avc1 + aac) fragmented MP4 stream fallback when upstream only offers HEVC/ByteVC1
+  if (forceTranscode) {
+    const { spawn } = await import('child_process');
+    res.status(200);
+    res.setHeader('Content-Type', 'video/mp4');
+    if (asAttachment) {
+      let filename = String(req.query.filename || 'minhhieu_tiktok_video.mp4').replace(
+        /[/\\?%*:|"<>]/g,
+        '_'
+      );
+      if (!filename.startsWith('minhhieu_')) filename = `minhhieu_${filename}`;
+      if (!filename.toLowerCase().endsWith('.mp4')) filename = `${filename}.mp4`;
+      const asciiFilename = filename
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9._-]/g, '_');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+      );
+    } else {
+      res.setHeader('Content-Disposition', 'inline');
+      res.setHeader('Cache-Control', 'no-store');
+    }
+
+    const ffArgs = [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-headers',
+      'Referer: https://www.tiktok.com/\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n',
+      '-i',
+      mediaUrl,
+      '-c:v',
+      'libx264',
+      '-preset',
+      'ultrafast',
+      '-crf',
+      '22',
+      '-pix_fmt',
+      'yuv420p',
+      '-c:a',
+      'aac',
+      '-b:a',
+      '128k',
+      '-movflags',
+      'frag_keyframe+empty_moov+default_base_moof',
+      '-f',
+      'mp4',
+      'pipe:1',
+    ];
+
+    const ff = spawn('ffmpeg', ffArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
+    res.on('close', () => {
+      if (!res.writableEnded) {
+        try {
+          ff.kill('SIGKILL');
+        } catch {}
+      }
+    });
+    ff.stdout.on('error', () => {});
+    ff.stderr.on('data', () => {});
+    res.on('error', () => {});
+    ff.stdout.pipe(res);
+    ff.on('error', (err) => {
+      console.error('FFmpeg transcode error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Không thể giải mã luồng video.' });
+      } else {
+        res.end();
+      }
+    });
+    return;
+  }
+
+  const upstreamHeaders: Record<string, string> = {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    Referer: 'https://www.tiktok.com/',
+    Accept: 'video/mp4,video/*;q=0.9,*/*;q=0.8',
+  };
+  if (req.headers.range) {
+    upstreamHeaders['Range'] = req.headers.range;
+  }
+
+  const controller = new AbortController();
+  res.on('close', () => {
+    if (!res.writableEnded) {
+      controller.abort();
+    }
+  });
+
+  let upstream = await fetch(mediaUrl, {
+    headers: upstreamHeaders,
+    signal: controller.signal,
+  });
+
+  // If CDN token expired (403/401/400) and we have the original TikTok videoUrl, refresh once automatically
+  if (!upstream.ok && upstream.status !== 206 && pageUrl) {
+    try {
+      const freshInfo = await resolveTikTokVideoMetadataServer(pageUrl);
+      const freshMedia = freshInfo.playUrl || freshInfo.hdPlayUrl || freshInfo.downloadUrl;
+      if (freshMedia && freshMedia !== mediaUrl) {
+        upstream = await fetch(freshMedia, {
+          headers: upstreamHeaders,
+          signal: controller.signal,
+        });
+      }
+    } catch {}
+  }
+
+  if (!upstream.ok && upstream.status !== 206) {
+    return res.status(upstream.status).json({
+      error: `Không thể phát/tải luồng video TikTok (HTTP ${upstream.status})`,
+    });
+  }
+
+  const contentLength = upstream.headers.get('content-length');
+  const contentRange = upstream.headers.get('content-range');
+
+  res.status(upstream.status);
+  res.setHeader('Content-Type', 'video/mp4');
+  res.setHeader('Accept-Ranges', 'bytes');
+
+  if (asAttachment) {
+    let filename = String(req.query.filename || 'minhhieu_tiktok_video.mp4').replace(
+      /[/\\?%*:|"<>]/g,
+      '_'
+    );
+    if (!filename.startsWith('minhhieu_')) {
+      filename = `minhhieu_${filename}`;
+    }
+    if (!filename.toLowerCase().endsWith('.mp4')) {
+      filename = `${filename}.mp4`;
+    }
+    const asciiFilename = filename
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9._-]/g, '_');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+    );
+  } else {
+    // CRITICAL: inline disposition ensures browser <video> plays the stream and NEVER auto-downloads!
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'public, max-age=1800');
+  }
+
+  if (contentLength) res.setHeader('Content-Length', contentLength);
+  if (contentRange) res.setHeader('Content-Range', contentRange);
+
+  if (upstream.body) {
+    const { Readable, pipeline } = await import('stream');
+    const nodeStream = Readable.fromWeb(upstream.body as any);
+    pipeline(nodeStream, res, () => {
+      // Ignore normal client range-request aborts / premature socket closes during video scrubbing
+    });
+  } else {
+    res.end();
+  }
+}
+
+// Inline Playback Stream Route (NEVER downloads file)
+app.get(['/api/tiktok/stream', '/minhhieu/api/tiktok/stream'], async (req, res) => {
+  try {
+    await pipeTikTokMediaResponse(req, res, false);
+  } catch (err: any) {
+    if (err?.name === 'AbortError') return;
+    console.error('TikTok stream proxy error:', err?.message || err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err?.message || 'Lỗi luồng phát video TikTok' });
+    }
+  }
+});
+
+// Explicit File Download Route (ONLY called when user clicks Download button)
+app.get(['/api/tiktok/download', '/minhhieu/api/tiktok/download'], async (req, res) => {
+  try {
+    await pipeTikTokMediaResponse(req, res, true);
+  } catch (err: any) {
+    if (err?.name === 'AbortError') return;
+    console.error('TikTok download proxy error:', err?.message || err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err?.message || 'Lỗi tải tệp video TikTok' });
+    }
+  }
+});
+
+// =========================================================================
+// YOUTUBE SUBSCRIPTION VERIFICATION FOR DOWNLOAD UNLOCK (@minhhieureviewphim)
+// =========================================================================
+const MINHHIEU_YOUTUBE_CHANNEL_ID = 'UCUr78N1iiRNyg_UoBgtPPhw';
+const MINHHIEU_YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/@minhhieureviewphim';
+const MINHHIEU_YOUTUBE_SUBSCRIBE_URL = 'https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1';
+
+app.get(['/api/youtube/sub-gate-config', '/minhhieu/api/youtube/sub-gate-config'], (_req, res) => {
+  const googleClientId = (
+    process.env.GOOGLE_CLIENT_ID ||
+    process.env.VITE_GOOGLE_CLIENT_ID ||
+    ''
+  ).trim();
+  res.json({
+    channelId: MINHHIEU_YOUTUBE_CHANNEL_ID,
+    channelHandle: '@minhhieureviewphim',
+    channelName: 'Minh Hiếu Review Phim',
+    channelUrl: MINHHIEU_YOUTUBE_CHANNEL_URL,
+    subscribeUrl: MINHHIEU_YOUTUBE_SUBSCRIBE_URL,
+    googleOAuthEnabled: Boolean(googleClientId),
+    googleClientId,
+  });
+});
+
+app.post(
+  ['/api/youtube/verify-subscription', '/minhhieu/api/youtube/verify-subscription'],
+  async (req, res) => {
+    try {
+      const authHeader = String(req.headers.authorization || '');
+      const bearerToken = authHeader.startsWith('Bearer ')
+        ? authHeader.slice(7).trim()
+        : String(req.body?.accessToken || '').trim();
+
+      if (!bearerToken) {
+        return res.status(400).json({
+          verified: false,
+          error: 'Thiếu mã xác thực Google OAuth để kiểm tra đăng ký kênh.',
+        });
+      }
+
+      const ytApiUrl = `https://www.googleapis.com/youtube/v3/subscriptions?part=id,snippet&mine=true&forChannelId=${encodeURIComponent(
+        MINHHIEU_YOUTUBE_CHANNEL_ID
+      )}`;
+      const ytRes = await fetch(ytApiUrl, {
+        headers: {
+          Authorization: `Bearer ${bearerToken}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!ytRes.ok) {
+        const errData: any = await ytRes.json().catch(() => ({}));
+        return res.status(ytRes.status).json({
+          verified: false,
+          error:
+            errData?.error?.message ||
+            'Không thể truy vấn trạng thái đăng ký từ YouTube Data API v3.',
+        });
+      }
+
+      const data: any = await ytRes.json();
+      const isSubscribed = Array.isArray(data?.items) && data.items.length > 0;
+
+      return res.json({
+        verified: isSubscribed,
+        channelId: MINHHIEU_YOUTUBE_CHANNEL_ID,
+        channelUrl: MINHHIEU_YOUTUBE_CHANNEL_URL,
+        method: 'youtube_data_api_v3',
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        verified: false,
+        error: err?.message || 'Lỗi máy chủ khi kiểm tra đăng ký kênh YouTube.',
+      });
+    }
+  }
+);
+
+// =========================================================================
 // MOVIE CINEMA API PROXY (VSMOV.COM)
 // =========================================================================
 const VSMOV_BASE_URL = 'https://vsmov.com/api';

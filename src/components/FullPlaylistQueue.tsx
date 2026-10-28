@@ -1,6 +1,7 @@
-import React from 'react';
-import { Play, Pause, Trash2, Heart, ExternalLink, ListMusic, CheckCircle2, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Play, Pause, Trash2, Heart, ExternalLink, ListMusic, CheckCircle2 } from 'lucide-react';
 import { PodcastEpisode } from '../types/podcast';
+import { isTikTokEpisode } from '../utils/tiktokApi';
 
 interface FullPlaylistQueueProps {
   episodes: PodcastEpisode[];
@@ -29,6 +30,8 @@ export const FullPlaylistQueue: React.FC<FullPlaylistQueueProps> = ({
   onFilterChange,
   filterCounts,
 }) => {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col">
       {/* Playlist Header */}
@@ -99,6 +102,7 @@ export const FullPlaylistQueue: React.FC<FullPlaylistQueueProps> = ({
         {episodes.map((ep, idx) => {
           const isActive = currentEpisodeId === ep.id;
           const isFav = favorites.includes(ep.id);
+          const isTikTok = isTikTokEpisode(ep);
 
           return (
             <div
@@ -147,19 +151,25 @@ export const FullPlaylistQueue: React.FC<FullPlaylistQueueProps> = ({
                     </div>
                   </div>
 
-                  {/* Duration or Shorts Badge */}
+                  {/* Duration or Shorts/TikTok Badge */}
                   <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/85 text-[10px] font-mono tabular-nums text-slate-200">
-                    {ep.isShort ? 'Shorts ⚡' : ep.duration}
+                    {isTikTok ? 'TikTok' : ep.isShort ? 'Shorts ⚡' : ep.duration}
                   </div>
                 </div>
 
                 {/* Video Information: Full Title & Channel */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    {ep.isShort && (
-                      <span className="px-1.5 py-0.2 rounded bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/30 shrink-0">
-                        Shorts
+                    {isTikTok ? (
+                      <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-[10px] font-bold border border-cyan-500/30 shrink-0">
+                        TikTok
                       </span>
+                    ) : (
+                      ep.isShort && (
+                        <span className="px-1.5 py-0.2 rounded bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/30 shrink-0">
+                          Shorts
+                        </span>
+                      )
                     )}
                     <h4
                       onClick={() => onPlayEpisode(ep)}
@@ -204,11 +214,15 @@ export const FullPlaylistQueue: React.FC<FullPlaylistQueueProps> = ({
                 </button>
 
                 <a
-                  href={`https://www.youtube.com/watch?v=${ep.youtubeId}`}
+                  href={
+                    isTikTok
+                      ? ep.tiktokUrl || `https://www.tiktok.com/@tiktok/video/${ep.youtubeId}`
+                      : `https://www.youtube.com/watch?v=${ep.youtubeId}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors hidden sm:inline"
-                  title="Xem trên YouTube"
+                  title={isTikTok ? 'Xem trên TikTok' : 'Xem trên YouTube'}
                 >
                   <ExternalLink className="w-4 h-4" />
                 </a>
@@ -225,17 +239,27 @@ export const FullPlaylistQueue: React.FC<FullPlaylistQueueProps> = ({
                   <span className="hidden sm:inline">{isActive ? 'Đang phát' : 'Phát'}</span>
                 </button>
 
-                <button
-                  onClick={() => {
-                    if (confirm(`Bạn có chắc muốn xóa vĩnh viễn video "${ep.title}" khỏi danh sách? Video này sẽ không bao giờ tự động nạp lại.`)) {
+                {confirmDeleteId === ep.id ? (
+                  <button
+                    onClick={() => {
+                      setConfirmDeleteId(null);
                       onRemoveEpisode(ep.id, ep.youtubeId);
-                    }
-                  }}
-                  className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-70 sm:opacity-0 group-hover:opacity-100"
-                  title="Xóa vĩnh viễn video này khỏi danh sách (đã xóa trên YouTube)"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                    }}
+                    onMouseLeave={() => setConfirmDeleteId(null)}
+                    className="px-2 py-1 text-[11px] font-bold bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors"
+                    title="Nhấn lần nữa để xác nhận xóa vĩnh viễn"
+                  >
+                    Xác nhận xóa
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeleteId(ep.id)}
+                    className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-70 sm:opacity-0 group-hover:opacity-100"
+                    title="Xóa video này khỏi danh sách"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           );

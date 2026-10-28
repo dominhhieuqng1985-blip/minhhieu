@@ -28,6 +28,13 @@ import {
   getCustomBackendUrl,
   setCustomBackendUrl,
 } from '../utils/api';
+import {
+  DEFAULT_TIKTOK_URL,
+  TikTokVideoData,
+  isTikTokUrl,
+  fetchTikTokVideoData,
+  convertTikTokDataToEpisode,
+} from '../utils/tiktokApi';
 
 interface ConnectModalProps {
   isOpen: boolean;
@@ -81,12 +88,15 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
     totalCount?: number;
   } | null>(null);
 
-  // Single video preview
+  // Single video preview (YouTube or TikTok)
   const [singlePreview, setSinglePreview] = useState<{
     youtubeId: string;
     title: string;
     author: string;
     thumbnail: string;
+    sourceType?: 'youtube' | 'tiktok';
+    sourceUrl?: string;
+    tiktokData?: TikTokVideoData;
   } | null>(null);
 
   if (!isOpen) return null;
@@ -105,6 +115,23 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
     setSinglePreview(null);
 
     try {
+      // 0. Is it a TikTok video URL?
+      if (isTikTokUrl(targetUrl)) {
+        const tkData = await fetchTikTokVideoData(targetUrl);
+        setSinglePreview({
+          youtubeId: String(tkData.id),
+          title:
+            tkData.description?.trim() ||
+            `Video TikTok @${tkData.author?.username || 'tiktok'} #${tkData.id}`,
+          author: tkData.author?.nickname || tkData.author?.username || 'TikTok Creator',
+          thumbnail: tkData.cover || tkData.author?.avatar || '',
+          sourceType: 'tiktok',
+          sourceUrl: targetUrl,
+          tiktokData: tkData,
+        });
+        return;
+      }
+
       // 1. Is it a channel URL? (@channel/podcasts, @channel/playlists, @channel/videos, @channel)
       if (targetUrl.includes('youtube.com/@') || targetUrl.startsWith('@')) {
         const fullUrl = targetUrl.startsWith('http') ? targetUrl : `https://www.youtube.com/${targetUrl}`;
@@ -246,7 +273,7 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
         return;
       }
 
-      throw new Error('Đường dẫn không hợp lệ. Vui lòng dán link kênh (@channel), link podcast hoặc link video YouTube.');
+      throw new Error('Đường dẫn không hợp lệ. Vui lòng dán link video TikTok, link kênh (@channel), podcast hoặc video YouTube.');
     } catch (err: any) {
       setError(err.message || 'Lỗi khi kiểm tra đường dẫn');
     } finally {
@@ -281,9 +308,20 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
     resetState();
   };
 
-  // Add single video
+  // Add single video (YouTube or TikTok)
   const handleConfirmSingle = () => {
     if (!singlePreview) return;
+    if (singlePreview.sourceType === 'tiktok' && singlePreview.tiktokData) {
+      const tiktokEp = convertTikTokDataToEpisode(
+        singlePreview.tiktokData,
+        singlePreview.sourceUrl || urlInput
+      );
+      onAddEpisode(tiktokEp);
+      onClose();
+      resetState();
+      return;
+    }
+
     const newEp: PodcastEpisode = {
       id: `single-${Date.now()}-${singlePreview.youtubeId}`,
       youtubeId: singlePreview.youtubeId,
@@ -295,6 +333,7 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
       thumbnail: singlePreview.thumbnail,
       description: `Video kết nối từ ${singlePreview.author}`,
       isCustom: true,
+      sourceType: 'youtube',
       publishedDate: 'Mới lưu',
     };
     onAddEpisode(newEp);
@@ -337,6 +376,7 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
   };
 
   const sampleButtons = [
+    { label: 'TikTok mẫu (@hiu.minh1093)', url: DEFAULT_TIKTOK_URL },
     { label: '@minhhieureviewphim/podcasts', url: 'https://www.youtube.com/@minhhieureviewphim/podcasts' },
     { label: '@minhhieureviewphim/playlists', url: 'https://www.youtube.com/@minhhieureviewphim/playlists' },
     { label: '@minhhieureviewphim/videos', url: 'https://www.youtube.com/@minhhieureviewphim/videos' },
@@ -354,10 +394,10 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-100">
-                Thêm Kênh, Podcasts Hoặc Video YouTube
+                Thêm Kênh, Podcasts Hoặc Video YouTube / TikTok
               </h3>
               <p className="text-xs text-slate-400">
-                Dán link kênh (@channel), link podcast, playlist hoặc video để hiển thị ảnh bìa đầy đủ
+                Dán link kênh (@channel), podcast, playlist YouTube hoặc link video TikTok để xem ngay
               </p>
             </div>
           </div>

@@ -3,6 +3,7 @@ import {
   Radio,
   Film,
   Tv,
+  Video,
   Sparkles,
   Download,
   FileText,
@@ -377,6 +378,26 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
                   >
                     <Download className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                     <span>Tải Media (VidKraken)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onNavigate('tiktok');
+                      onClose();
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      activeSection === 'tiktok'
+                        ? 'bg-gradient-to-r from-cyan-500/20 to-rose-500/20 text-white border border-cyan-500/40'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 truncate">
+                      <Video className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                      <span className="truncate">Tải TikTok Không Logo</span>
+                    </div>
+                    <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-gradient-to-r from-cyan-500 to-rose-500 text-white shadow-sm shrink-0">
+                      MỚI
+                    </span>
                   </button>
 
                   {onOpenGlobalSearch && (

@@ -16,6 +16,10 @@ export interface PodcastEpisode {
   isCustom?: boolean;
   isShort?: boolean;
   seriesTitle?: string;
+  sourceType?: 'youtube' | 'tiktok';
+  tiktokUrl?: string;
+  videoUrl?: string;
+  hdVideoUrl?: string;
 }
 
 export interface PodcastChannel {

@@ -59,6 +59,15 @@ declare global {
   }
 }
 
+/**
+ * Validate that a string is a standard 11-character YouTube video ID.
+ * Non-YouTube IDs (like 19-digit TikTok IDs) return false.
+ */
+export function isValidYouTubeId(id: unknown): boolean {
+  if (!id || typeof id !== 'string') return false;
+  return /^[a-zA-Z0-9_-]{11}$/.test(id.trim());
+}
+
 interface CommentItem {
   id: string;
   author: string;
@@ -136,6 +145,8 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const videoAreaRef = useRef<HTMLDivElement>(null);
   const shortsAreaRef = useRef<HTMLDivElement>(null);
+  const ytMountHostRef = useRef<HTMLDivElement>(null);
+  const mountedHostElRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<any>(null);
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -204,11 +215,12 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   }, []);
 
   // Detect if video is Shorts
+  const safeTitleLower = String(episode.title || '').toLowerCase();
   const isVideoShort = Boolean(
     episode.isShort ||
     (episode.durationSeconds && episode.durationSeconds <= 90) ||
-    episode.title.toLowerCase().includes('#shorts') ||
-    episode.title.toLowerCase().includes('shorts')
+    safeTitleLower.includes('#shorts') ||
+    safeTitleLower.includes('shorts')
   );
 
   const [isShortView, setIsShortView] = useState<boolean>(isVideoShort);
@@ -323,7 +335,8 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   const [hasDisliked, setHasDisliked] = useState<boolean>(false);
   const [likeCount, setLikeCount] = useState<number>(() => {
     // Generate a realistic view-based like count
-    return 850 + (episode.youtubeId.charCodeAt(0) * 17) % 1200;
+    const seed = String(episode.youtubeId || 'A').charCodeAt(0) || 65;
+    return 850 + (seed * 17) % 1200;
   });
 
   // Description expand/collapse
@@ -368,114 +381,156 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
 
   // Reset broken state on episode change
   useEffect(() => {
-    setIsBrokenVideo(false);
+    const isIdValid = isValidYouTubeId(episode.youtubeId);
+    setIsBrokenVideo(!isIdValid);
     try {
-      const stored = localStorage.getItem(`yt_like_${episode.youtubeId}`);
-      setHasLiked(stored === 'true');
+      if (isIdValid) {
+        const stored = localStorage.getItem(`yt_like_${episode.youtubeId}`);
+        setHasLiked(stored === 'true');
+      } else {
+        setHasLiked(false);
+      }
     } catch {}
   }, [episode.id, episode.youtubeId]);
 
-  // Initialize player or switch video with loadVideoById
+  // Initialize player or switch video safely inside an isolated DOM host (prevents React removeChild crashes)
   useEffect(() => {
-    if (!isApiReady || !episode.youtubeId) return;
-
-    if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
-      try {
-        playerRef.current.loadVideoById(episode.youtubeId);
-        setIsPlaying(true);
-        setCurrentTime(0);
-        setIsBrokenVideo(false);
-        return;
-      } catch (e) {
-        console.warn('Error calling loadVideoById, will recreate player:', e);
-      }
+    // If not a valid 11-char YouTube ID (e.g. TikTok video or other custom media), NEVER pass to window.YT.Player!
+    if (!isValidYouTubeId(episode.youtubeId)) {
+      setIsBrokenVideo(true);
+      return;
     }
 
-    const playerId = 'casttube-yt-iframe';
+    if (!isApiReady || !window.YT || !window.YT.Player) return;
 
-    const player = new window.YT.Player(playerId, {
-      videoId: episode.youtubeId,
-      playerVars: {
-        autoplay: 1,
-        controls: 1,
-        modestbranding: 1,
-        rel: 0,
-        fs: 0,
-        cc_load_policy: isCcActive ? 1 : 0,
-        enablejsapi: 1,
-        origin: window.location.origin,
-      },
-      events: {
-        onReady: (event: any) => {
-          playerRef.current = event.target;
-          event.target.setVolume(volume);
-          const dur = event.target.getDuration();
-          if (dur && dur > 0) setDuration(dur);
+    const host = ytMountHostRef.current;
+    if (!host) return;
 
-          try {
-            if (isAdOpenRef.current) {
-              event.target.pauseVideo();
-              setIsPlaying(false);
-            } else {
-              event.target.playVideo();
-              setIsPlaying(true);
-            }
-          } catch (e) {
-            // Autoplay policy
-          }
+    try {
+      // Fast-path: if player is already alive inside the exact same host container, switch video without recreating iframe
+      if (
+        playerRef.current &&
+        mountedHostElRef.current === host &&
+        typeof playerRef.current.loadVideoById === 'function'
+      ) {
+        try {
+          playerRef.current.loadVideoById(episode.youtubeId);
+          setIsPlaying(true);
+          setCurrentTime(0);
+          setIsBrokenVideo(false);
+          return;
+        } catch (e) {
+          console.warn('Error calling loadVideoById, will recreate player:', e);
+        }
+      }
+
+      // Destroy any previous player instance before mounting into a fresh imperative child node
+      if (playerRef.current && typeof playerRef.current.destroy === 'function') {
+        try {
+          playerRef.current.destroy();
+        } catch {}
+        playerRef.current = null;
+      }
+
+      host.innerHTML = '';
+      const mountEl = document.createElement('div');
+      mountEl.style.width = '100%';
+      mountEl.style.height = '100%';
+      host.appendChild(mountEl);
+      mountedHostElRef.current = host;
+
+      const player = new window.YT.Player(mountEl, {
+        videoId: episode.youtubeId,
+        playerVars: {
+          autoplay: 1,
+          controls: 1,
+          modestbranding: 1,
+          rel: 0,
+          fs: 0,
+          cc_load_policy: isCcActive ? 1 : 0,
+          enablejsapi: 1,
+          origin: window.location.origin,
         },
-        onStateChange: (event: any) => {
-          if (event.data === 1) {
+        events: {
+          onReady: (event: any) => {
+            playerRef.current = event.target;
+            event.target.setVolume(volume);
             const dur = event.target.getDuration();
             if (dur && dur > 0) setDuration(dur);
-            if (isAdOpenRef.current) {
-              try {
+
+            try {
+              if (isAdOpenRef.current) {
                 event.target.pauseVideo();
-              } catch {}
+                setIsPlaying(false);
+              } else {
+                event.target.playVideo();
+                setIsPlaying(true);
+              }
+            } catch (e) {
+              // Autoplay policy
+            }
+          },
+          onStateChange: (event: any) => {
+            if (event.data === 1) {
+              const dur = event.target.getDuration();
+              if (dur && dur > 0) setDuration(dur);
+              if (isAdOpenRef.current) {
+                try {
+                  event.target.pauseVideo();
+                } catch {}
+                setIsPlaying(false);
+              } else {
+                setIsPlaying(true);
+              }
+            } else if (event.data === 2) {
               setIsPlaying(false);
-            } else {
-              setIsPlaying(true);
+            } else if (event.data === 0) {
+              setIsPlaying(false);
+              interceptEndedRef.current(() => {
+                if (onEndedPropRef.current) onEndedPropRef.current();
+              });
             }
-          } else if (event.data === 2) {
-            setIsPlaying(false);
-          } else if (event.data === 0) {
-            setIsPlaying(false);
-            interceptEndedRef.current(() => {
-              if (onEndedPropRef.current) onEndedPropRef.current();
-            });
-          }
-        },
-        onError: (event: any) => {
-          console.warn('YouTube Player reported error event code:', event.data);
-          // 100: Video has been removed or marked private
-          // 101 or 150: Video owner does not allow embedded playback
-          // 2: Invalid video ID
-          if (event.data === 100 || event.data === 101 || event.data === 150 || event.data === 2) {
-            setIsBrokenVideo(true);
-            if (onVideoUnavailable) {
-              const reason =
-                event.data === 100
-                  ? 'Video đã bị xóa hoặc đặt riêng tư trên YouTube'
-                  : event.data === 2
-                  ? 'ID video không tồn tại trên YouTube'
-                  : 'Video bị chủ sở hữu giới hạn nhúng';
-              onVideoUnavailable(episode.id, episode.youtubeId, reason);
+          },
+          onError: (event: any) => {
+            console.warn('YouTube Player reported error event code:', event.data);
+            if (event.data === 100 || event.data === 101 || event.data === 150 || event.data === 2) {
+              setIsBrokenVideo(true);
+              if (onVideoUnavailable) {
+                const reason =
+                  event.data === 100
+                    ? 'Video đã bị xóa hoặc đặt riêng tư trên YouTube'
+                    : event.data === 2
+                    ? 'ID video không tồn tại trên YouTube'
+                    : 'Video bị chủ sở hữu giới hạn nhúng';
+                onVideoUnavailable(episode.id, episode.youtubeId, reason);
+              }
             }
-          }
+          },
         },
-      },
-    });
+      });
 
-    playerRef.current = player;
+      playerRef.current = player;
+    } catch (err) {
+      console.warn('Safely caught error during YouTube Player creation:', err);
+      setIsBrokenVideo(true);
+    }
+  }, [isApiReady, episode.youtubeId, isShortView]);
 
+  // Cleanly destroy YT.Player on component unmount so no orphaned iframe mutates React's DOM tree
+  useEffect(() => {
     return () => {
       if (playerRef.current && typeof playerRef.current.destroy === 'function') {
         try {
           playerRef.current.destroy();
-        } catch (e) {}
+        } catch {}
+        playerRef.current = null;
+      }
+      if (mountedHostElRef.current) {
+        mountedHostElRef.current.innerHTML = '';
+        mountedHostElRef.current = null;
       }
     };
-  }, [isApiReady, episode.youtubeId]);
+  }, []);
 
   // External seek
   useEffect(() => {
@@ -758,13 +813,18 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
         </div>
       </div>
 
-      {/* Notice if video was removed/broken on YouTube */}
+      {/* Notice if video was removed/broken or not a YouTube video */}
       {isBrokenVideo && (
         <div className="p-3 bg-red-950/80 border-b border-red-600/50 flex items-center justify-between gap-3 text-xs text-red-200">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
             <span>
-              <strong>Thông báo:</strong> Video này đã bị xóa hoặc đặt riêng tư trên YouTube. Ứng dụng đã tự động loại bỏ khỏi danh sách phát.
+              <strong>Thông báo:</strong>{' '}
+              {!isValidYouTubeId(episode.youtubeId)
+                ? episode.id?.startsWith('tiktok-')
+                  ? 'Video TikTok từ nguồn ngoài. Để xem hoặc tải về máy chuẩn không logo, vui lòng mở mục Tải TikTok.'
+                  : 'Video này không có mã ID YouTube 11 ký tự hợp lệ.'
+                : 'Video này đã bị xóa hoặc đặt riêng tư trên YouTube. Ứng dụng đã tự động loại bỏ khỏi danh sách phát.'}
             </span>
           </div>
           {onNextEpisode && (
@@ -841,9 +901,34 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
               />
             )}
 
-            {/* The actual YouTube iframe */}
+            {/* The actual YouTube iframe or Fallback Overlay */}
             <div className="relative flex-1 w-full h-full bg-black">
-              <div id="casttube-yt-iframe" className="w-full h-full object-cover" />
+              {!isValidYouTubeId(episode.youtubeId) && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-slate-950/95 text-center space-y-3">
+                  <img
+                    src={episode.thumbnail}
+                    alt={episode.title}
+                    className="w-24 h-24 rounded-2xl object-cover border border-slate-700 shadow-xl opacity-80"
+                  />
+                  <div className="max-w-xs space-y-1">
+                    <h3 className="text-xs font-bold text-white line-clamp-2">{episode.title}</h3>
+                    <p className="text-[11px] text-slate-400">
+                      {episode.id?.startsWith('tiktok-')
+                        ? 'Video TikTok từ nguồn ngoài.'
+                        : 'Không tìm thấy ID YouTube hợp lệ.'}
+                    </p>
+                  </div>
+                  {onNextEpisode && (
+                    <button
+                      onClick={onNextEpisode}
+                      className="px-3.5 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+                    >
+                      Phát video tiếp theo
+                    </button>
+                  )}
+                </div>
+              )}
+              <div ref={ytMountHostRef} className="w-full h-full object-cover" />
             </div>
 
             {/* Shorts Right Action Bar (Overlayed) */}
@@ -1121,11 +1206,36 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
             </button>
 
             <div
-              className={`w-full h-full ${
+              className={`w-full h-full relative ${
                 displayMode === 'video' ? 'block' : 'opacity-0 pointer-events-none absolute inset-0'
               }`}
             >
-              <div id="casttube-yt-iframe" className="w-full h-full" />
+              {!isValidYouTubeId(episode.youtubeId) && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-slate-950/95 text-center space-y-3">
+                  <img
+                    src={episode.thumbnail}
+                    alt={episode.title}
+                    className="w-28 h-28 rounded-2xl object-cover border border-slate-700 shadow-xl opacity-80"
+                  />
+                  <div className="max-w-md space-y-1">
+                    <h3 className="text-sm font-bold text-white line-clamp-1">{episode.title}</h3>
+                    <p className="text-xs text-slate-400">
+                      {episode.id?.startsWith('tiktok-')
+                        ? 'Đây là video TikTok từ nguồn ngoài. Để xem hoặc tải video MP4 gốc không logo, vui lòng mở mục Tải TikTok.'
+                        : 'Video này không có mã ID YouTube 11 ký tự hợp lệ.'}
+                    </p>
+                  </div>
+                  {onNextEpisode && (
+                    <button
+                      onClick={onNextEpisode}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+                    >
+                      Phát video tiếp theo
+                    </button>
+                  )}
+                </div>
+              )}
+              <div ref={ytMountHostRef} className="w-full h-full" />
             </div>
 
             {/* Audio Ambient Fallback if user explicitly chose Audio Mode */}
