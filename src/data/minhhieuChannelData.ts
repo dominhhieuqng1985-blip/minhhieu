@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Bông điên điển cuối mùa - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "0 lượt xem",
+    "views": "1 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -90,7 +90,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Hẹn nhau mùa nước nỗi - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "0 lượt xem",
+    "views": "1 lượt xem",
     "id": "mh-v2"
   },
   {
@@ -105,7 +105,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Căn nhà xưa vắng mẹ - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "2 lượt xem",
+    "views": "3 lượt xem",
     "id": "mh-v3"
   },
   {
@@ -120,7 +120,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Người qua bến mới - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "6 lượt xem",
+    "views": "7 lượt xem",
     "id": "mh-v4"
   },
   {
@@ -135,7 +135,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thôi đành quên nhau - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "8 lượt xem",
+    "views": "9 lượt xem",
     "id": "mh-v5"
   },
   {
@@ -165,7 +165,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mùa lúa chín không anh - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "10 lượt xem",
+    "views": "11 lượt xem",
     "id": "mh-v7"
   },
   {
@@ -180,7 +180,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mùa cưới vắng anh - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "8 lượt xem",
+    "views": "9 lượt xem",
     "id": "mh-v8"
   },
   {
@@ -300,7 +300,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "39 lượt xem",
+    "views": "40 lượt xem",
     "id": "mh-v16"
   },
   {
@@ -1095,14 +1095,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "lpiKfekPrgc",
-    "title": "Tập 4: căn nhà ở cuối con ��ường",
+    "title": "Tập 4: căn nhà ở cuối con đường",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "00:60",
     "durationSeconds": 60,
     "thumbnail": "https://i.ytimg.com/vi/lpiKfekPrgc/hqdefault.jpg",
-    "description": "Shorts: Tập 4: căn nhà ở cuối con ��ường - Kênh Minh Hiếu review phim.",
+    "description": "Shorts: Tập 4: căn nhà ở cuối con đường - Kênh Minh Hiếu review phim.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
     "id": "mh-v70"
