@@ -28,6 +28,7 @@ import {
   Lock,
   LogOut,
   KeyRound,
+  GraduationCap,
 } from 'lucide-react';
 import { FilterOption } from '../types/movie';
 import { useAdminAuth } from '../context/AdminAuthContext';
@@ -204,6 +205,33 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
                   <span>Rạp Phim Cinema</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-yellow-400 text-slate-950 font-black tracking-wider uppercase">
                     HOT
+                  </span>
+                </div>
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                onNavigate('kids-learning');
+                onClose();
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                activeSection === 'kids-learning'
+                  ? 'bg-emerald-500 text-slate-950 font-extrabold shadow-md shadow-emerald-500/20'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-900'
+              }`}
+              title="Bé Vui Học: Tiếng Việt, Tiếng Anh, Toán (Tiểu học đến Cấp 3)"
+            >
+              <GraduationCap
+                className={`w-4 h-4 shrink-0 ${
+                  activeSection === 'kids-learning' ? 'text-slate-950' : 'text-emerald-400'
+                }`}
+              />
+              {!isCollapsed && (
+                <div className="flex-1 text-left flex items-center justify-between">
+                  <span>Bé Vui Học (Cấp 1–3)</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold">
+                    Lớp 1-12
                   </span>
                 </div>
               )}
@@ -426,6 +454,21 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
                   >
                     <Mic className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                     <span>Văn Bản → Giọng Nói</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onNavigate('kids-learning');
+                      onClose();
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      activeSection === 'kids-learning'
+                        ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                    }`}
+                  >
+                    <GraduationCap className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>Góc Học Tập Cấp 1–3</span>
                   </button>
                 </div>
               )}

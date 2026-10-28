@@ -1,6 +1,6 @@
 {
   "name": "CastTube - YouTube Podcast Hub",
   "description": "Nền tảng kết nối và nghe Podcast YouTube thông minh với AI tóm tắt nội dung, ghi chú timestamp và kho podcast tuyển chọn.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

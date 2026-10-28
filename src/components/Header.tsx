@@ -17,6 +17,7 @@ import {
   LogOut,
   KeyRound,
   Settings,
+  GraduationCap,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
@@ -250,6 +251,23 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Mic className="w-3.5 h-3.5 text-rose-400" />
             <span>Studio Giọng Nói</span>
+          </button>
+
+          <button
+            onClick={() => onNavigate('kids-learning')}
+            className={`transition-all whitespace-nowrap py-1.5 px-3 rounded-xl flex items-center gap-2 ${
+              activeSection === 'kids-learning'
+                ? 'text-slate-950 font-extrabold bg-emerald-400 shadow-md shadow-emerald-500/30'
+                : 'text-slate-200 hover:text-white hover:bg-slate-900 border border-emerald-500/30'
+            }`}
+            title="Chương trình vui học Tiếng Việt, Tiếng Anh, Toán từ Tiểu học đến Cấp 3"
+          >
+            <GraduationCap
+              className={`w-3.5 h-3.5 ${
+                activeSection === 'kids-learning' ? 'text-slate-950' : 'text-emerald-400'
+              }`}
+            />
+            <span>Bé Vui Học (Cấp 1–3)</span>
           </button>
 
           {onOpenGlobalSearch && (

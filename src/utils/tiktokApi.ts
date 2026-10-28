@@ -230,7 +230,7 @@ export function normalizeTikTokVideoData(raw: any, fallbackUrl?: string): TikTok
           hashtagName: typeof h === 'string' ? h : String(h?.hashtagName || h?.name || ''),
         }))
         .filter((h: TikTokHashtag) => Boolean(h.hashtagName))
-    : Array.from(description.matchAll(/#([\p{L}\p{N}_]+)/gu)).map((m) => ({
+    : Array.from(String(description).matchAll(/#([\p{L}\p{N}_]+)/gu)).map((m: RegExpMatchArray) => ({
         hashtagName: m[1],
       }));
 

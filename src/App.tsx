@@ -59,6 +59,7 @@ import { TextToSpeechStudio } from './components/TextToSpeechStudio';
 import { TikTokDownloaderStudio } from './components/TikTokDownloaderStudio';
 import { TikTokVideoPlayer, PlayerErrorBoundary } from './components/TikTokVideoPlayer';
 import { MovieCinemaView } from './components/MovieCinemaView';
+import { KidsLearningStudio } from './components/KidsLearningStudio';
 import {
   isTikTokEpisode,
   isTikTokUrl,
@@ -1272,7 +1273,7 @@ function AppContent() {
           activeSection={activeNav}
           onNavigate={(section) => {
             setActiveNav(section);
-            if (section === 'movies') {
+            if (section === 'movies' || section === 'kids-learning') {
               setIsRightSidebarOpen(false);
             }
             setIsLeftSidebarOpen(false);
@@ -1307,8 +1308,10 @@ function AppContent() {
 
         {/* Column 2: Center Main Content Workspace */}
         <div className="flex-1 min-w-0 p-3 sm:p-5 lg:p-6 space-y-6">
-          {/* Adcash Display Banner 728x90 (Zone 12358102) */}
-          <AdcashBanner zoneId="12358102" format="728x90" />
+          {/* Adcash Display Banner 728x90 (Zone 12358102) - Strictly hidden in Kids Learning */}
+          {activeNav !== 'kids-learning' && (
+            <AdcashBanner zoneId="12358102" format="728x90" />
+          )}
 
           {activeNav === 'tiktok' ? (
             <TikTokDownloaderStudio
@@ -1324,6 +1327,8 @@ function AppContent() {
             />
           ) : activeNav === 'tts' ? (
             <TextToSpeechStudio onShowToast={showToast} />
+          ) : activeNav === 'kids-learning' ? (
+            <KidsLearningStudio onShowToast={showToast} />
           ) : activeNav === 'downloader' ? (
             <VidKrakenDownloader
               currentEpisode={currentEpisode}
@@ -1940,12 +1945,14 @@ function AppContent() {
         </div>
         )}
 
-          {/* Adcash Display Banner 728x90 (Zone 12358102) */}
-          <AdcashBanner zoneId="12358102" format="728x90" />
+          {/* Adcash Display Banner 728x90 (Zone 12358102) - Strictly hidden in Kids Learning */}
+          {activeNav !== 'kids-learning' && (
+            <AdcashBanner zoneId="12358102" format="728x90" />
+          )}
       </div>
 
-      {/* Right Sticky Vertical Skyscraper Ad Rail 160x600 (Zone 12358110) when Right Sidebar is closed */}
-      {!isRightSidebarOpen && (
+      {/* Right Sticky Vertical Skyscraper Ad Rail 160x600 (Zone 12358110) when Right Sidebar is closed (hidden in Kids Learning) */}
+      {!isRightSidebarOpen && activeNav !== 'kids-learning' && (
         <aside
           aria-label="Sponsored Skyscraper"
           className="hidden xl:flex flex-col items-center shrink-0 w-[184px] py-6 pr-3 sticky top-16 self-start"
@@ -2147,8 +2154,8 @@ function AppContent() {
           </span>
         </button>
       )}
-      {/* Adcash Video Slider (Zone 12358158) - Bottom-right floating muted autoplay player */}
-      <AdcashVideoSlider zoneId="12358158" />
+      {/* Adcash Video Slider (Zone 12358158) - Strictly hidden in Kids Learning */}
+      {activeNav !== 'kids-learning' && <AdcashVideoSlider zoneId="12358158" />}
     </div>
   );
 }

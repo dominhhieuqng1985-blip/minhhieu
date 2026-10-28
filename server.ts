@@ -1,5 +1,5 @@
 import express from 'express';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -1917,7 +1917,7 @@ async function resolveTikTokVideoMetadataServer(rawUrl: string, customRapidKey?:
           resolveTikwmAbsoluteUrl(d.cover) ||
           resolveTikwmAbsoluteUrl(d.ai_dynamic_cover);
         const desc = typeof d.title === 'string' ? d.title : '';
-        const hashtagMatches = Array.from(desc.matchAll(/#([\p{L}\p{N}_]+)/gu)).map((m) => ({
+        const hashtagMatches = Array.from<RegExpMatchArray>(desc.matchAll(/#([\p{L}\p{N}_]+)/gu)).map((m) => ({
           hashtagName: m[1],
         }));
         const username = String(d.author?.unique_id || 'tiktok_user');
@@ -2592,6 +2592,588 @@ app.get(['/api/vast-proxy', '/minhhieu/api/vast-proxy'], async (req, res) => {
     return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><VAST version="4.0"></VAST>');
   }
 });
+
+// =========================================================================
+// KIDS & K-12 INTERACTIVE LEARNING STUDIO TOPIC GENERATOR (GRADES 1 - 12)
+// =========================================================================
+function buildFallbackKidsLesson(gradeNum: number, subjectId: string, rawTopic: string) {
+  const tierLabel = gradeNum <= 5 ? 'Tiểu học' : gradeNum <= 9 ? 'THCS (Cấp 2)' : 'THPT (Cấp 3)';
+  const subjectNames: Record<string, string> = {
+    'tieng-viet': gradeNum <= 5 ? 'Tiếng Việt' : 'Ngữ Văn',
+    'tieng-anh': 'Tiếng Anh',
+    toan: 'Toán học',
+    'khoa-hoc': 'Khoa học tự nhiên',
+    'kham-pha': 'Sử - Địa & Khám phá',
+  };
+  const subjLabel = subjectNames[subjectId] || 'Kiến thức tổng hợp';
+
+  if (subjectId === 'toan') {
+    const a = gradeNum * 3 + 4;
+    const b = gradeNum * 2 + 5;
+    return {
+      lessonTitle: `${rawTopic} — ${subjLabel} Lớp ${gradeNum}`,
+      summary: `Bài ôn tập trọng tâm chủ đề "${rawTopic}" dành cho học sinh Lớp ${gradeNum} (${tierLabel}), giúp nắm chắc quy tắc cốt lõi và rèn phản xạ giải bài nhanh.`,
+      keyPoints: [
+        `Đọc kỹ yêu cầu đề bài và xác định dữ kiện đã cho trong chuyên đề "${rawTopic}".`,
+        'Áp dụng đúng công thức và thứ tự thực hiện phép tính theo chương trình chuẩn.',
+        'Kiểm tra lại đơn vị đo và thử lại kết quả sau khi tính xong.',
+      ],
+      questions: [
+        {
+          prompt: `[Lớp ${gradeNum}] Tính giá trị biểu thức nhanh: ${a} + ${b} × 2 = ?`,
+          spokenPrompt: `Câu hỏi lớp ${gradeNum}: Tính giá trị biểu thức ${a} cộng ${b} nhân 2 bằng bao nhiêu?`,
+          formulaOrTip: 'Nhân chia trước, cộng trừ sau',
+          options: [
+            String(a + b * 2),
+            String((a + b) * 2),
+            String(a * 2 + b),
+            String(a + b + 2),
+          ],
+          correctIndex: 0,
+          hint: `Thực hiện phép nhân ${b} × 2 = ${b * 2} trước, sau đó cộng với ${a}.`,
+          explanation: `Theo quy tắc nhân chia trước cộng trừ sau: ${b} × 2 = ${b * 2}, rồi ${a} + ${b * 2} = ${a + b * 2}.`,
+        },
+        {
+          prompt: `[Lớp ${gradeNum}] Tìm số tự nhiên x biết: x - ${a} = ${b}`,
+          spokenPrompt: `Tìm số tự nhiên x biết: x trừ ${a} bằng ${b}.`,
+          formulaOrTip: `x = ${b} + ${a}`,
+          options: [
+            String(Math.abs(b - a)),
+            String(a + b),
+            String(a * 2),
+            String(a + b + 5),
+          ],
+          correctIndex: 1,
+          hint: `Muốn tìm số bị trừ x, ta lấy hiệu (${b}) cộng với số trừ (${a}).`,
+          explanation: `Ta có x = ${b} + ${a} = ${a + b}.`,
+        },
+        {
+          prompt: `Một hình chữ nhật có chiều dài ${a} cm và chiều rộng ${Math.max(3, gradeNum + 2)} cm. Chu vi hình chữ nhật đó là:`,
+          spokenPrompt: `Một hình chữ nhật có chiều dài ${a} xen ti mét và chiều rộng ${Math.max(3, gradeNum + 2)} xen ti mét. Chu vi hình chữ nhật đó bằng bao nhiêu?`,
+          formulaOrTip: 'P = (Dài + Rộng) × 2',
+          options: [
+            `${(a + Math.max(3, gradeNum + 2)) * 2} cm`,
+            `${a * Math.max(3, gradeNum + 2)} cm`,
+            `${a + Math.max(3, gradeNum + 2)} cm`,
+            `${(a + Math.max(3, gradeNum + 2)) * 4} cm`,
+          ],
+          correctIndex: 0,
+          hint: 'Lấy tổng chiều dài và chiều rộng rồi nhân với 2.',
+          explanation: `Chu vi hình chữ nhật là: (${a} + ${Math.max(3, gradeNum + 2)}) × 2 = ${(a + Math.max(3, gradeNum + 2)) * 2} cm.`,
+        },
+      ],
+    };
+  }
+
+  return {
+    lessonTitle: `Chuyên đề: ${rawTopic} (${subjLabel} Lớp ${gradeNum})`,
+    summary: `Tổng hợp kiến thức cốt lõi và câu hỏi thực hành chủ đề "${rawTopic}" bám sát chương trình ${subjLabel} Lớp ${gradeNum} (${tierLabel}).`,
+    keyPoints: [
+      `Nắm vững khái niệm và quy tắc trọng tâm của bài "${rawTopic}".`,
+      'Vận dụng ví dụ minh họa thực tế để ghi nhớ lâu hơn.',
+      'Luyện nghe và đọc to câu hỏi để phát triển tư duy ngôn ngữ.',
+    ],
+    questions: [
+      {
+        prompt: `Khi học chủ đề "${rawTopic}" môn ${subjLabel} Lớp ${gradeNum}, phương pháp nào giúp ghi nhớ hiệu quả nhất?`,
+        spokenPrompt: `Khi học chủ đề ${rawTopic} môn ${subjLabel} lớp ${gradeNum}, phương pháp nào giúp em ghi nhớ hiệu quả nhất?`,
+        formulaOrTip: 'Hiểu bản chất + Thực hành ví dụ',
+        options: [
+          'Hiểu rõ bản chất, ghi từ khóa chính và tự đặt ví dụ thực hành',
+          'Chỉ đọc lướt qua tiêu đề mà không làm bài tập',
+          'Học thuộc lòng máy móc không cần hiểu nghĩa',
+          'Bỏ qua phần gợi ý và giải thích chi tiết',
+        ],
+        correctIndex: 0,
+        hint: 'Kết hợp hiểu ý chính với việc tự lấy ví dụ cụ thể luôn giúp não bộ nhớ lâu gấp nhiều lần.',
+        explanation: 'Hiểu bản chất kết hợp từ khóa và ví dụ thực tế là phương pháp học chủ động hiệu quả nhất ở mọi cấp học.',
+      },
+      {
+        prompt: `Trong giao tiếp và trình bày bài làm môn ${subjLabel}, yếu tố nào sau đây cần được ưu tiên?`,
+        spokenPrompt: `Trong giao tiếp và trình bày bài làm môn ${subjLabel}, yếu tố nào sau đây cần được ưu tiên?`,
+        options: [
+          'Viết tắt tùy ý không theo quy chuẩn',
+          'Diễn đạt rõ ràng, mạch lạc, đúng chính tả và ngữ pháp',
+          'Trình bày thiếu đầu câu và dấu chấm câu',
+          'Trả lời lệch khỏi câu hỏi trọng tâm',
+        ],
+        correctIndex: 1,
+        hint: 'Sự rõ ràng, mạch lạc và chuẩn xác giúp người đọc hiểu đúng ý tưởng của em.',
+        explanation: 'Trình bày mạch lạc, đúng chính tả và ngữ pháp giúp bài làm đạt điểm tối đa và rèn tư duy chặt chẽ.',
+      },
+      {
+        prompt: `Bước kiểm tra lại bài sau khi hoàn thành câu hỏi về "${rawTopic}" có tác dụng gì?`,
+        spokenPrompt: `Bước kiểm tra lại bài sau khi hoàn thành câu hỏi về ${rawTopic} có tác dụng gì?`,
+        options: [
+          'Làm mất thời gian không cần thiết',
+          'Phát hiện sớm lỗi nhầm lẫn đáng tiếc và củng cố chắc chắn kiến thức',
+          'Làm thay đổi đề bài ban đầu',
+          'Không mang lại lợi ích nào',
+        ],
+        correctIndex: 1,
+        hint: 'Các học sinh giỏi luôn dành 1–2 phút cuối để rà soát lại đáp án.',
+        explanation: 'Kiểm tra lại bài giúp phát hiện sai sót nhỏ và khắc sâu kiến thức vừa học vào trí nhớ dài hạn.',
+      },
+    ],
+  };
+}
+
+app.post(
+  ['/api/kids-learning/generate', '/minhhieu/api/kids-learning/generate'],
+  async (req, res) => {
+    try {
+      const rawGrade = Number(req.body?.grade) || 3;
+      const grade = Math.max(1, Math.min(12, Math.round(rawGrade)));
+      const subject = String(req.body?.subject || 'toan').trim();
+      const topic = String(req.body?.topic || '').trim();
+
+      if (!topic) {
+        return res.status(400).json({ error: 'Vui lòng nhập chủ đề bài học cần tạo.' });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.json(buildFallbackKidsLesson(grade, subject, topic));
+      }
+
+      const tierName =
+        grade <= 5 ? 'Tiểu học (Cấp 1)' : grade <= 9 ? 'THCS (Cấp 2)' : 'THPT (Cấp 3)';
+      const subjectMap: Record<string, string> = {
+        'tieng-viet': grade <= 5 ? 'Tiếng Việt' : 'Ngữ Văn',
+        'tieng-anh': 'Tiếng Anh (English)',
+        toan: 'Toán học',
+        'khoa-hoc': 'Khoa học tự nhiên (Lý - Hóa - Sinh)',
+        'kham-pha': 'Lịch sử - Địa lý & Khám phá thế giới',
+      };
+      const subjectTitle = subjectMap[subject] || 'Tổng hợp';
+
+      const prompt = `Hãy biên soạn một bài học ngắn gọn, vui tươi, chuẩn xác theo chương trình giáo dục phổ thông Việt Nam cho học sinh Lớp ${grade} (${tierName}), môn ${subjectTitle}, với chủ đề cụ thể: "${topic}".
+
+Yêu cầu bắt buộc:
+1. Ngôn ngữ thân thiện, khích lệ, phù hợp đúng lứa tuổi Lớp ${grade}.
+2. Tạo chính xác 4 câu hỏi trắc nghiệm (4 lựa chọn mỗi câu, chỉ 1 đáp án đúng ở vị trí correctIndex từ 0 đến 3).
+3. Trường "spokenPrompt" viết câu hỏi bằng chữ tự nhiên dễ đọc to cho công nghệ chuyển văn bản thành giọng nói tiếng Việt (ví dụ: viết "nhân", "cộng", "bình phương" thay vì ký hiệu khó đọc).
+4. Kiểm tra kỹ tính chính xác toán học/khoa học/ngữ pháp của đáp án tại correctIndex.`;
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Kids lesson generation timeout')), 12000)
+      );
+
+      const genPromise = ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          temperature: 0.5,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              lessonTitle: { type: Type.STRING },
+              summary: { type: Type.STRING },
+              keyPoints: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
+              questions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    prompt: { type: Type.STRING },
+                    spokenPrompt: { type: Type.STRING },
+                    formulaOrTip: { type: Type.STRING },
+                    options: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                    },
+                    correctIndex: { type: Type.INTEGER },
+                    hint: { type: Type.STRING },
+                    explanation: { type: Type.STRING },
+                  },
+                  required: [
+                    'prompt',
+                    'spokenPrompt',
+                    'options',
+                    'correctIndex',
+                    'hint',
+                    'explanation',
+                  ],
+                },
+              },
+            },
+            required: ['lessonTitle', 'summary', 'keyPoints', 'questions'],
+          },
+        },
+      });
+
+      const response: any = await Promise.race([genPromise, timeoutPromise]);
+      const rawJson = response?.text ? String(response.text).trim() : '';
+      if (rawJson) {
+        const parsed = JSON.parse(rawJson);
+        if (parsed && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+          return res.json(parsed);
+        }
+      }
+
+      return res.json(buildFallbackKidsLesson(grade, subject, topic));
+    } catch (err: any) {
+      console.warn('Kids learning AI endpoint fallback:', err?.message || err);
+      const rawGrade = Math.max(1, Math.min(12, Number(req.body?.grade) || 3));
+      const subject = String(req.body?.subject || 'toan');
+      const topic = String(req.body?.topic || 'Ôn tập kiến thức');
+      return res.json(buildFallbackKidsLesson(rawGrade, subject, topic));
+    }
+  }
+);
+
+// =========================================================================
+// KIDS LEARNING: NATIVE ENGLISH TTS, VOICE TRANSCRIPTION & Q&A CHAT TUTOR
+// =========================================================================
+const kidsNativeTtsCache = new Map<string, string>();
+const MAX_KIDS_TTS_CACHE = 80;
+
+app.post(
+  ['/api/kids-learning/english-tts', '/minhhieu/api/kids-learning/english-tts'],
+  async (req, res) => {
+    try {
+      const rawText = String(req.body?.text || '')
+        .replace(/[_#*`~]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 700);
+      if (!rawText) {
+        return res.status(400).json({ error: 'Missing text for English TTS' });
+      }
+
+      const allowedVoices = ['Kore', 'Puck', 'Zephyr', 'Fenrir', 'Charon'];
+      const requestedVoice = String(req.body?.voiceName || 'Kore').trim();
+      const voiceName = allowedVoices.includes(requestedVoice) ? requestedVoice : 'Kore';
+      const slow = Boolean(req.body?.slow);
+
+      const cacheKey = `${voiceName}::${slow ? 'slow' : 'normal'}::${rawText}`;
+      const cached = kidsNativeTtsCache.get(cacheKey);
+      if (cached) {
+        return res.json({ audioDataUrl: cached, voiceName, cached: true });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(503).json({ error: 'Native TTS unavailable without server key' });
+      }
+
+      const stylePrompt = slow
+        ? 'Warm, crystal-clear native English teacher speaking slowly and distinctly for language learners'
+        : 'Warm, articulate, authentic native English teacher with natural intonation';
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('English TTS generation timeout')), 12000)
+      );
+
+      const ttsPromise = ai.models.generateContent({
+        model: 'gemini-3.8-flash-lite-tts',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: rawText,
+                speechMetadata: {
+                  style: stylePrompt,
+                },
+              } as any,
+            ],
+          },
+        ],
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName },
+            },
+          },
+        },
+      });
+
+      const response: any = await Promise.race([ttsPromise, timeoutPromise]);
+      const parts = response?.candidates?.[0]?.content?.parts || [];
+      let base64Audio = '';
+      let mimeType = 'audio/wav';
+      for (const p of parts) {
+        if (p?.inlineData?.data) {
+          base64Audio = String(p.inlineData.data);
+          if (p.inlineData.mimeType && String(p.inlineData.mimeType).startsWith('audio/')) {
+            mimeType = String(p.inlineData.mimeType);
+          }
+          break;
+        }
+      }
+
+      if (!base64Audio) {
+        return res.status(502).json({ error: 'Empty audio output from TTS model' });
+      }
+
+      const audioDataUrl = `data:${mimeType};base64,${base64Audio}`;
+      if (kidsNativeTtsCache.size >= MAX_KIDS_TTS_CACHE) {
+        const oldestKey = kidsNativeTtsCache.keys().next().value;
+        if (oldestKey) kidsNativeTtsCache.delete(oldestKey);
+      }
+      kidsNativeTtsCache.set(cacheKey, audioDataUrl);
+
+      return res.json({ audioDataUrl, voiceName, cached: false });
+    } catch (err: any) {
+      console.warn('Kids English TTS error:', err?.message || err);
+      return res.status(500).json({ error: err?.message || 'English TTS error' });
+    }
+  }
+);
+
+// Endpoint: Transcribe direct microphone voice questions from students
+app.post(
+  ['/api/kids-learning/transcribe', '/minhhieu/api/kids-learning/transcribe'],
+  async (req, res) => {
+    try {
+      const audioBase64 = String(req.body?.audioBase64 || '').trim();
+      const rawMime = String(req.body?.mimeType || 'audio/webm').split(';')[0].trim() || 'audio/webm';
+      const langHint = String(req.body?.language || 'vi-VN').trim();
+
+      if (!audioBase64) {
+        return res.status(400).json({ error: 'Không nhận được dữ liệu âm thanh từ micro.' });
+      }
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(503).json({ error: 'Chức năng nhận diện giọng nói máy chủ tạm thời chưa sẵn sàng.' });
+      }
+
+      const langInstruction = langHint.startsWith('en')
+        ? 'Transcribe this spoken English audio accurately. Output ONLY the exact spoken words, nothing else.'
+        : 'Hãy chép lời chính xác câu nói tiếng Việt (hoặc từ tiếng Anh xen kẽ) của học sinh trong đoạn âm thanh này. Chỉ trả về đúng nội dung câu nói, không thêm chú thích.';
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Audio transcription timeout')), 12000)
+      );
+
+      const transcribePromise = ai.models.generateContent({
+        model: 'gemini-3.5-transcribe',
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: rawMime,
+                data: audioBase64,
+              },
+            },
+            { text: langInstruction },
+          ],
+        },
+      });
+
+      const response: any = await Promise.race([transcribePromise, timeoutPromise]);
+      const transcript = String(response?.text || '')
+        .replace(/^["'“”]+|["'“”]+$/g, '')
+        .trim();
+
+      return res.json({ transcript });
+    } catch (err: any) {
+      console.warn('Kids audio transcribe error:', err?.message || err);
+      return res.status(500).json({
+        error: err?.message || 'Không thể nhận diện giọng nói lúc này. Em hãy thử nói lại rõ hơn nhé!',
+      });
+    }
+  }
+);
+
+function buildFallbackKidsChatReply(message: string, grade: number) {
+  const lower = message.toLowerCase().trim();
+
+  // Check simple arithmetic expression in message
+  const mathMatch = lower.match(/(\d+)\s*([+\-x*×:/÷])\s*(\d+)/);
+  if (mathMatch) {
+    const a = Number(mathMatch[1]);
+    const op = mathMatch[2];
+    const b = Number(mathMatch[3]);
+    let resVal: number | string = 0;
+    let opWord = 'cộng';
+    if (op === '+') {
+      resVal = a + b;
+      opWord = 'cộng';
+    } else if (op === '-') {
+      resVal = a - b;
+      opWord = 'trừ';
+    } else if (op === 'x' || op === '*' || op === '×') {
+      resVal = a * b;
+      opWord = 'nhân';
+    } else if (b !== 0) {
+      resVal = Number((a / b).toFixed(2));
+      opWord = 'chia';
+    }
+    return {
+      replyVi: `Câu hỏi Toán rất hay! Kết quả của phép tính ${a} ${op} ${b} là **${resVal}**. Em nhớ kiểm tra lại từng bước tính nhẩm để thật chắc chắn nhé!`,
+      spokenVi: `Câu hỏi Toán rất hay! Kết quả của phép tính ${a} ${opWord} ${b} bằng ${resVal}. Em giỏi lắm!`,
+      englishPhrase: '',
+      phoneticIpa: '',
+      englishExamples: [],
+      followUps: [
+        `Đố thầy bài toán tìm x Lớp ${grade}`,
+        'Bảng cửu chương nhân 7 đọc thế nào?',
+        'Mẹo tính nhẩm nhanh không cần nháp',
+      ],
+    };
+  }
+
+  // English dictionary / translation quick fallback
+  const commonDict: Record<string, { en: string; ipa: string; vi: string; exEn: string; exVi: string }> = {
+    'mèo': { en: 'Cat', ipa: '/kæt/', vi: 'Con mèo', exEn: 'The cute cat is sleeping on the sofa.', exVi: 'Chú mèo dễ thương đang ngủ trên ghế sofa.' },
+    'chó': { en: 'Dog', ipa: '/dɒɡ/', vi: 'Con chó', exEn: 'My dog loves playing in the park.', exVi: 'Chú cún của em rất thích chơi trong công viên.' },
+    'táo': { en: 'Apple', ipa: '/ˈæp.əl/', vi: 'Quả táo', exEn: 'I eat a red apple every morning.', exVi: 'Em ăn một quả táo đỏ mỗi buổi sáng.' },
+    'trường': { en: 'School', ipa: '/skuːl/', vi: 'Trường học', exEn: 'We go to school together happily.', exVi: 'Chúng em vui vẻ cùng nhau tới trường.' },
+    'gia đình': { en: 'Family', ipa: '/ˈfæm.əl.i/', vi: 'Gia đình', exEn: 'I love my family very much.', exVi: 'Em yêu gia đình của em rất nhiều.' },
+    'xin chào': { en: 'Hello! Nice to meet you!', ipa: '/həˈləʊ! naɪs tuː miːt juː/', vi: 'Xin chào! Rất vui được gặp bạn!', exEn: 'Hello teacher, how are you today?', exVi: 'Em chào cô ạ, hôm nay cô có khỏe không?' },
+  };
+
+  for (const [k, item] of Object.entries(commonDict)) {
+    if (lower.includes(k) || lower.includes(item.en.toLowerCase())) {
+      return {
+        replyVi: `Trong Tiếng Anh, "${item.vi}" được viết là **${item.en}** (phiên âm quốc tế: ${item.ipa}). Em hãy nhấn nút loa Tiếng Anh bản xứ bên dưới để nghe phát âm chuẩn Mỹ và đọc nhẩm theo nhé!`,
+        spokenVi: `Trong Tiếng Anh, ${item.vi} đọc chuẩn như âm thanh bản xứ bên dưới. Em hãy bấm nghe và đọc to theo nhé!`,
+        englishPhrase: item.en,
+        phoneticIpa: item.ipa,
+        englishExamples: [{ en: item.exEn, ipa: '', vi: item.exVi }],
+        followUps: [
+          'Cho em thêm 3 từ vựng cùng chủ đề này',
+          'Đặt câu giao tiếp Tiếng Anh ngắn gọn',
+          'Cách phát âm âm cuối trong Tiếng Anh',
+        ],
+      };
+    }
+  }
+
+  return {
+    replyVi: `Thầy đã nhận được câu hỏi của em (Lớp ${grade}): "${message}". Để học tốt phần này, em hãy nắm chắc khái niệm chính, xem ví dụ minh họa và thử tự đặt 1 câu hoặc giải 1 bài tương tự nhé. Em muốn thầy giải chi tiết từng bước hay cho ví dụ Tiếng Anh chuẩn?`,
+    spokenVi: `Thầy đã nhận được câu hỏi của em lớp ${grade}. Em hãy cho thầy biết đề bài cụ thể hoặc từ vựng Tiếng Anh em muốn nghe phát âm chuẩn nhé!`,
+    englishPhrase: 'Keep up the great work! Learning every day makes you smarter.',
+    phoneticIpa: '/kiːp ʌp ðə ɡreɪt wɜːk/',
+    englishExamples: [
+      {
+        en: 'Practice makes perfect!',
+        ipa: '/ˈpræk.tɪs meɪks ˈpɜː.fekt/',
+        vi: 'Có công mài sắt, có ngày nên kim!',
+      },
+    ],
+    followUps: [
+      `Giải thích ngữ pháp Tiếng Anh trọng tâm Lớp ${grade}`,
+      `Đố em một câu Toán tư duy Lớp ${grade}`,
+      'Phân biệt chính tả Tiếng Việt dễ nhầm',
+    ],
+  };
+}
+
+app.post(
+  ['/api/kids-learning/chat', '/minhhieu/api/kids-learning/chat'],
+  async (req, res) => {
+    try {
+      const message = String(req.body?.message || '').trim().slice(0, 1200);
+      const grade = Math.max(1, Math.min(12, Number(req.body?.grade) || 3));
+      const subject = String(req.body?.subject || 'all').trim();
+      const rawHistory = Array.isArray(req.body?.history) ? req.body.history.slice(-6) : [];
+
+      if (!message) {
+        return res.status(400).json({ error: 'Em hãy nhập hoặc nói câu hỏi trước nhé!' });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.json(buildFallbackKidsChatReply(message, grade));
+      }
+
+      const tierDesc =
+        grade <= 5
+          ? 'Tiểu học (giải thích thật dịu dàng, ngắn gọn, sinh động, dễ hiểu cho bé)'
+          : grade <= 9
+          ? 'THCS Cấp 2 (giải thích logic, rõ từng bước, nắm chắc bản chất và công thức)'
+          : 'THPT Cấp 3 (giải thích sâu sắc, chuẩn xác học thuật, mẹo giải nhanh thi THPT/IELTS)';
+
+      const historyContext = rawHistory
+        .map((h: any) => `${h?.role === 'user' ? 'Học sinh' : 'Gia sư'}: ${String(h?.text || '').slice(0, 280)}`)
+        .join('\n');
+
+      const prompt = `Bạn là Gia sư thông thái, tận tâm, an toàn tuyệt đối cho trẻ em & học sinh phổ thông Việt Nam đang dạy học sinh Lớp ${grade} — bậc ${tierDesc} (môn ưu tiên: ${subject}).
+
+Lịch sử hội thoại gần nhất:
+${historyContext || '(Bắt đầu cuộc trò chuyện mới)'}
+
+Câu hỏi mới của học sinh: "${message}"
+
+Quy tắc bắt buộc:
+1. Trả lời 100% lành mạnh, khích lệ tinh thần học tập, KHÔNG bao giờ chèn quảng cáo hay nội dung người lớn.
+2. "replyVi": Câu trả lời rõ ràng, trình bày đẹp dễ đọc cho học sinh Lớp ${grade}. Nếu là bài Toán/Lý/Hóa thì trình bày từng bước dễ hiểu. Nếu là câu hỏi Tiếng Anh (từ vựng, dịch câu, ngữ pháp, giao tiếp), giải thích rõ nghĩa, cấu trúc và cách phát âm.
+3. "spokenVi": Câu trả lời rút gọn viết bằng chữ Tiếng Việt tự nhiên để đọc thành tiếng (không chứa ký hiệu markdown *, #, và chuyển các dấu +, -, ×, :, = thành chữ "cộng", "trừ", "nhân", "chia", "bằng"; KHÔNG nhồi nguyên đoạn Tiếng Anh dài vào spokenVi vì phần Tiếng Anh sẽ có giọng bản xứ riêng đọc chuẩn).
+4. Nếu câu hỏi liên quan đến Tiếng Anh (hoặc học sinh hỏi bằng Tiếng Anh / hỏi cách đọc / dịch Tiếng Anh):
+   - Đặt từ hoặc câu Tiếng Anh trọng tâm chuẩn xác nhất vào "englishPhrase" để hệ thống phát âm bằng giọng Tiếng Anh bản xứ chuẩn Mỹ/Anh!
+   - Ghi phiên âm quốc tế IPA chuẩn vào "phoneticIpa" (ví dụ: "/ˈæp.əl/").
+   - Cung cấp 1 đến 3 câu ví dụ thực tế trong "englishExamples" gồm { en, ipa, vi }.
+   Nếu câu hỏi thuần Toán/Tiếng Việt không liên quan Tiếng Anh, để "englishPhrase": "", "phoneticIpa": "", "englishExamples": [].
+5. "followUps": Gợi ý 3 câu hỏi tiếp theo ngắn gọn, thú vị đúng trình độ Lớp ${grade}.`;
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Kids tutor chat timeout')), 14000)
+      );
+
+      const chatPromise = ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          temperature: 0.45,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              replyVi: { type: Type.STRING },
+              spokenVi: { type: Type.STRING },
+              englishPhrase: { type: Type.STRING },
+              phoneticIpa: { type: Type.STRING },
+              englishExamples: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    en: { type: Type.STRING },
+                    ipa: { type: Type.STRING },
+                    vi: { type: Type.STRING },
+                  },
+                  required: ['en', 'vi'],
+                },
+              },
+              followUps: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
+            },
+            required: ['replyVi', 'spokenVi', 'followUps'],
+          },
+        },
+      });
+
+      const response: any = await Promise.race([chatPromise, timeoutPromise]);
+      const rawJson = response?.text ? String(response.text).trim() : '';
+      if (rawJson) {
+        const parsed = JSON.parse(rawJson);
+        if (parsed && parsed.replyVi) {
+          return res.json({
+            replyVi: String(parsed.replyVi),
+            spokenVi: String(parsed.spokenVi || parsed.replyVi),
+            englishPhrase: parsed.englishPhrase ? String(parsed.englishPhrase) : '',
+            phoneticIpa: parsed.phoneticIpa ? String(parsed.phoneticIpa) : '',
+            englishExamples: Array.isArray(parsed.englishExamples) ? parsed.englishExamples : [],
+            followUps: Array.isArray(parsed.followUps) ? parsed.followUps.slice(0, 3) : [],
+          });
+        }
+      }
+
+      return res.json(buildFallbackKidsChatReply(message, grade));
+    } catch (err: any) {
+      console.warn('Kids chat tutor fallback:', err?.message || err);
+      const message = String(req.body?.message || '');
+      const grade = Math.max(1, Math.min(12, Number(req.body?.grade) || 3));
+      return res.json(buildFallbackKidsChatReply(message, grade));
+    }
+  }
+);
 
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
