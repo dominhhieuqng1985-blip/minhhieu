@@ -43,9 +43,8 @@ export function setCustomBackendUrl(url: string | null): void {
  */
 export const isStaticHost: boolean =
   typeof window !== 'undefined' &&
-  (window.location.hostname.includes('github.io') ||
-    window.location.protocol === 'file:' ||
-    (!window.location.port && !window.location.hostname.includes('run.app')));
+  (window.location.hostname.endsWith('github.io') ||
+    window.location.protocol === 'file:');
 
 /**
  * Whether the application currently has a usable Node.js / Express backend

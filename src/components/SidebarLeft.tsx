@@ -105,7 +105,7 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
   const [isGenresOpen, setIsGenresOpen] = useState(true);
   const [isActorsOpen, setIsActorsOpen] = useState(true);
   const [isToolsOpen, setIsToolsOpen] = useState(true);
-  const { isAdmin, openAdminModal, logout } = useAdminAuth();
+  const { isAdmin, adminUser, openAdminModal, logout } = useAdminAuth();
 
   const displayGenres = categories.length > 0 ? categories.slice(0, 12) : POPULAR_GENRES;
 
@@ -533,7 +533,7 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
                       <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Admin: minhhieuvnbt</span>
+                      <span>Admin: {adminUser?.username || 'minhhieuvnbt'}</span>
                     </span>
                     <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold">
                       Đã mở
@@ -541,7 +541,7 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
                   </div>
                   <div className="flex items-center gap-1.5 pt-0.5">
                     <button
-                      onClick={() => openAdminModal('Cài Đặt Quản Trị Viên', 'Quản trị viên đang đăng nhập.')}
+                      onClick={() => openAdminModal('Cài Đặt Quản Trị Viên', `Quản trị viên (${adminUser?.username || 'minhhieuvnbt'}) đang đăng nhập.`)}
                       className="flex-1 py-1 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-[11px] font-medium flex items-center justify-center gap-1 transition-colors border border-slate-800"
                     >
                       <KeyRound className="w-3 h-3 text-amber-400" />
@@ -574,8 +574,8 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
             </div>
           )}
 
-          {/* Section 8: Adcash Vertical Skyscraper 160x600 (Zone 12358110) */}
-          {!isCollapsed && (
+          {/* Section 8: Adcash Vertical Skyscraper 160x600 (Zone 12358110) - Strictly hidden in Kids Learning */}
+          {!isCollapsed && activeSection !== 'kids-learning' && (
             <div className="border-t border-slate-900 pt-3 flex justify-center">
               <AdcashBanner zoneId="12358110" format="160x600" />
             </div>

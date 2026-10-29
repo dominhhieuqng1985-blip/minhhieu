@@ -13,10 +13,10 @@ import {
 } from 'lucide-react';
 import { getApiBaseUrl, hasBackend } from '../utils/api';
 
-export const MINHHIEU_CHANNEL_URL = 'https://www.youtube.com/@minhhieureviewphim';
-export const MINHHIEU_SUBSCRIBE_URL = 'https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1';
+export const MINHHIEU_CHANNEL_URL = 'https://www.youtube.com/@MinhHieuOfficialvn';
+export const MINHHIEU_SUBSCRIBE_URL = 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1';
 export const MINHHIEU_CHANNEL_ID = 'UCUr78N1iiRNyg_UoBgtPPhw';
-export const MINHHIEU_CHANNEL_NAME = 'Minh Hiếu Review Phim';
+export const MINHHIEU_CHANNEL_NAME = 'Minh Hiếu Official';
 export const MINHHIEU_CHANNEL_AVATAR =
   'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj';
 
@@ -45,7 +45,7 @@ export function setYouTubeSubUnlocked(method: 'smart_focus' | 'google_oauth' | '
       STORAGE_KEY_YT_SUB_UNLOCKED,
       JSON.stringify({
         unlocked: true,
-        channel: '@minhhieureviewphim',
+        channel: '@MinhHieuOfficialvn',
         method,
         verifiedAt: Date.now(),
       })
@@ -134,7 +134,7 @@ export const YouTubeSubscribeGateModal: React.FC<YouTubeSubscribeGateModalProps>
     setStep('unlocked');
     setYouTubeSubUnlocked(method);
     if (onShowToast) {
-      onShowToast('Đã mở khóa tải video! Cảm ơn bạn đã đăng ký kênh @minhhieureviewphim.');
+      onShowToast('Đã mở khóa tải video! Cảm ơn bạn đã đăng ký kênh @MinhHieuOfficialvn.');
     }
     setTimeout(() => {
       onClose();
@@ -173,7 +173,7 @@ export const YouTubeSubscribeGateModal: React.FC<YouTubeSubscribeGateModalProps>
       }
 
       setStep('verifying');
-      setStatusMessage('Đang tự động xác nhận trạng thái đăng ký kênh @minhhieureviewphim...');
+      setStatusMessage('Đang tự động xác nhận trạng thái đăng ký kênh @MinhHieuOfficialvn...');
       setTimeout(() => {
         completeUnlock('smart_focus');
       }, 1400);
@@ -248,7 +248,7 @@ export const YouTubeSubscribeGateModal: React.FC<YouTubeSubscribeGateModalProps>
             } else {
               setStep('too_fast');
               setStatusMessage(
-                'Tài khoản Google của bạn hiện chưa đăng ký kênh @minhhieureviewphim. Hãy nhấn nút Đăng ký bên dưới rồi xác nhận lại nhé!'
+                'Tài khoản Google của bạn hiện chưa đăng ký kênh @MinhHieuOfficialvn. Hãy nhấn nút Đăng ký bên dưới rồi xác nhận lại nhé!'
               );
             }
           } catch {
@@ -318,7 +318,7 @@ export const YouTubeSubscribeGateModal: React.FC<YouTubeSubscribeGateModalProps>
                 </span>
                 <CheckCircle2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
               </div>
-              <p className="text-xs font-mono text-amber-400 truncate">@minhhieureviewphim</p>
+              <p className="text-xs font-mono text-amber-400 truncate">@MinhHieuOfficialvn</p>
               <p className="text-[11px] text-slate-400 truncate mt-0.5">{MINHHIEU_CHANNEL_URL}</p>
             </div>
           </div>
@@ -326,7 +326,7 @@ export const YouTubeSubscribeGateModal: React.FC<YouTubeSubscribeGateModalProps>
           {/* Step Status Feedback */}
           {step === 'idle' && (
             <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/90 text-xs text-slate-300 leading-relaxed">
-              Nhấn nút <strong className="text-white">Đăng ký kênh @minhhieureviewphim</strong> bên dưới và bấm{' '}
+              Nhấn nút <strong className="text-white">Đăng ký kênh @MinhHieuOfficialvn</strong> bên dưới và bấm{' '}
               <strong className="text-red-400">Đăng ký (Subscribe)</strong> trên YouTube. Khi bạn quay lại tab này, hệ thống sẽ{' '}
               <strong className="text-emerald-400">tự động nhận diện và tải video ngay</strong>!
             </div>
@@ -340,7 +340,7 @@ export const YouTubeSubscribeGateModal: React.FC<YouTubeSubscribeGateModalProps>
                   Đang chờ bạn nhấn Đăng ký trên tab YouTube...
                 </p>
                 <p className="text-[11px] text-amber-200/80">
-                  Sau khi nhấn <strong>Đăng ký</strong> trên kênh <strong>@minhhieureviewphim</strong>, hãy quay lại trang này — hệ thống sẽ tự động mở khóa!
+                  Sau khi nhấn <strong>Đăng ký</strong> trên kênh <strong>@MinhHieuOfficialvn</strong>, hãy quay lại trang này — hệ thống sẽ tự động mở khóa!
                 </p>
               </div>
             </div>
@@ -388,8 +388,8 @@ export const YouTubeSubscribeGateModal: React.FC<YouTubeSubscribeGateModalProps>
               <Bell className="w-4 h-4 fill-current" />
               <span>
                 {step === 'waiting_youtube' || step === 'too_fast'
-                  ? 'Mở lại kênh @minhhieureviewphim để Đăng Ký'
-                  : 'Đăng Ký Kênh @minhhieureviewphim'}
+                  ? 'Mở lại kênh @MinhHieuOfficialvn để Đăng Ký'
+                  : 'Đăng Ký Kênh @MinhHieuOfficialvn'}
               </span>
               <ExternalLink className="w-3.5 h-3.5 opacity-80" />
             </a>

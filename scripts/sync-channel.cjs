@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 const CHANNEL_ID = 'UCUr78N1iiRNyg_UoBgtPPhw';
-const CHANNEL_HANDLE = '@minhhieureviewphim';
-const CHANNEL_NAME = 'Minh Hiếu review phim';
+const CHANNEL_HANDLE = '@MinhHieuOfficialvn';
+const CHANNEL_NAME = 'Minh Hiếu Official VN';
 const CHANNEL_AVATAR = 'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj';
 const CHANNEL_BANNER = 'https://yt3.googleusercontent.com/nXC6CfLFHVL0mQjAJtqBxNqZM3nPyjtdk-zs9b9RIdblNxB_9CMOSBDc8iIFho4WiUMHbrU-zQ=w2560-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj';
 
@@ -307,13 +307,13 @@ async function main() {
   const tsFileContent = `import { PodcastEpisode, PodcastSeries, PodcastPlaylist } from '../types/podcast';
 
 export const DEFAULT_CHANNEL_INFO = {
-  name: 'Minh Hiếu review phim',
-  handle: '@minhhieureviewphim',
+  name: 'Minh Hiếu Official',
+  handle: '@MinhHieuOfficialvn',
   avatar: 'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj',
   banner: 'https://yt3.googleusercontent.com/nXC6CfLFHVL0mQjAJtqBxNqZM3nPyjtdk-zs9b9RIdblNxB_9CMOSBDc8iIFho4WiUMHbrU-zQ=w2560-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj',
-  subscribers: 'Kênh YouTube Review Phim & Podcast',
-  youtubeUrl: 'https://www.youtube.com/@minhhieureviewphim',
-  subscribeUrl: 'https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1',
+  subscribers: 'Kênh YouTube Chính Thức',
+  youtubeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn',
+  subscribeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1',
 };
 
 export const DEFAULT_PODCAST_SERIES: PodcastSeries[] = [

@@ -295,26 +295,32 @@ export const TikTokDownloaderStudio: React.FC<TikTokDownloaderStudioProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setShowSettings(!showSettings)}
-              className="p-2.5 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white transition-all text-xs font-semibold flex items-center gap-1.5"
-              title="Cài đặt cấu hình RapidAPI dự phòng"
-            >
-              <Settings className="w-4 h-4 text-cyan-400" />
-              <span className="hidden sm:inline">Cấu Hình API</span>
-            </button>
-          </div>
+          {/* Cấu Hình API - Strictly hidden for regular users, only visible when isAdmin is true */}
+          {isAdmin && (
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowSettings(!showSettings)}
+                className="p-2.5 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-cyan-500/30 text-cyan-300 hover:text-white transition-all text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                title="Cài đặt cấu hình RapidAPI dự phòng (Chỉ Quản trị viên)"
+              >
+                <Settings className="w-4 h-4 text-cyan-400" />
+                <span className="hidden sm:inline">Cấu Hình API</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase font-bold">
+                  Admin
+                </span>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* RapidAPI Settings Drawer */}
-        {showSettings && (
+        {/* RapidAPI Settings Drawer - Only rendered for Admin */}
+        {isAdmin && showSettings && (
           <div className="mt-5 p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3 animate-in slide-in-from-top-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs font-bold text-white">Cổng Kết Nối TikTok HD &amp; RapidAPI Dự Phòng</span>
+                <span className="text-xs font-bold text-white">Cổng Kết Nối TikTok HD &amp; RapidAPI Dự Phòng (Admin)</span>
               </div>
               <span className="text-[11px] font-mono text-slate-400">{DEFAULT_RAPIDAPI_HOST}</span>
             </div>

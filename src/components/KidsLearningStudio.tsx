@@ -45,6 +45,7 @@ import { KidsVisualSandbox } from './KidsVisualSandbox';
 import { KidsAlphabetModule } from './KidsAlphabetModule';
 import { KidsStudyToolkit } from './KidsStudyToolkit';
 import { KidsVoiceTutorChat } from './KidsVoiceTutorChat';
+import { SmartClassroomBoard } from './SmartClassroomBoard';
 import {
   EverAiVoice,
   getAllEverAiVoices,
@@ -1351,12 +1352,12 @@ export const KidsLearningStudio: React.FC<KidsLearningStudioProps> = ({ onShowTo
             }}
             className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
               studioMode === 'chat-tutor'
-                ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/20 font-black'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
           >
-            <MessageCircle className="w-4 h-4" />
-            <span>🎤 Chat &amp; Nói Hỏi Bài</span>
+            <GraduationCap className="w-4 h-4" />
+            <span>👨‍🏫 Thầy Giáo &amp; Bảng Đen (Chụp Ảnh Giải Bài)</span>
           </button>
 
           <button
@@ -2279,10 +2280,10 @@ export const KidsLearningStudio: React.FC<KidsLearningStudioProps> = ({ onShowTo
       )}
 
       {/* =================================================================== */}
-      {/* MODE 7: FULL-SCREEN INTERACTIVE Q&A VOICE TUTOR CHAT                */}
+      {/* MODE 7: THẦY GIÁO & TẤM BẢNG THÔNG MINH (CHỤP ẢNH TÀI LIỆU & GIẢI)  */}
       {/* =================================================================== */}
       {studioMode === 'chat-tutor' && (
-        <KidsVoiceTutorChat
+        <SmartClassroomBoard
           defaultGrade={
             typeof selectedGrade === 'number'
               ? selectedGrade
@@ -2297,7 +2298,10 @@ export const KidsLearningStudio: React.FC<KidsLearningStudioProps> = ({ onShowTo
           onSpeakEnglish={speakEnglishNative}
           viVoiceLabel={activeVoiceDisplayName}
           enVoiceLabel={activeEnVoiceMeta.label}
+          isAudioSpeaking={isSpeaking}
           onStopSpeaking={stopSpeaking}
+          onShowToast={onShowToast}
+          onEarnReward={handleEarnModuleReward}
         />
       )}
 

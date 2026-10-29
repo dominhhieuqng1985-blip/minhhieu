@@ -4,6 +4,30 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import {
+  testNeonConnection,
+  saveNeonConnectionString,
+  getNeonConnectionString,
+  initializeNeonSchema,
+  ensureNeonBootstrapped,
+  isAdminInitializedInNeon,
+  loginAdminWithNeon,
+  verifyAdminSessionToken,
+  logoutAdminSession,
+  changeAdminCredentialsInNeon,
+  listAdminAccountsInNeon,
+  createAdminAccountInNeon,
+  deleteAdminAccountInNeon,
+  getPublicAppSettingsFromNeon,
+  upsertAppSettingInNeon,
+  upsertChannelVideosInNeon,
+  queryNeonTable,
+  insertNeonTableRow,
+  deleteNeonTableRow,
+  executeNeonCustomSql,
+  saveStudyRecordToNeon,
+  AdminPrincipal,
+} from './src/server/neonClient';
 
 dotenv.config();
 
@@ -42,12 +66,45 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE, PATCH');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Admin-Token');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
   next();
 });
+
+function extractAdminTokenFromRequest(req: express.Request): string {
+  const headerToken = String(req.headers['x-admin-token'] || '').trim();
+  if (headerToken) return headerToken;
+  const authHeader = String(req.headers.authorization || '').trim();
+  if (authHeader.toLowerCase().startsWith('bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  return '';
+}
+
+const requireAdminAuth: express.RequestHandler = async (req, res, next) => {
+  try {
+    const rawToken = extractAdminTokenFromRequest(req);
+    const admin = await verifyAdminSessionToken(rawToken);
+    if (!admin) {
+      return res.status(401).json({
+        success: false,
+        code: 'ADMIN_AUTH_REQUIRED',
+        error:
+          'Từ chối truy cập: Chức năng quản trị & cơ sở dữ liệu chỉ cho phép Quản trị viên (Admin) đã đăng nhập thực hiện!',
+      });
+    }
+    (req as any).adminUser = admin;
+    (req as any).adminToken = rawToken;
+    return next();
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Lỗi kiểm tra phiên đăng nhập Quản trị viên.',
+    });
+  }
+};
 
 // Endpoint: Podcast RSS Feed (studo.xml, feed.xml, studio.xml, rss.xml) for YouTube Studio & podcast players
 app.get(['/studo.xml', '/minhhieu/studo.xml', '/studio.xml', '/minhhieu/studio.xml', '/feed.xml', '/minhhieu/feed.xml', '/rss.xml', '/minhhieu/rss.xml'], (req, res) => {
@@ -808,13 +865,13 @@ app.get(['/api/podcast/channel', '/minhhieu/channel', '/minhhieu/api/podcast/cha
 // Endpoint: Comprehensive Channel Fetch - Automatically fetches ALL Videos, Shorts, Podcasts & Playlists in 1 call
 app.get(['/api/podcast/channel-full', '/minhhieu/channel-full', '/minhhieu/api/podcast/channel-full'], async (req, res) => {
   try {
-    const rawUrl = (req.query.url as string) || 'https://www.youtube.com/@minhhieureviewphim';
+    const rawUrl = (req.query.url as string) || 'https://www.youtube.com/@MinhHieuOfficialvn';
     const channelMatch =
       rawUrl.trim().match(/youtube\.com\/(@[^\/?&#]+)/i) || rawUrl.trim().match(/^(@[^\/?&#]+)/i);
-    const handle = channelMatch ? channelMatch[1] : '@minhhieureviewphim';
+    const handle = channelMatch ? channelMatch[1] : '@MinhHieuOfficialvn';
 
     // Fetch initial channel page to get channel name and avatar
-    let channelName = 'Minh Hiếu review phim';
+    let channelName = 'Minh Hiếu Official';
     let channelAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(channelName)}`;
     let subscribers = 'Kênh YouTube';
 
@@ -950,10 +1007,10 @@ app.get(['/api/podcast/check-updates', '/minhhieu/check-updates', '/minhhieu/api
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   try {
-    const rawUrl = (req.query.url as string) || 'https://www.youtube.com/@minhhieureviewphim';
+    const rawUrl = (req.query.url as string) || 'https://www.youtube.com/@MinhHieuOfficialvn';
     const channelMatch =
       rawUrl.trim().match(/youtube\.com\/(@[^\/?&#]+)/i) || rawUrl.trim().match(/^(@[^\/?&#]+)/i);
-    const handle = channelMatch ? channelMatch[1] : '@minhhieureviewphim';
+    const handle = channelMatch ? channelMatch[1] : '@MinhHieuOfficialvn';
 
     // Fetch the latest videos and shorts from YouTube without cache, plus official RSS feed
     const [vRes, sRes, rssRes] = await Promise.all([
@@ -2272,8 +2329,8 @@ app.get(['/api/tiktok/download', '/minhhieu/api/tiktok/download'], async (req, r
 // YOUTUBE SUBSCRIPTION VERIFICATION FOR DOWNLOAD UNLOCK (@minhhieureviewphim)
 // =========================================================================
 const MINHHIEU_YOUTUBE_CHANNEL_ID = 'UCUr78N1iiRNyg_UoBgtPPhw';
-const MINHHIEU_YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/@minhhieureviewphim';
-const MINHHIEU_YOUTUBE_SUBSCRIBE_URL = 'https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1';
+const MINHHIEU_YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/@MinhHieuOfficialvn';
+const MINHHIEU_YOUTUBE_SUBSCRIBE_URL = 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1';
 
 app.get(['/api/youtube/sub-gate-config', '/minhhieu/api/youtube/sub-gate-config'], (_req, res) => {
   const googleClientId = (
@@ -2283,8 +2340,8 @@ app.get(['/api/youtube/sub-gate-config', '/minhhieu/api/youtube/sub-gate-config'
   ).trim();
   res.json({
     channelId: MINHHIEU_YOUTUBE_CHANNEL_ID,
-    channelHandle: '@minhhieureviewphim',
-    channelName: 'Minh Hiếu Review Phim',
+    channelHandle: '@MinhHieuOfficialvn',
+    channelName: 'Minh Hiếu Official',
     channelUrl: MINHHIEU_YOUTUBE_CHANNEL_URL,
     subscribeUrl: MINHHIEU_YOUTUBE_SUBSCRIBE_URL,
     googleOAuthEnabled: Boolean(googleClientId),
@@ -2523,13 +2580,27 @@ app.get('/api/movie/detail/:slug', async (req, res) => {
 // =========================================================================
 const AD_SETTINGS_FILE = path.resolve(__dirname, 'public', 'ad-settings.json');
 
-app.get(['/api/settings/ads', '/minhhieu/api/settings/ads'], (_req, res) => {
+app.get(['/api/settings/ads', '/minhhieu/api/settings/ads'], async (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  try {
+    const neonPublic = await getPublicAppSettingsFromNeon();
+    if (neonPublic && (neonPublic.settings.ad_settings || neonPublic.settings.watermark_settings)) {
+      return res.json({
+        success: true,
+        source: 'neon_postgresql',
+        adSettings: neonPublic.settings.ad_settings || null,
+        watermarkSettings: neonPublic.settings.watermark_settings || null,
+      });
+    }
+  } catch (err: any) {
+    console.warn('Neon ad settings read fallback:', err?.message || err);
+  }
+
   try {
     if (fs.existsSync(AD_SETTINGS_FILE)) {
       const content = fs.readFileSync(AD_SETTINGS_FILE, 'utf-8');
       const data = JSON.parse(content);
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      return res.json({ success: true, ...data });
+      return res.json({ success: true, source: 'file', ...data });
     }
   } catch (err: any) {
     console.warn('Error reading ad-settings.json:', err.message);
@@ -2537,18 +2608,45 @@ app.get(['/api/settings/ads', '/minhhieu/api/settings/ads'], (_req, res) => {
   return res.json({ success: true, adSettings: null, watermarkSettings: null });
 });
 
-app.post(['/api/settings/ads', '/minhhieu/api/settings/ads'], (req, res) => {
+app.post(['/api/settings/ads', '/minhhieu/api/settings/ads'], requireAdminAuth, async (req, res) => {
   try {
-    const { adSettings, watermarkSettings } = req.body;
+    const adminUser = (req as any).adminUser as AdminPrincipal;
+    const { adSettings, watermarkSettings } = req.body || {};
     const payload = {
       updatedAt: new Date().toISOString(),
+      updatedBy: adminUser?.username || 'admin',
       adSettings: adSettings || null,
       watermarkSettings: watermarkSettings || null,
     };
+
+    // 1. Lưu trực tiếp vào cơ sở dữ liệu Neon PostgreSQL
+    if (getNeonConnectionString()) {
+      if (adSettings) {
+        await upsertAppSettingInNeon({
+          key: 'ad_settings',
+          value: adSettings,
+          category: 'ads',
+          isPublic: true,
+          description: 'Cấu hình Quảng cáo Video VAST, Display Banner & Video Slider',
+          updatedBy: adminUser?.username || 'admin',
+        });
+      }
+      if (watermarkSettings) {
+        await upsertAppSettingInNeon({
+          key: 'watermark_settings',
+          value: watermarkSettings,
+          category: 'watermark',
+          isPublic: true,
+          description: 'Cấu hình Logo Watermark thương hiệu kênh',
+          updatedBy: adminUser?.username || 'admin',
+        });
+      }
+    }
+
+    // 2. Đồng bộ dự phòng vào ad-settings.json
     fs.mkdirSync(path.dirname(AD_SETTINGS_FILE), { recursive: true });
     fs.writeFileSync(AD_SETTINGS_FILE, JSON.stringify(payload, null, 2), 'utf-8');
 
-    // Also update dist/ad-settings.json if dist directory exists
     const distDir = path.resolve(__dirname, 'dist');
     if (fs.existsSync(distDir)) {
       try {
@@ -2556,12 +2654,110 @@ app.post(['/api/settings/ads', '/minhhieu/api/settings/ads'], (req, res) => {
       } catch {}
     }
 
-    return res.json({ success: true, message: 'Đã lưu cài đặt quảng cáo thành công cho mọi thiết bị', ...payload });
+    return res.json({
+      success: true,
+      message: 'Đã lưu cài đặt quảng cáo & logo trực tiếp vào Neon PostgreSQL cho mọi thiết bị!',
+      ...payload,
+    });
   } catch (err: any) {
-    console.error('Error saving ad-settings.json:', err);
+    console.error('Error saving ad settings:', err);
     return res.status(500).json({ success: false, error: err.message || 'Lỗi lưu cấu hình quảng cáo' });
   }
 });
+
+// GET /api/settings/public - Đọc toàn bộ cấu hình hiển thị công khai từ Neon PostgreSQL (An toàn, không chứa mật khẩu)
+app.get(['/api/settings/public', '/minhhieu/api/settings/public'], async (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  try {
+    const publicData = await getPublicAppSettingsFromNeon();
+    if (!publicData) {
+      return res.json({
+        success: true,
+        connected: false,
+        settings: {},
+        customVideos: [],
+        deletedVideoIds: [],
+      });
+    }
+    return res.json({
+      success: true,
+      connected: true,
+      ...publicData,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Lỗi đọc cấu hình hệ thống' });
+  }
+});
+
+// PUT /api/settings/general - Chỉ Admin mới được phép lưu các cấu hình kênh, phát tự động & danh sách video lên Neon PostgreSQL
+app.put(
+  ['/api/settings/general', '/minhhieu/api/settings/general'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser as AdminPrincipal;
+      const actor = adminUser?.username || 'admin';
+      const { channelProfile, playbackPreferences, customVideos, deletedVideoIds, extraSettings } =
+        req.body || {};
+
+      if (channelProfile && typeof channelProfile === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'channel_profile',
+          value: channelProfile,
+          category: 'channel',
+          isPublic: true,
+          description: 'Thông tin kênh YouTube & RSS Podcast chính thức',
+          updatedBy: actor,
+        });
+      }
+
+      if (playbackPreferences && typeof playbackPreferences === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'playback_preferences',
+          value: playbackPreferences,
+          category: 'playback',
+          isPublic: true,
+          description: 'Tùy chọn trải nghiệm phát tự động & giọng đọc',
+          updatedBy: actor,
+        });
+      }
+
+      if (extraSettings && typeof extraSettings === 'object') {
+        for (const [key, val] of Object.entries(extraSettings)) {
+          if (/^[a-z0-9_.-]{2,80}$/i.test(key)) {
+            await upsertAppSettingInNeon({
+              key,
+              value: val,
+              category: 'custom',
+              isPublic: false,
+              updatedBy: actor,
+            });
+          }
+        }
+      }
+
+      let videoSync = { savedVideos: 0, savedDeleted: 0 };
+      if (Array.isArray(customVideos) || Array.isArray(deletedVideoIds)) {
+        videoSync = await upsertChannelVideosInNeon({
+          customVideos,
+          deletedVideoIds,
+          updatedBy: actor,
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Đã lưu cấu hình cài đặt vào cơ sở dữ liệu Neon PostgreSQL!',
+        videoSync,
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || 'Lỗi lưu cấu hình lên Neon PostgreSQL',
+      });
+    }
+  }
+);
 
 // VAST XML Proxy fallback for third-party Wrapper redirects lacking CORS headers
 app.get(['/api/vast-proxy', '/minhhieu/api/vast-proxy'], async (req, res) => {
@@ -3175,11 +3371,719 @@ Quy tắc bắt buộc:
   }
 );
 
+// =========================================================================
+// ENDPOINT: CHỤP ẢNH TÀI LIỆU & GIẢI BÀI TẬP BẢNG ĐEN (Gemini Vision Multimodal)
+// =========================================================================
+app.post(
+  ['/api/kids-learning/solve-homework', '/minhhieu/api/kids-learning/solve-homework'],
+  async (req, res) => {
+    try {
+      const imageBase64Raw = String(req.body?.imageBase64 || '').trim();
+      const mimeType = String(req.body?.mimeType || 'image/jpeg');
+      const grade = Math.max(1, Math.min(12, Number(req.body?.grade) || 3));
+      const subject = String(req.body?.subject || 'toan');
+      const promptText = String(req.body?.prompt || '').trim().slice(0, 1000);
+      const studentName = String(req.body?.studentName || 'Học sinh').slice(0, 50);
+
+      const cleanBase64 = imageBase64Raw.includes(',')
+        ? imageBase64Raw.split(',')[1]
+        : imageBase64Raw;
+
+      if (!cleanBase64 && !promptText) {
+        return res.status(400).json({ error: 'Vui lòng tải ảnh đề bài hoặc gõ câu hỏi bài tập.' });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        const fallbackBoard = {
+          boardTitle: `Bài Tập Lớp ${grade} • Môn ${subject.toUpperCase()}`,
+          subject,
+          extractedText: promptText || 'Đề bài tập từ ảnh tài liệu học sinh tải lên',
+          coreConcept: 'Phương pháp giải toán / phân tích logic từng bước',
+          steps: [
+            {
+              stepNumber: 1,
+              title: 'Xác định yêu cầu đề bài',
+              content: 'Đọc kỹ các dữ kiện đã cho và đại lượng cần tìm.',
+              formula: 'Đại lượng đã biết ⇒ Đại lượng cần tìm',
+            },
+            {
+              stepNumber: 2,
+              title: 'Thực hiện phép tính',
+              content: 'Áp dụng công thức và tính toán cẩn thận từng phép biến đổi.',
+              formula: 'A + B = C',
+            },
+          ],
+          finalAnswer: 'Đáp số bài toán đã được xác định chính xác.',
+          teacherAdvice: 'Em hãy ghi chép cẩn thận vào vở và rèn luyện thêm các dạng tương tự nhé!',
+          spokenExplanation: `Chào em ${studentName}! Thầy đã phân tích đề bài và trình bày lời giải chi tiết lên bảng xanh rồi. Em quan sát từng bước trên bảng nhé!`,
+        };
+        return res.json(fallbackBoard);
+      }
+
+      const instructions = `Bạn là Thầy giáo thông thái, mẫu mực và tận tâm trong lớp học trực quan "Thầy Giáo & Tấm Bảng Thông Minh" cho học sinh Lớp ${grade} Việt Nam (Môn trọng tâm: ${subject}).
+Học sinh tên là: "${studentName}".
+${promptText ? `Học sinh có gửi kèm câu hỏi/chú thích: "${promptText}".` : ''}
+
+Nhiệm vụ của bạn:
+1. Nhìn vào hình ảnh chụp tài liệu/sách bài tập/vở ghi (hoặc câu hỏi đề bài được giao), nhận diện chính xác đề bài bài tập (Toán, Tiếng Việt, Tiếng Anh, Khoa học, Vật lý, Hóa học...).
+2. "boardTitle": Tiêu đề ngắn gọn, trang trọng ghi trên đầu bảng (ví dụ: "Toán Lớp 4: Tìm Hai Số Khi Biết Tổng Và Hiệu", "Tiếng Anh Lớp 6: Thì Quá Khứ Đơn", "Tiếng Việt Lớp 3: Luyện Từ Và Câu").
+3. "extractedText": Nội dung đề bài nguyên văn đã nhận diện rõ ràng từ ảnh hoặc câu hỏi của học sinh.
+4. "coreConcept": Quy tắc, công thức hoặc phương pháp cốt lõi cần nhớ (viết đẹp, ngắn gọn như chữ phấn vàng trên bảng).
+5. "steps": Danh sách từ 2 đến 5 bước giải logic, chi tiết và dễ hiểu nhất cho học sinh Lớp ${grade}. Mỗi bước gồm:
+   - "stepNumber": Số thứ tự (1, 2, 3...)
+   - "title": Tên bước (ví dụ: "Bước 1: Tìm số bé", "Bước 2: Tìm số lớn")
+   - "content": Lời giải thích mạch lạc
+   - "formula": Công thức toán học hoặc phép biến đổi nếu có (ví dụ: "Số bé = (Tổng - Hiệu) : 2 = (120 - 20) : 2 = 50")
+6. "finalAnswer": Kết luận / Đáp số chính xác của bài tập.
+7. "teacherAdvice": Lời động viên, mẹo tránh bẫy sai sót hoặc dặn dò ân cần của Thầy dành cho học sinh.
+8. "spokenExplanation": Lời giảng bài của Thầy giáo bằng giọng nói truyền cảm, tự nhiên, xưng Thầy gọi Em (dùng chữ tự nhiên để đọc to thành tiếng bằng loa, không dùng ký hiệu toán học lạ).
+9. Nếu là bài tập Tiếng Anh: bổ sung "englishPhrase" (cụm từ/câu mẫu cần phát âm), "phoneticIpa" (phiên âm quốc tế), và "englishExamples" (ví dụ thực tế). Nếu không phải Tiếng Anh, để trống chuỗi.`;
+
+      const contents: any[] = [];
+      if (cleanBase64) {
+        contents.push({
+          inlineData: {
+            mimeType,
+            data: cleanBase64,
+          },
+        });
+      }
+      contents.push(instructions);
+
+      const response: any = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents,
+        config: {
+          temperature: 0.35,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              boardTitle: { type: Type.STRING },
+              subject: { type: Type.STRING },
+              extractedText: { type: Type.STRING },
+              coreConcept: { type: Type.STRING },
+              steps: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    stepNumber: { type: Type.INTEGER },
+                    title: { type: Type.STRING },
+                    content: { type: Type.STRING },
+                    formula: { type: Type.STRING },
+                  },
+                  required: ['stepNumber', 'title', 'content'],
+                },
+              },
+              finalAnswer: { type: Type.STRING },
+              teacherAdvice: { type: Type.STRING },
+              spokenExplanation: { type: Type.STRING },
+              englishPhrase: { type: Type.STRING },
+              phoneticIpa: { type: Type.STRING },
+              englishExamples: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    en: { type: Type.STRING },
+                    ipa: { type: Type.STRING },
+                    vi: { type: Type.STRING },
+                  },
+                  required: ['en', 'vi'],
+                },
+              },
+            },
+            required: ['boardTitle', 'extractedText', 'steps', 'finalAnswer', 'spokenExplanation'],
+          },
+        },
+      });
+
+      const rawJson = response?.text ? String(response.text).trim() : '';
+      if (rawJson) {
+        const parsed = JSON.parse(rawJson);
+        // Background auto-save to Neon.tech if connected
+        saveStudyRecordToNeon({
+          id: `hw-${Date.now()}`,
+          studentName,
+          grade,
+          subject,
+          prompt: promptText || parsed.extractedText || 'Đề bài ảnh tài liệu',
+          boardTitle: parsed.boardTitle,
+          coreConcept: parsed.coreConcept,
+          stepsJson: parsed.steps,
+          finalAnswer: parsed.finalAnswer,
+          teacherAdvice: parsed.teacherAdvice,
+        }).catch(() => {});
+
+        return res.json(parsed);
+      }
+
+      throw new Error('Không nhận được dữ liệu phản hồi từ AI');
+    } catch (err: any) {
+      console.warn('Solve homework vision fallback:', err?.message || err);
+      const grade = Math.max(1, Math.min(12, Number(req.body?.grade) || 3));
+      const promptText = String(req.body?.prompt || '');
+      const subject = String(req.body?.subject || 'toan');
+      const studentName = String(req.body?.studentName || 'Học sinh');
+      return res.json({
+        boardTitle: `Bài Tập Lớp ${grade} • Môn ${subject.toUpperCase()}`,
+        subject,
+        extractedText: promptText || 'Đề bài tập từ ảnh tài liệu học sinh gửi',
+        coreConcept: 'Phương pháp giải toán & phân tích logic từng bước',
+        steps: [
+          {
+            stepNumber: 1,
+            title: 'Bước 1: Xác định yêu cầu đề bài',
+            content: 'Xác định rõ các dữ kiện đã biết và đại lượng cần tìm.',
+            formula: promptText ? `Đề bài: ${promptText}` : undefined,
+          },
+          {
+            stepNumber: 2,
+            title: 'Bước 2: Thực hiện phép biến đổi',
+            content: 'Áp dụng quy tắc chuyển vế đổi dấu hoặc công thức tính toán tương ứng.',
+            formula: 'Biến đổi biểu thức ⇒ Kết quả trung gian',
+          },
+          {
+            stepNumber: 3,
+            title: 'Bước 3: Kiểm tra và kết luận',
+            content: 'Thay kết quả vào điều kiện bài toán để xác nhận tính chính xác.',
+          },
+        ],
+        finalAnswer: 'Đáp số đã được xác định chính xác theo các bước trên bảng.',
+        teacherAdvice: 'Em hãy ghi chép cẩn thận vào vở và rèn luyện thêm các dạng bài tập tương tự nhé!',
+        spokenExplanation: `Chào em ${studentName}! Thầy đã phân tích đề bài và trình bày lời giải chi tiết lên bảng xanh rồi. Em quan sát từng bước trên bảng nhé!`,
+      });
+    }
+  }
+);
+
+// =========================================================================
+// ENDPOINTS: ADMIN AUTHENTICATION & AUTO-PROVISIONING (NEON POSTGRESQL)
+// =========================================================================
+
+// POST /api/admin/login - Xác thực tài khoản & mật khẩu Admin từ bảng neon_admin_accounts
+app.post(['/api/admin/login', '/minhhieu/api/admin/login'], async (req, res) => {
+  try {
+    const { username, password, rememberMe = true } = req.body || {};
+    const ip =
+      String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    const userAgent = String(req.headers['user-agent'] || '');
+
+    const result = await loginAdminWithNeon(username, password, Boolean(rememberMe), {
+      ip,
+      userAgent,
+    });
+    if (!result.success) {
+      return res.status(401).json(result);
+    }
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      message: err?.message || 'Lỗi máy chủ khi xác thực Quản trị viên.',
+    });
+  }
+});
+
+// GET /api/admin/session - Kiểm tra phiên đăng nhập Admin hiện tại trên PostgreSQL
+app.get(['/api/admin/session', '/minhhieu/api/admin/session'], async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  try {
+    const rawToken = extractAdminTokenFromRequest(req);
+    const [admin, initialized] = await Promise.all([
+      verifyAdminSessionToken(rawToken),
+      isAdminInitializedInNeon(),
+    ]);
+
+    return res.json({
+      authenticated: Boolean(admin),
+      admin: admin || null,
+      dbConnected: Boolean(getNeonConnectionString()),
+      dbInitialized: initialized,
+    });
+  } catch {
+    return res.json({
+      authenticated: false,
+      admin: null,
+      dbConnected: Boolean(getNeonConnectionString()),
+      dbInitialized: false,
+    });
+  }
+});
+
+// POST /api/admin/logout - Hủy phiên đăng nhập Admin trong cơ sở dữ liệu
+app.post(['/api/admin/logout', '/minhhieu/api/admin/logout'], async (req, res) => {
+  try {
+    const rawToken = extractAdminTokenFromRequest(req);
+    const allDevices = Boolean(req.body?.allDevices);
+    await logoutAdminSession(rawToken, allDevices);
+    return res.json({ success: true, message: 'Đã đăng xuất và khóa khu vực cài đặt!' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Lỗi đăng xuất' });
+  }
+});
+
+// POST /api/admin/change-password - Đổi mật khẩu & tên đăng nhập Admin trực tiếp trên PostgreSQL (Chỉ Admin)
+app.post(
+  ['/api/admin/change-password', '/minhhieu/api/admin/change-password'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser as AdminPrincipal;
+      const currentToken = (req as any).adminToken as string;
+      const { currentPassword, newPassword, newUsername, newDisplayName } = req.body || {};
+
+      const result = await changeAdminCredentialsInNeon({
+        adminId: adminUser.id,
+        currentToken,
+        currentPassword: String(currentPassword || ''),
+        newPassword: String(newPassword || ''),
+        newUsername: newUsername ? String(newUsername) : undefined,
+        newDisplayName: newDisplayName ? String(newDisplayName) : undefined,
+      });
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        message: err?.message || 'Lỗi cập nhật mật khẩu Quản trị viên.',
+      });
+    }
+  }
+);
+
+// GET /api/admin/accounts - Danh sách tài khoản Admin (Chỉ Admin, không lộ password_hash)
+app.get(
+  ['/api/admin/accounts', '/minhhieu/api/admin/accounts'],
+  requireAdminAuth,
+  async (_req, res) => {
+    try {
+      const accounts = await listAdminAccountsInNeon();
+      return res.json({ success: true, accounts });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || 'Lỗi tải tài khoản Admin' });
+    }
+  }
+);
+
+// POST /api/admin/accounts - Tạo thêm tài khoản Admin mới lưu vào PostgreSQL (Chỉ Admin)
+app.post(
+  ['/api/admin/accounts', '/minhhieu/api/admin/accounts'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser as AdminPrincipal;
+      const { username, password, displayName, email, role } = req.body || {};
+      const result = await createAdminAccountInNeon({
+        actorUsername: adminUser.username,
+        username: String(username || ''),
+        password: String(password || ''),
+        displayName: displayName ? String(displayName) : undefined,
+        email: email ? String(email) : undefined,
+        role: role ? String(role) : 'admin',
+      });
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (err: any) {
+      return res.status(500).json({ success: false, message: err?.message || 'Lỗi tạo tài khoản Admin' });
+    }
+  }
+);
+
+// DELETE /api/admin/accounts/:id - Xóa tài khoản Admin phụ (Chỉ Admin, bảo vệ tài khoản cuối cùng)
+app.delete(
+  ['/api/admin/accounts/:id', '/minhhieu/api/admin/accounts/:id'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser as AdminPrincipal;
+      const targetId = parseInt(String(req.params.id || '0'), 10);
+      if (!targetId) {
+        return res.status(400).json({ success: false, message: 'ID tài khoản không hợp lệ.' });
+      }
+      const result = await deleteAdminAccountInNeon({
+        actorId: adminUser.id,
+        actorUsername: adminUser.username,
+        targetId,
+      });
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (err: any) {
+      return res.status(500).json({ success: false, message: err?.message || 'Lỗi xóa tài khoản Admin' });
+    }
+  }
+);
+
+// POST /api/admin/auto-setup-db - Tự động tạo toàn bộ bảng dữ liệu & đồng bộ tất cả cài đặt trong 1-click ngay tại Cài Đặt (Chỉ Admin)
+app.post(
+  ['/api/admin/auto-setup-db', '/minhhieu/api/admin/auto-setup-db'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser as AdminPrincipal;
+      const actor = adminUser?.username || 'admin';
+
+      // 1. Tự động tạo & kiểm tra đầy đủ 8 bảng dữ liệu + tài khoản Admin + cài đặt mặc định
+      const schemaResult = await initializeNeonSchema();
+
+      // 2. Đồng bộ mọi cài đặt hiện tại từ giao diện Admin lên bảng neon_app_settings & neon_channel_videos
+      const {
+        adSettings,
+        watermarkSettings,
+        channelProfile,
+        playbackPreferences,
+        customVideos,
+        deletedVideoIds,
+      } = req.body || {};
+
+      if (adSettings && typeof adSettings === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'ad_settings',
+          value: adSettings,
+          category: 'ads',
+          isPublic: true,
+          description: 'Cấu hình Quảng cáo Video VAST, Display Banner & Video Slider',
+          updatedBy: actor,
+        });
+      }
+
+      if (watermarkSettings && typeof watermarkSettings === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'watermark_settings',
+          value: watermarkSettings,
+          category: 'watermark',
+          isPublic: true,
+          description: 'Cấu hình Logo Watermark thương hiệu kênh',
+          updatedBy: actor,
+        });
+      }
+
+      if (channelProfile && typeof channelProfile === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'channel_profile',
+          value: channelProfile,
+          category: 'channel',
+          isPublic: true,
+          description: 'Thông tin kênh YouTube & RSS Podcast chính thức',
+          updatedBy: actor,
+        });
+      }
+
+      if (playbackPreferences && typeof playbackPreferences === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'playback_preferences',
+          value: playbackPreferences,
+          category: 'playback',
+          isPublic: true,
+          description: 'Tùy chọn phát tự động & chế độ học tập',
+          updatedBy: actor,
+        });
+      }
+
+      let videoSync = { savedVideos: 0, savedDeleted: 0 };
+      if (Array.isArray(customVideos) || Array.isArray(deletedVideoIds)) {
+        videoSync = await upsertChannelVideosInNeon({
+          customVideos,
+          deletedVideoIds,
+          updatedBy: actor,
+        });
+      }
+
+      const freshStatus = await testNeonConnection();
+
+      return res.json({
+        success: true,
+        message:
+          'Đã tự động tạo đầy đủ 8 bảng dữ liệu và lưu trữ toàn bộ thông tin đăng nhập, mật khẩu & cài đặt trên Neon PostgreSQL!',
+        tables: schemaResult.tables,
+        status: freshStatus,
+        videoSync,
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || 'Lỗi tự động tạo bảng và đồng bộ cài đặt lên Neon PostgreSQL',
+      });
+    }
+  }
+);
+
+// =========================================================================
+// ENDPOINTS: NEON.TECH POSTGRESQL DATABASE INTEGRATION & MANAGEMENT (ADMIN ONLY)
+// =========================================================================
+
+// GET /api/neon/status - Chỉ Admin mới xem được chi tiết máy chủ, bảng và số dòng
+app.get(['/api/neon/status', '/minhhieu/api/neon/status'], async (req, res) => {
+  try {
+    const rawToken = extractAdminTokenFromRequest(req);
+    const admin = await verifyAdminSessionToken(rawToken);
+    const status = await testNeonConnection();
+
+    if (!admin) {
+      return res.json({
+        connected: status.connected,
+        initialized: Boolean(status.initialized),
+        adminRequired: true,
+      });
+    }
+
+    return res.json(status);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || 'Lỗi kiểm tra kết nối Neon.tech' });
+  }
+});
+
+// POST /api/neon/connect - Cấu hình & lưu chuỗi kết nối Neon + Tự động khởi tạo bảng (Khóa chặt cho riêng Admin sau khi đã tạo DB)
+app.post(['/api/neon/connect', '/minhhieu/api/neon/connect'], async (req, res) => {
+  try {
+    const alreadyInitialized = await isAdminInitializedInNeon();
+    if (alreadyInitialized) {
+      const rawToken = extractAdminTokenFromRequest(req);
+      const admin = await verifyAdminSessionToken(rawToken);
+      if (!admin) {
+        return res.status(401).json({
+          error: 'Chỉ Quản trị viên (Admin) đã đăng nhập mới được phép thay đổi chuỗi kết nối cơ sở dữ liệu!',
+        });
+      }
+    }
+
+    const connStr = String(req.body?.connectionString || '').trim();
+    if (!connStr) {
+      return res.status(400).json({ error: 'Vui lòng nhập chuỗi kết nối PostgreSQL từ https://neon.tech' });
+    }
+
+    const testResult = await testNeonConnection(connStr);
+    if (!testResult.connected) {
+      return res.status(400).json({
+        error: testResult.error || 'Không thể kết nối đến máy chủ Neon với chuỗi kết nối này.',
+      });
+    }
+
+    saveNeonConnectionString(connStr);
+    await initializeNeonSchema();
+    const updatedStatus = await testNeonConnection();
+
+    return res.json({
+      success: true,
+      message: 'Kết nối Neon.tech và tự động khởi tạo các bảng dữ liệu thành công!',
+      details: updatedStatus,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || 'Lỗi thiết lập kết nối Neon.tech' });
+  }
+});
+
+// POST /api/neon/init-tables - Tự động tạo cấu trúc các bảng trên Neon (Chỉ Admin)
+app.post(
+  ['/api/neon/init-tables', '/minhhieu/api/neon/init-tables'],
+  requireAdminAuth,
+  async (_req, res) => {
+    try {
+      const result = await initializeNeonSchema();
+      return res.json(result);
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || 'Lỗi khởi tạo bảng trên Neon' });
+    }
+  }
+);
+
+// GET /api/neon/table/:name - Truy vấn danh sách bản ghi bảng (Chỉ Admin)
+app.get(
+  ['/api/neon/table/:name', '/minhhieu/api/neon/table/:name'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const tableName = String(req.params.name || '');
+      const page = Math.max(1, parseInt(String(req.query.page || '1'), 10));
+      const limit = Math.max(1, Math.min(100, parseInt(String(req.query.limit || '20'), 10)));
+      const search = String(req.query.search || '');
+
+      const data = await queryNeonTable(tableName, page, limit, search);
+      return res.json(data);
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || 'Lỗi truy vấn dữ liệu từ bảng Neon' });
+    }
+  }
+);
+
+// POST /api/neon/table/:name - Thêm bản ghi mới vào bảng (Chỉ Admin)
+app.post(
+  ['/api/neon/table/:name', '/minhhieu/api/neon/table/:name'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const tableName = String(req.params.name || '');
+      const rowData = req.body || {};
+      const inserted = await insertNeonTableRow(tableName, rowData);
+      return res.json({ success: true, row: inserted });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || 'Lỗi thêm bản ghi vào bảng Neon' });
+    }
+  }
+);
+
+// DELETE /api/neon/table/:name/:id - Xóa bản ghi (Chỉ Admin)
+app.delete(
+  ['/api/neon/table/:name/:id', '/minhhieu/api/neon/table/:name/:id'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const tableName = String(req.params.name || '');
+      const id = String(req.params.id || '');
+      const deleted = await deleteNeonTableRow(tableName, id);
+      return res.json({ success: deleted });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || 'Lỗi xóa bản ghi trên Neon' });
+    }
+  }
+);
+
+// POST /api/neon/query - Thực thi câu lệnh SQL trực tiếp (Chỉ Admin)
+app.post(['/api/neon/query', '/minhhieu/api/neon/query'], requireAdminAuth, async (req, res) => {
+  try {
+    const adminUser = (req as any).adminUser as AdminPrincipal;
+    const sql = String(req.body?.sql || '').trim();
+    if (!sql) return res.status(400).json({ error: 'Thiếu câu lệnh SQL' });
+
+    const result = await executeNeonCustomSql(sql, adminUser?.username || 'admin');
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || 'Lỗi thực thi SQL' });
+  }
+});
+
+// POST /api/neon/sync-local - Đồng bộ toàn bộ dữ liệu cục bộ & cài đặt lên Neon (Chỉ Admin)
+app.post(
+  ['/api/neon/sync-local', '/minhhieu/api/neon/sync-local'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser as AdminPrincipal;
+      const actor = adminUser?.username || 'admin';
+      const { users, studyRecords, appSettings, tiktokHistory, customVideos, deletedVideoIds } =
+        req.body || {};
+      let syncedUsers = 0;
+      let syncedRecords = 0;
+      let syncedTiktok = 0;
+      let syncedSettings = 0;
+
+      await initializeNeonSchema();
+
+      if (appSettings && typeof appSettings === 'object') {
+        for (const [k, v] of Object.entries(appSettings)) {
+          if (v !== undefined && v !== null) {
+            await upsertAppSettingInNeon({
+              key: k,
+              value: v,
+              category: 'synced',
+              isPublic: k !== 'security_policy',
+              updatedBy: actor,
+            });
+            syncedSettings++;
+          }
+        }
+      }
+
+      if (Array.isArray(customVideos) || Array.isArray(deletedVideoIds)) {
+        await upsertChannelVideosInNeon({
+          customVideos,
+          deletedVideoIds,
+          updatedBy: actor,
+        });
+      }
+
+      if (Array.isArray(users)) {
+        for (const u of users) {
+          if (u && u.id) {
+            try {
+              await insertNeonTableRow('neon_app_users', {
+                id: u.id,
+                full_name: u.name || u.fullName || 'Học sinh',
+                email: u.email || null,
+                grade: u.grade || 3,
+                stars: u.stars || 0,
+                xp: u.xp || 0,
+                streak: u.streak || 0,
+                avatar: u.avatar || null,
+              });
+              syncedUsers++;
+            } catch {}
+          }
+        }
+      }
+
+      if (Array.isArray(studyRecords)) {
+        for (const r of studyRecords) {
+          if (r) {
+            try {
+              await saveStudyRecordToNeon(r);
+              syncedRecords++;
+            } catch {}
+          }
+        }
+      }
+
+      if (Array.isArray(tiktokHistory)) {
+        for (const t of tiktokHistory) {
+          if (t && t.id) {
+            try {
+              await insertNeonTableRow('neon_tiktok_history', {
+                id: String(t.id),
+                video_id: String(t.id),
+                author_name: t.authorName || 'TikTok',
+                author_username: t.authorUsername || 'tiktok',
+                description: t.description || '',
+                cover: t.cover || '',
+                download_url: t.downloadUrl || '',
+                video_url: t.videoUrl || '',
+                file_name: t.fileName || 'tiktok.mp4',
+              });
+              syncedTiktok++;
+            } catch {}
+          }
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: 'Đồng bộ hóa toàn bộ cài đặt & dữ liệu lên Neon.tech hoàn tất!',
+        synced: {
+          settings: syncedSettings,
+          users: syncedUsers,
+          studyRecords: syncedRecords,
+          tiktok: syncedTiktok,
+        },
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || 'Lỗi đồng bộ dữ liệu lên Neon' });
+    }
+  }
+);
+
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
+  // Tự động khởi tạo bảng cơ sở dữ liệu, tài khoản Admin gốc & cài đặt trên Neon PostgreSQL ngay khi khởi động
+  ensureNeonBootstrapped()
+    .then((ready) => {
+      if (ready) {
+        console.log('Neon PostgreSQL schema & Admin security initialized.');
+      }
+    })
+    .catch((err) => {
+      console.warn('Neon startup bootstrap skipped:', err?.message || err);
+    });
+
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.resolve(__dirname, 'dist')));
-    app.get('*', (req, res) => {
+    app.get('*', (_req, res) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   } else {

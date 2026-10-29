@@ -46,13 +46,22 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleRightSidebar,
   isRightSidebarOpen,
 }) => {
-  const { isAdmin, requireAdmin, openAdminModal, logout } = useAdminAuth();
+  const { isAdmin, adminUser, requireAdmin, openAdminModal, logout } = useAdminAuth();
 
   const handleProtectedConnect = () => {
     requireAdmin(
       onOpenConnectModal,
       'Kết Nối & Thay Đổi Kênh YouTube',
       'Thao tác thay đổi ID kênh YouTube hoặc liên kết kênh mới yêu cầu quyền Quản trị viên.'
+    );
+  };
+
+  const handleProtectedSettings = () => {
+    if (!onOpenSettings) return;
+    requireAdmin(
+      onOpenSettings,
+      'Trung Tâm Cài Đặt & Cơ Sở Dữ Liệu',
+      'Chỉ Quản trị viên (Admin) đã xác thực mới được phép mở và thao tác trong Trung Tâm Cài Đặt.'
     );
   };
 
@@ -117,9 +126,9 @@ export const Header: React.FC<HeaderProps> = ({
           {isAdmin ? (
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/15 border border-amber-500/40 rounded-xl text-amber-300 text-xs font-semibold shadow-sm">
               <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="hidden sm:inline font-mono">minhhieuvnbt</span>
+              <span className="hidden sm:inline font-mono">{adminUser?.username || 'minhhieuvnbt'}</span>
               <button
-                onClick={() => openAdminModal('Cài Đặt Quản Trị Viên', 'Đang đăng nhập với quyền Admin minhhieuvnbt.')}
+                onClick={() => openAdminModal('Cài Đặt Quản Trị Viên', `Đang đăng nhập với quyền Admin (${adminUser?.username || 'minhhieuvnbt'}).`)}
                 className="p-1 text-slate-400 hover:text-amber-300 rounded hover:bg-amber-500/20 transition-colors ml-0.5"
                 title="Đổi mật khẩu / Quản lý tài khoản Admin"
               >
@@ -154,12 +163,12 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden sm:inline">Thêm kênh</span>
           </button>
 
-          {/* Unified Channel & App Settings Button */}
+          {/* Unified Channel & App Settings Button (Admin-Only Protected) */}
           {onOpenSettings && (
             <button
-              onClick={onOpenSettings}
+              onClick={handleProtectedSettings}
               className="p-2 text-slate-400 hover:text-amber-400 hover:bg-slate-850 rounded-xl border border-slate-800/80 transition-all shrink-0"
-              title="Trung tâm cài đặt & quản trị kênh"
+              title="Trung tâm cài đặt & quản trị cơ sở dữ liệu (Yêu cầu quyền Admin)"
               aria-label="Cài đặt kênh"
             >
               <Settings className="w-4 h-4" />

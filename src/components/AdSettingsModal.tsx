@@ -15,6 +15,8 @@ import {
   Globe,
   CheckCircle2,
   Cloud,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   AdSettings,
@@ -28,6 +30,7 @@ import {
   generateShareableConfigUrl,
   decodeConfigFromBase64,
 } from '../types/adConfig';
+import { useAdminAuth } from '../context/AdminAuthContext';
 
 interface AdSettingsModalProps {
   isOpen: boolean;
@@ -48,11 +51,13 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
   onSaveWatermarkSettings,
   onTriggerTestAd,
 }) => {
+  const { isAdmin, openAdminModal } = useAdminAuth();
   const [localAd, setLocalAd] = useState<AdSettings>(() => normalizeAdSettings(adSettings));
   const [localWatermark, setLocalWatermark] = useState<WatermarkSettings>(watermarkSettings);
   const [activeTab, setActiveTab] = useState<'ad' | 'watermark' | 'sync'>('ad');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [importJsonText, setImportJsonText] = useState<string>('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
@@ -61,21 +66,70 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
     if (isOpen) {
       setLocalAd(normalizeAdSettings(adSettings));
       setLocalWatermark(watermarkSettings);
+      setSaveError(null);
     }
   }, [isOpen, adSettings, watermarkSettings]);
 
   if (!isOpen) return null;
 
+  if (!isAdmin) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-md p-6 text-center space-y-4 shadow-2xl">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+            <Lock className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white">Khu Vực Chỉ Dành Cho Quản Trị Viên</h3>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              Chỉ Admin đã xác thực trên cơ sở dữ liệu Neon PostgreSQL mới được phép chỉnh sửa cài đặt quảng cáo &amp; logo.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2 pt-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
+            >
+              Đóng
+            </button>
+            <button
+              onClick={() =>
+                openAdminModal(
+                  'Đăng Nhập Admin (PostgreSQL)',
+                  'Xác thực tài khoản Admin để cấu hình và lưu quảng cáo vào Neon PostgreSQL.'
+                )
+              }
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Đăng Nhập Admin</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const handleSave = async () => {
     setIsSaving(true);
+    setSaveError(null);
     onSaveAdSettings(localAd);
     onSaveWatermarkSettings(localWatermark);
     saveStoredAdSettings(localAd);
     saveStoredWatermarkSettings(localWatermark);
 
     try {
-      await saveRemoteAdSettings(localAd, localWatermark);
-    } catch {}
+      const res = await saveRemoteAdSettings(localAd, localWatermark);
+      if (!res.success) {
+        setIsSaving(false);
+        setSaveError(res.message || 'Không thể lưu vào cơ sở dữ liệu Neon PostgreSQL (kiểm tra phiên Admin).');
+        return;
+      }
+    } catch (e: any) {
+      setIsSaving(false);
+      setSaveError(e?.message || 'Lỗi kết nối máy chủ khi lưu cài đặt.');
+      return;
+    }
 
     setIsSaving(false);
     setSavedSuccess(true);
@@ -487,7 +541,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                 <label className="font-bold text-white">Link Khi Bấm Vào Logo:</label>
                 <input
                   type="text"
-                  placeholder="https://www.youtube.com/@minhhieureviewphim"
+                  placeholder="https://www.youtube.com/@MinhHieuOfficialvn"
                   value={localWatermark.targetUrl}
                   onChange={(e) => setLocalWatermark({ ...localWatermark, targetUrl: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-500"
@@ -635,6 +689,11 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
         </div>
 
         {/* Footer Actions */}
+        {saveError && (
+          <div className="px-4 py-2 bg-rose-500/15 border-t border-rose-500/30 text-rose-300 text-xs font-medium">
+            {saveError}
+          </div>
+        )}
         <div className="p-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between gap-3">
           <button
             onClick={handleResetDefaults}

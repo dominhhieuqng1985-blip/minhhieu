@@ -1,3 +1,5 @@
+import { getAdminAuthHeaders } from '../utils/adminAuth';
+
 export interface AdSettings {
   enabled: boolean;
   videoUrl: string;
@@ -31,10 +33,10 @@ export const DEFAULT_AD_SETTINGS: AdSettings = {
   enabled: true,
   // Link mặc định quảng cáo trên toàn trang theo yêu cầu: Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka
   videoUrl: 'https://youtu.be/Co2OgH2FGr0?si=pBe3YR7Em398Ayqf',
-  redirectUrl: 'https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1',
+  redirectUrl: 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1',
   skipDelaySeconds: 5,
-  adTitle: 'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Review Phim',
-  sponsorName: 'Minh Hiếu Review Phim',
+  adTitle: 'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Official',
+  sponsorName: 'Minh Hiếu Official',
   showInMovie: true,
   showInYouTube: true,
   enablePreRoll: true,
@@ -107,7 +109,7 @@ export function normalizeAdSettings(raw?: Partial<AdSettings> | Record<string, u
 export const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
   enabled: true,
   logoUrl: 'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj',
-  targetUrl: 'https://www.youtube.com/@minhhieureviewphim',
+  targetUrl: 'https://www.youtube.com/@MinhHieuOfficialvn',
   position: 'top-right',
   opacity: 0.85,
   size: 'md',
@@ -290,7 +292,7 @@ export async function fetchRemoteAdSettings(): Promise<{
 }
 
 /**
- * Save ad and watermark settings to the server so ANY other device will automatically load it.
+ * Save ad and watermark settings to Neon PostgreSQL (Admin Only) so ANY other device automatically loads it.
  */
 export async function saveRemoteAdSettings(
   adSettings: AdSettings,
@@ -299,19 +301,28 @@ export async function saveRemoteAdSettings(
   saveStoredAdSettings(adSettings);
   saveStoredWatermarkSettings(watermarkSettings);
 
-  const candidateEndpoints = [
-    '/api/settings/ads',
-    '/minhhieu/api/settings/ads',
-  ];
+  const candidateEndpoints = ['/api/settings/ads', '/minhhieu/api/settings/ads'];
+  const authHeaders = getAdminAuthHeaders();
 
   let savedToServer = false;
+  let unauthorizedError = '';
+
   for (const endpoint of candidateEndpoints) {
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
         body: JSON.stringify({ adSettings, watermarkSettings }),
       });
+      if (res.status === 401 || res.status === 403) {
+        const errBody = await res.json().catch(() => ({}));
+        unauthorizedError =
+          errBody?.error || 'Chỉ Quản trị viên (Admin) mới được phép lưu cấu hình lên cơ sở dữ liệu!';
+        break;
+      }
       if (res.ok) {
         savedToServer = true;
         break;
@@ -319,12 +330,95 @@ export async function saveRemoteAdSettings(
     } catch {}
   }
 
+  if (unauthorizedError) {
+    return {
+      success: false,
+      message: unauthorizedError,
+    };
+  }
+
   return {
     success: true,
     message: savedToServer
-      ? 'Đã lưu cấu hình lên máy chủ & đồng bộ cho mọi thiết bị!'
+      ? 'Đã lưu cấu hình lên Neon PostgreSQL & đồng bộ cho mọi thiết bị!'
       : 'Đã lưu vào bộ nhớ trình duyệt!',
   };
+}
+
+/**
+ * Load all public settings (channel profile, playback preferences, custom videos, deleted IDs) from Neon PostgreSQL
+ */
+export async function fetchPublicSystemSettingsFromDb(): Promise<{
+  connected: boolean;
+  settings: Record<string, any>;
+  customVideos: any[];
+  deletedVideoIds: string[];
+} | null> {
+  if (typeof window === 'undefined') return null;
+
+  const endpoints = ['/api/settings/public', '/minhhieu/api/settings/public'];
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(`${endpoint}?nocache=${Date.now()}`, {
+        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
+      });
+      if (res.ok) {
+        const text = await res.text();
+        if (text && !text.trim().startsWith('<')) {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.success) {
+            return {
+              connected: Boolean(parsed.connected),
+              settings: parsed.settings || {},
+              customVideos: Array.isArray(parsed.customVideos) ? parsed.customVideos : [],
+              deletedVideoIds: Array.isArray(parsed.deletedVideoIds) ? parsed.deletedVideoIds : [],
+            };
+          }
+        }
+      }
+    } catch {}
+  }
+  return null;
+}
+
+/**
+ * Persist general settings (channel profile, playback preferences, custom videos, deleted blacklist) to Neon PostgreSQL (Admin Only)
+ */
+export async function saveGeneralSettingsToDb(payload: {
+  channelProfile?: Record<string, any>;
+  playbackPreferences?: Record<string, any>;
+  customVideos?: any[];
+  deletedVideoIds?: string[];
+  extraSettings?: Record<string, any>;
+}): Promise<{ success: boolean; message?: string }> {
+  if (typeof window === 'undefined') return { success: false };
+  const authHeaders = getAdminAuthHeaders();
+  if (!authHeaders.Authorization) {
+    return { success: false, message: 'Cần quyền Admin để lưu lên cơ sở dữ liệu.' };
+  }
+
+  const endpoints = ['/api/settings/general', '/minhhieu/api/settings/general'];
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        return { success: true, message: data.message };
+      }
+      if (res.status === 401 || res.status === 403) {
+        return { success: false, message: data.error || 'Từ chối truy cập: Yêu cầu quyền Admin!' };
+      }
+    } catch {}
+  }
+
+  return { success: false, message: 'Không thể đồng bộ cài đặt lên máy chủ.' };
 }
 
 /**

@@ -3,10 +3,10 @@
   "adSettings": {
     "enabled": true,
     "videoUrl": "https://youtu.be/Co2OgH2FGr0?si=pBe3YR7Em398Ayqf",
-    "redirectUrl": "https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1",
+    "redirectUrl": "https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1",
     "skipDelaySeconds": 5,
-    "adTitle": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Review Phim",
-    "sponsorName": "",
+    "adTitle": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Official",
+    "sponsorName": "Minh Hiếu Official",
     "showInMovie": true,
     "showInYouTube": true,
     "enablePreRoll": true,
@@ -20,7 +20,7 @@
   "watermarkSettings": {
     "enabled": true,
     "logoUrl": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj",
-    "targetUrl": "https://www.youtube.com/@minhhieureviewphim",
+    "targetUrl": "https://www.youtube.com/@MinhHieuOfficialvn",
     "position": "top-right",
     "opacity": 0.85,
     "size": "md"

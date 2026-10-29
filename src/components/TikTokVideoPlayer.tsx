@@ -600,6 +600,8 @@ export const TikTokVideoPlayer: React.FC<TikTokVideoPlayerProps> = ({
               src={embedIframeUrl}
               title={title}
               className="w-full h-full border-0"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
+              referrerPolicy="strict-origin-when-cross-origin"
               allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
               allowFullScreen
             />
@@ -828,6 +830,8 @@ export const TikTokVideoPlayer: React.FC<TikTokVideoPlayerProps> = ({
               src={embedIframeUrl}
               title={title}
               className="absolute inset-0 w-full h-full border-0 z-10"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
+              referrerPolicy="strict-origin-when-cross-origin"
               allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
               allowFullScreen
             />

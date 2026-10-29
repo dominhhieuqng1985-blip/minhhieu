@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Shield,
   ShieldCheck,
-  ShieldAlert,
   Lock,
   User,
   KeyRound,
@@ -13,13 +11,15 @@ import {
   AlertCircle,
   LogOut,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Database,
 } from 'lucide-react';
 import {
   authenticateAdmin,
   isAdminAuthenticated,
+  getAdminSessionInfo,
   adminLogout,
-  changeAdminPassword
+  changeAdminPassword,
 } from '../utils/adminAuth';
 
 interface AdminAuthModalProps {
@@ -35,9 +35,9 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  actionTitle = 'Khu Vực Cài Đặt & Cấu Hình Nhạy Cảm',
-  actionDescription = 'Thao tác này yêu cầu quyền Quản trị viên để bảo vệ hệ thống và nội dung trang web.',
-  onShowToast
+  actionTitle = 'Khu Vực Cài Đặt & Cơ Sở Dữ Liệu Bảo Mật',
+  actionDescription = 'Chỉ Quản trị viên (Admin) đã xác thực cơ sở dữ liệu mới được phép thao tác chức năng này.',
+  onShowToast,
 }) => {
   const [username, setUsername] = useState('minhhieuvnbt');
   const [password, setPassword] = useState('');
@@ -47,23 +47,34 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [sessionProfile, setSessionProfile] = useState(() => getAdminSessionInfo());
 
-  // Tab for change password
+  // Tab for changing credentials stored in PostgreSQL
   const [activeTab, setActiveTab] = useState<'login' | 'change_password'>('login');
+  const [newUsername, setNewUsername] = useState('');
+  const [newDisplayName, setNewDisplayName] = useState('');
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
-  const [changeMsg, setChangeMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [changeMsg, setChangeMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null
+  );
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
+      const info = getAdminSessionInfo();
       setIsLoggedIn(isAdminAuthenticated());
+      setSessionProfile(info);
+      if (info.username) {
+        setUsername(info.username);
+        setNewUsername(info.username);
+        setNewDisplayName(info.displayName || info.username);
+      }
       setErrorMessage(null);
       setChangeMsg(null);
       setPassword('');
-      // Focus password input if opened
       setTimeout(() => {
         passwordInputRef.current?.focus();
       }, 100);
@@ -80,9 +91,11 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
     try {
       const result = await authenticateAdmin(username, password, rememberMe);
       if (result.success) {
+        const info = getAdminSessionInfo();
         setIsLoggedIn(true);
+        setSessionProfile(info);
         if (onShowToast) {
-          onShowToast('🔓 Đã xác thực Quản trị viên thành công!');
+          onShowToast('🔓 Đã xác thực Quản trị viên từ Neon PostgreSQL thành công!');
         }
         onClose();
         if (onSuccess) {
@@ -100,12 +113,16 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
     }
   };
 
-  const handleLogout = () => {
-    adminLogout();
+  const handleLogout = (allDevices = false) => {
+    adminLogout(allDevices);
     setIsLoggedIn(false);
     setPassword('');
     if (onShowToast) {
-      onShowToast('🔒 Đã khóa lại toàn bộ các khu vực cài đặt!');
+      onShowToast(
+        allDevices
+          ? '🔒 Đã hủy mọi phiên đăng nhập trên tất cả thiết bị và khóa cài đặt!'
+          : '🔒 Đã khóa lại toàn bộ các khu vực cài đặt!'
+      );
     }
   };
 
@@ -120,14 +137,16 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const res = await changeAdminPassword(currentPass, newPass);
+      const res = await changeAdminPassword(currentPass, newPass, newUsername, newDisplayName);
       if (res.success) {
         setChangeMsg({ type: 'success', text: res.message });
         setCurrentPass('');
         setNewPass('');
         setConfirmPass('');
+        const updatedInfo = getAdminSessionInfo();
+        setSessionProfile(updatedInfo);
         if (onShowToast) {
-          onShowToast('✅ Đã cập nhật mật khẩu Quản trị viên!');
+          onShowToast('✅ Đã lưu mật khẩu & tài khoản Admin vào Neon PostgreSQL!');
         }
       } else {
         setChangeMsg({ type: 'error', text: res.message });
@@ -155,11 +174,14 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-extrabold text-white">Xác Thực Quản Trị</h3>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Admin
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                  <Database className="w-2.5 h-2.5" />
+                  <span>PostgreSQL</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">Bảo vệ cấu hình &amp; khu vực nhạy cảm</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Chỉ Admin mới thao tác được cài đặt &amp; bảng dữ liệu
+              </p>
             </div>
           </div>
           <button
@@ -201,14 +223,13 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                   : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
             >
-              Đổi Mật Khẩu
+              Đổi Tài Khoản &amp; Mật Khẩu
             </button>
           </div>
         )}
 
         {/* Form Body */}
         <div className="p-6 overflow-y-auto space-y-4">
-          {/* Error Message */}
           {errorMessage && (
             <div className="p-3.5 rounded-2xl bg-red-500/15 border border-red-500/30 text-xs text-red-300 flex items-center gap-2.5 animate-in fade-in">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
@@ -216,14 +237,21 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
             </div>
           )}
 
-          {/* Already logged in view */}
           {isLoggedIn && activeTab === 'login' ? (
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                 <div className="text-xs">
-                  <p className="font-bold text-emerald-300">Đã đăng nhập Quản trị viên</p>
-                  <p className="text-slate-400 mt-0.5">Tài khoản: <strong className="text-white">minhhieuvnbt</strong> (Toàn quyền quản trị)</p>
+                  <p className="font-bold text-emerald-300">
+                    Đã xác thực Quản trị viên (Neon PostgreSQL)
+                  </p>
+                  <p className="text-slate-400 mt-0.5">
+                    Tài khoản:{' '}
+                    <strong className="text-white">
+                      {sessionProfile.username || 'minhhieuvnbt'}
+                    </strong>{' '}
+                    ({sessionProfile.displayName || 'Toàn quyền quản trị'})
+                  </p>
                 </div>
               </div>
 
@@ -237,7 +265,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                   className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-transform active:scale-98"
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>Tiếp Tục Mở Cài Đặt</span>
+                  <span>Tiếp Tục Mở Cài Đặt Quản Trị</span>
                 </button>
 
                 <div className="flex items-center gap-2">
@@ -247,12 +275,12 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                     className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-2xl text-xs flex items-center justify-center gap-2 border border-slate-700 transition-colors"
                   >
                     <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Đổi Mật Khẩu</span>
+                    <span>Đổi Mật Khẩu DB</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={() => handleLogout(false)}
                     className="py-2.5 px-4 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-semibold rounded-2xl text-xs flex items-center justify-center gap-2 transition-colors"
                     title="Khóa lại toàn bộ cài đặt"
                   >
@@ -260,11 +288,18 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                     <span>Đăng Xuất</span>
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleLogout(true)}
+                  className="w-full py-2 text-[11px] font-medium text-slate-400 hover:text-rose-300 transition-colors"
+                >
+                  Đăng xuất &amp; thu hồi phiên trên tất cả thiết bị khác
+                </button>
               </div>
             </div>
           ) : activeTab === 'change_password' ? (
-            /* Change Password Form */
-            <form onSubmit={handleChangePassword} className="space-y-3.5">
+            <form onSubmit={handleChangePassword} className="space-y-3">
               {changeMsg && (
                 <div
                   className={`p-3 rounded-2xl text-xs flex items-center gap-2 ${
@@ -282,23 +317,50 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                 </div>
               )}
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Tên đăng nhập Admin
+                  </label>
+                  <input
+                    type="text"
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
+                    placeholder="minhhieuvnbt"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Tên hiển thị
+                  </label>
+                  <input
+                    type="text"
+                    value={newDisplayName}
+                    onChange={(e) => setNewDisplayName(e.target.value)}
+                    placeholder="Quản Trị Viên"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Mật khẩu hiện tại
                 </label>
                 <input
                   type="password"
                   value={currentPass}
                   onChange={(e) => setCurrentPass(e.target.value)}
-                  placeholder="Nhập mật khẩu đang dùng"
+                  placeholder="Nhập mật khẩu đang lưu trong DB"
                   required
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Mật khẩu mới
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Mật khẩu mới (Mã hóa Scrypt lưu PostgreSQL)
                 </label>
                 <input
                   type="password"
@@ -311,7 +373,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Xác nhận mật khẩu mới
                 </label>
                 <input
@@ -331,7 +393,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                   className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   <KeyRound className="w-3.5 h-3.5" />
-                  <span>{isSubmitting ? 'Đang cập nhật...' : 'Cập Nhật Mật Khẩu'}</span>
+                  <span>{isSubmitting ? 'Đang lưu vào PostgreSQL...' : 'Lưu Vào PostgreSQL'}</span>
                 </button>
 
                 <button
@@ -344,7 +406,6 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
               </div>
             </form>
           ) : (
-            /* Standard Login Form */
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
@@ -361,17 +422,17 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                     placeholder="minhhieuvnbt"
                     required
                     autoComplete="username"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 transition-colors font-mono"
                   />
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-slate-300">
-                    Mật khẩu bảo vệ
-                  </label>
-                  <span className="text-[11px] text-slate-500">Mã hóa SHA-256</span>
+                  <label className="text-xs font-semibold text-slate-300">Mật khẩu bảo vệ</label>
+                  <span className="text-[11px] text-emerald-400 font-medium">
+                    Xác thực Neon DB (Scrypt)
+                  </span>
                 </div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
@@ -406,7 +467,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-0 focus:ring-offset-0"
                   />
-                  <span>Duy trì đăng nhập trên máy này</span>
+                  <span>Lưu phiên bảo mật 30 ngày trên máy này</span>
                 </label>
               </div>
 
@@ -419,12 +480,12 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                   {isSubmitting ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Đang kiểm tra bảo mật...</span>
+                      <span>Đang xác thực trên PostgreSQL...</span>
                     </>
                   ) : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      <span>Xác Nhận &amp; Mở Cài Đặt</span>
+                      <span>Xác Nhận &amp; Mở Cài Đặt Admin</span>
                     </>
                   )}
                 </button>
@@ -437,7 +498,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
         <div className="p-4 bg-slate-950/80 border-t border-slate-800/80 text-[11px] text-slate-500 flex items-center justify-between">
           <span className="flex items-center gap-1.5">
             <Lock className="w-3 h-3 text-emerald-400" />
-            <span>Mã hóa bảo vệ cấp cao</span>
+            <span>Neon PostgreSQL • Scrypt &amp; SHA-256</span>
           </span>
           <span>© Minh Hiếu TuBe</span>
         </div>

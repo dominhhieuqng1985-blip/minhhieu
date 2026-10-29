@@ -54,6 +54,7 @@ import { GithubSyncModal } from './components/GithubSyncModal';
 import { ChannelSettingsModal } from './components/ChannelSettingsModal';
 import { AdSettingsModal } from './components/AdSettingsModal';
 import { VidKrakenDownloader } from './components/VidKrakenDownloader';
+import { NeonDatabaseModal } from './components/NeonDatabaseModal';
 import { GlobalYouTubeSearchModal } from './components/GlobalYouTubeSearchModal';
 import { TextToSpeechStudio } from './components/TextToSpeechStudio';
 import { TikTokDownloaderStudio } from './components/TikTokDownloaderStudio';
@@ -78,6 +79,10 @@ import { formatSeconds } from './utils/youtube';
 import {
   checkUrlConfigParam,
   fetchRemoteAdSettings,
+  fetchPublicSystemSettingsFromDb,
+  saveGeneralSettingsToDb,
+  normalizeAdSettings,
+  DEFAULT_WATERMARK_SETTINGS,
   AdSettings,
   WatermarkSettings,
   getStoredAdSettings,
@@ -164,12 +169,12 @@ function AppContent() {
     youtubeUrl: string;
     subscribeUrl: string;
   }>({
-    name: 'Minh Hiếu review phim',
-    handle: '@minhhieureviewphim',
+    name: 'Minh Hiếu Official',
+    handle: '@MinhHieuOfficialvn',
     avatar: 'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj',
-    subscribers: 'Kênh YouTube',
-    youtubeUrl: 'https://www.youtube.com/@minhhieureviewphim',
-    subscribeUrl: 'https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1',
+    subscribers: 'Kênh YouTube Chính Thức',
+    youtubeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn',
+    subscribeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1',
   });
 
   // Loaded Content Categorized: Videos, Podcasts, Playlists
@@ -210,13 +215,98 @@ function AppContent() {
   const [isScanningDeleted, setIsScanningDeleted] = useState<boolean>(false);
   const [isChannelSettingsModalOpen, setIsChannelSettingsModalOpen] = useState<boolean>(false);
   const [isAdSettingsModalOpen, setIsAdSettingsModalOpen] = useState<boolean>(false);
+  const [isNeonModalOpen, setIsNeonModalOpen] = useState<boolean>(false);
   const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
   const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>(getStoredWatermarkSettings);
 
-  // Cross-device ad settings initialization
+  // Cross-device settings & video library hydration from Neon PostgreSQL
   useEffect(() => {
     checkUrlConfigParam();
-    fetchRemoteAdSettings();
+    fetchRemoteAdSettings().then((remote) => {
+      if (remote?.adSettings) setAdSettings(remote.adSettings);
+      if (remote?.watermarkSettings) setWatermarkSettings(remote.watermarkSettings);
+    });
+
+    fetchPublicSystemSettingsFromDb().then((dbData) => {
+      if (!dbData) return;
+
+      const s = dbData.settings || {};
+      if (s.ad_settings) {
+        const normalized = normalizeAdSettings(s.ad_settings);
+        setAdSettings(normalized);
+        saveStoredAdSettings(normalized);
+      }
+      if (s.watermark_settings) {
+        const mergedWm = { ...DEFAULT_WATERMARK_SETTINGS, ...s.watermark_settings };
+        setWatermarkSettings(mergedWm);
+        saveStoredWatermarkSettings(mergedWm);
+      }
+      if (s.channel_profile && typeof s.channel_profile === 'object' && s.channel_profile.name) {
+        setChannelInfo((prev) => ({ ...prev, ...s.channel_profile }));
+      }
+      if (s.playback_preferences && typeof s.playback_preferences.autoplayNext === 'boolean') {
+        setIsAutoplayNext(s.playback_preferences.autoplayNext);
+      }
+
+      // Sync deleted video blacklist from Neon PostgreSQL
+      const remoteDeleted = Array.isArray(dbData.deletedVideoIds) ? dbData.deletedVideoIds : [];
+      if (remoteDeleted.length > 0) {
+        try {
+          const localDelRaw = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
+          const localDel: string[] = localDelRaw ? JSON.parse(localDelRaw) : [];
+          const mergedDel = Array.from(new Set([...localDel, ...remoteDeleted]));
+          localStorage.setItem(STORAGE_KEY_DELETED_VIDEOS, JSON.stringify(mergedDel));
+          const delSet = new Set(mergedDel);
+          setChannelVideos((prev) => prev.filter((v) => !delSet.has(v.youtubeId) && !delSet.has(v.id)));
+          setChannelPodcasts((prev) => prev.filter((v) => !delSet.has(v.youtubeId) && !delSet.has(v.id)));
+          setActiveQueue((prev) => prev.filter((v) => !delSet.has(v.youtubeId) && !delSet.has(v.id)));
+        } catch {}
+      }
+
+      // Sync custom Admin-added videos from Neon PostgreSQL
+      const remoteCustom = Array.isArray(dbData.customVideos) ? dbData.customVideos : [];
+      if (remoteCustom.length > 0) {
+        const delSet = getBlacklistedDeletedIds();
+        const validRemote: PodcastEpisode[] = remoteCustom
+          .filter((v: any) => v && v.youtubeId && !delSet.has(v.youtubeId))
+          .map((v: any) => ({
+            id: String(v.id || `pg-${v.youtubeId}`),
+            youtubeId: String(v.youtubeId),
+            title: String(v.title || 'Video'),
+            channel: String(v.channel || 'Minh Hiếu TuBe'),
+            category: (v.category || 'phat-trien-ban-than') as PodcastEpisode['category'],
+            duration: String(v.duration || '03:00'),
+            durationSeconds: v.isShort ? 60 : 210,
+            thumbnail: String(v.thumbnail || `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`),
+            description: String(v.description || ''),
+            publishedDate: String(v.publishedDate || 'Đồng bộ PostgreSQL'),
+            isShort: Boolean(v.isShort),
+            seriesTitle: v.seriesTitle || undefined,
+            tiktokDirectUrl: v.tiktokDirectUrl || undefined,
+            sourcePlatform: v.sourcePlatform || undefined,
+          }));
+
+        if (validRemote.length > 0) {
+          try {
+            const localSavedRaw = localStorage.getItem('casttube_user_saved_videos');
+            const localSaved: PodcastEpisode[] = localSavedRaw ? JSON.parse(localSavedRaw) : [];
+            const seenIds = new Set<string>();
+            const mergedSaved = [...validRemote, ...localSaved].filter((item) => {
+              if (!item?.youtubeId || seenIds.has(item.youtubeId) || delSet.has(item.youtubeId)) return false;
+              seenIds.add(item.youtubeId);
+              return true;
+            });
+            localStorage.setItem('casttube_user_saved_videos', JSON.stringify(mergedSaved.slice(0, 60)));
+          } catch {}
+
+          setChannelVideos((prev) => {
+            const existing = new Set(prev.map((p) => p.youtubeId));
+            const brandNew = validRemote.filter((rv) => !existing.has(rv.youtubeId));
+            return brandNew.length > 0 ? [...brandNew, ...prev] : prev;
+          });
+        }
+      }
+    });
   }, []);
 
   // Auto filter out any videos marked as deleted/removed on YouTube
@@ -248,15 +338,15 @@ function AppContent() {
   }, []);
 
   // Top URL input for instant channel/playlist loading
-  const [urlInput, setUrlInput] = useState<string>('https://www.youtube.com/@minhhieureviewphim');
+  const [urlInput, setUrlInput] = useState<string>('https://www.youtube.com/@MinhHieuOfficialvn');
 
   // Subscriptions & Favorites & Notes
   const [subscribedChannels, setSubscribedChannels] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_SUBS);
-      return saved ? JSON.parse(saved) : ['Minh Hiếu review phim'];
+      return saved ? JSON.parse(saved) : ['Minh Hiếu Official'];
     } catch {
-      return ['Minh Hiếu review phim'];
+      return ['Minh Hiếu Official'];
     }
   });
 
@@ -404,12 +494,20 @@ function AppContent() {
       shorts: prev.shorts + (newEp.isShort ? 1 : 0),
     }));
 
+    if (isAdmin) {
+      try {
+        const stored = localStorage.getItem('casttube_user_saved_videos');
+        const customList: PodcastEpisode[] = stored ? JSON.parse(stored) : [newEp];
+        saveGeneralSettingsToDb({ customVideos: customList }).catch(() => {});
+      } catch {}
+    }
+
     showToast(`🎉 Đã thêm & phát ngay: "${newEp.title}"!`);
   };
 
   // AUTOMATIC INITIAL FETCH ON STARTUP:
-  // Automatically loads all videos, shorts, podcasts, and playlists of @minhhieureviewphim (and supports TikTok video URLs!)
-  const fetchFullChannelData = async (targetUrl = 'https://www.youtube.com/@minhhieureviewphim') => {
+  // Automatically loads all videos, shorts, podcasts, and playlists of @MinhHieuOfficialvn (and supports TikTok video URLs!)
+  const fetchFullChannelData = async (targetUrl = 'https://www.youtube.com/@MinhHieuOfficialvn') => {
     const trimmedUrl = targetUrl.trim();
     if (!trimmedUrl) return;
 
@@ -566,7 +664,7 @@ function AppContent() {
         const apiBase = getApiBaseUrl();
         if (apiBase) {
           const res = await fetch(
-            `${apiBase}podcast/check-updates?url=https://www.youtube.com/@minhhieureviewphim&_nocache=${Date.now()}`
+            `${apiBase}podcast/check-updates?url=https://www.youtube.com/@MinhHieuOfficialvn&_nocache=${Date.now()}`
           );
           const contentType = res.headers.get('content-type') || '';
           if (res.ok && !contentType.includes('text/html')) {
@@ -815,7 +913,7 @@ function AppContent() {
 
   // Initial fetch on mount + background check for removed YouTube videos
   useEffect(() => {
-    fetchFullChannelData('https://www.youtube.com/@minhhieureviewphim');
+    fetchFullChannelData('https://www.youtube.com/@MinhHieuOfficialvn');
     const scanTimer = setTimeout(() => {
       handleScanDeletedVideos();
     }, 3500);
@@ -1062,6 +1160,9 @@ function AppContent() {
           (v) => v.youtubeId !== resolvedYId && v.youtubeId !== rawYId && v.id !== targetId
         );
         localStorage.setItem('casttube_user_saved_videos', JSON.stringify(cleaned));
+      }
+      if (isAdmin) {
+        saveGeneralSettingsToDb({ deletedVideoIds: list }).catch(() => {});
       }
     } catch {}
 
@@ -2098,15 +2199,33 @@ function AppContent() {
         channelPodcasts={channelPodcasts}
       />
 
-      {/* Consolidated Channel Settings & Utilities Modal */}
+      {/* Consolidated Channel Settings & Utilities Modal (Admin-Only Protected) */}
       <ChannelSettingsModal
         isOpen={isChannelSettingsModalOpen}
         onClose={() => setIsChannelSettingsModalOpen(false)}
-        onOpenAddVideo={() => setIsAddVideoModalOpen(true)}
-        onCheckUpdates={() => checkForNewVideos(true)}
+        onOpenAddVideo={() =>
+          requireAdmin(
+            () => setIsAddVideoModalOpen(true),
+            'Thêm Video Mới Vào Kênh',
+            'Chỉ Admin mới được thêm và lưu trữ video mới vào hệ thống.'
+          )
+        }
+        onCheckUpdates={() =>
+          requireAdmin(
+            () => checkForNewVideos(true),
+            'Kiểm Tra & Đồng Bộ Video Mới',
+            'Chỉ Admin mới được phép kích hoạt đồng bộ dữ liệu kênh.'
+          )
+        }
         isCheckingUpdates={isCheckingUpdates}
         lastCheckedTime={lastCheckedTime}
-        onOpenGithubSync={() => setIsGithubSyncModalOpen(true)}
+        onOpenGithubSync={() =>
+          requireAdmin(
+            () => setIsGithubSyncModalOpen(true),
+            'Cấu Hình Đồng Bộ GitHub Actions',
+            'Chỉ Admin mới được xem và cấu hình đồng bộ GitHub Actions.'
+          )
+        }
         onScanDeletedVideos={() => {
           requireAdmin(
             handleScanDeletedVideos,
@@ -2115,13 +2234,41 @@ function AppContent() {
           );
         }}
         isScanningDeleted={isScanningDeleted}
-        onOpenAdSettings={() => setIsAdSettingsModalOpen(true)}
+        onOpenAdSettings={() =>
+          requireAdmin(
+            () => setIsAdSettingsModalOpen(true),
+            'Cài Đặt Quảng Cáo & Logo',
+            'Chỉ Admin mới được phép chỉnh sửa cài đặt quảng cáo và logo.'
+          )
+        }
+        onOpenNeonManager={() =>
+          requireAdmin(
+            () => setIsNeonModalOpen(true),
+            'Quản Trị Cơ Sở Dữ Liệu Neon PostgreSQL',
+            'Chỉ Admin mới được phép truy cập bảng dữ liệu và tài khoản trong PostgreSQL.'
+          )
+        }
         isAutoplayNext={isAutoplayNext}
         onToggleAutoplay={() => {
-          const next = !isAutoplayNext;
-          setIsAutoplayNext(next);
-          showToast(next ? 'Đã BẬT tự động phát tập tiếp theo' : 'Đã TẮT tự động phát tập tiếp theo');
+          requireAdmin(
+            () => {
+              const next = !isAutoplayNext;
+              setIsAutoplayNext(next);
+              saveGeneralSettingsToDb({ playbackPreferences: { autoplayNext: next } }).catch(() => {});
+              showToast(next ? 'Đã BẬT tự động phát tập tiếp theo' : 'Đã TẮT tự động phát tập tiếp theo');
+            },
+            'Cài Đặt Tự Động Phát',
+            'Chỉ Admin mới được thay đổi cài đặt mặc định hệ thống.'
+          );
         }}
+        channelInfo={channelInfo}
+        onShowToast={showToast}
+      />
+
+      {/* Neon.tech Serverless PostgreSQL Database Manager */}
+      <NeonDatabaseModal
+        isOpen={isNeonModalOpen}
+        onClose={() => setIsNeonModalOpen(false)}
         onShowToast={showToast}
       />
 

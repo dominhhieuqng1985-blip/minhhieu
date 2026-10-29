@@ -756,7 +756,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
     setTimeout(() => setCopyFeedback(null), 3000);
   };
 
-  const channelUrl = episode.channelUrl || `https://www.youtube.com/@minhhieureviewphim`;
+  const channelUrl = episode.channelUrl || `https://www.youtube.com/@MinhHieuOfficialvn`;
   const officialYoutubeUrl = `https://www.youtube.com/watch?v=${episode.youtubeId}`;
   const officialShortsUrl = `https://www.youtube.com/shorts/${episode.youtubeId}`;
   const directTargetUrl = isShortView ? officialShortsUrl : officialYoutubeUrl;
@@ -1419,7 +1419,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
                 <span className="w-3.5 h-3.5 rounded-full bg-slate-600 text-[10px] text-white flex items-center justify-center">✓</span>
               </a>
               <p className="text-xs text-slate-400 truncate">
-                {episode.channelHandle || '@minhhieureviewphim'} · Kênh chính thức
+                {episode.channelHandle || '@MinhHieuOfficialvn'} · Kênh chính thức
               </p>
             </div>
 
