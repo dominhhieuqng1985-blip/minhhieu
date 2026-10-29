@@ -386,8 +386,17 @@ export const DEFAULT_PODCASTS: PodcastEpisode[] = [
 ];
 `;
 
+  
+  // Đảm bảo thư mục src/data tồn tại trước khi ghi file
+  fs.mkdirSync(path.dirname(dataPath), { recursive: true });
+
+  // Ghi dữ liệu video YouTube vào file TypeScript
   fs.writeFileSync(dataPath, tsFileContent, 'utf8');
-  console.log(`✅ Đã cập nhật thành công ${dataPath} với ${finalAllVideos.length} video thực tế của kênh!`);
+
+  console.log(
+    `✅ Đã cập nhật thành công ${dataPath} với ${finalAllVideos.length} video thực tế của kênh!`
+  );
+
 
   // Generate Podcast RSS XML feed for studo.xml
   const publicDir = path.resolve(__dirname, '../public');
