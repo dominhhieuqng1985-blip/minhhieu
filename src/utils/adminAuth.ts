@@ -223,6 +223,11 @@ export async function verifyAdminSessionRemote(): Promise<{
   };
 }
 
+function isStaticBackendFallbackAllowed(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.protocol === 'file:';
+}
+
 /**
  * Xác thực tài khoản & mật khẩu trực tiếp trên Neon PostgreSQL
  */
@@ -243,6 +248,7 @@ export async function authenticateAdmin(
     try {
       const resp = await fetch(`${apiBase}admin/login`, {
         method: 'POST',
+        mode: 'cors',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
           username: cleanUser,
@@ -251,8 +257,35 @@ export async function authenticateAdmin(
         }),
       });
 
-      const data = await resp.json();
-      if (!resp.ok || !data.success || !data.token) {
+      const rawText = await resp.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        data = null;
+      }
+
+      if (data && resp.ok && data.success && data.token) {
+        const expiryMs = data.expiresAt
+          ? new Date(data.expiresAt).getTime()
+          : Date.now() + (rememberMe ? 30 * 24 * 3600 * 1000 : 12 * 3600 * 1000);
+
+        const profile: AdminProfile = data.admin || {
+          username: cleanUser,
+          displayName: cleanUser,
+          role: 'super_admin',
+        };
+
+        saveLocalAdminSession(data.token, expiryMs, profile, rememberMe);
+
+        return {
+          success: true,
+          message: data.message || 'Xác thực Quản trị viên trên PostgreSQL thành công!',
+          admin: profile,
+        };
+      }
+
+      if (data && !data.success) {
         return {
           success: false,
           message:
@@ -262,28 +295,23 @@ export async function authenticateAdmin(
         };
       }
 
-      const expiryMs = data.expiresAt
-        ? new Date(data.expiresAt).getTime()
-        : Date.now() + (rememberMe ? 30 * 24 * 3600 * 1000 : 12 * 3600 * 1000);
-
-      const profile: AdminProfile = data.admin || {
-        username: cleanUser,
-        displayName: cleanUser,
-        role: 'super_admin',
-      };
-
-      saveLocalAdminSession(data.token, expiryMs, profile, rememberMe);
-
-      return {
-        success: true,
-        message: data.message || 'Xác thực Quản trị viên trên PostgreSQL thành công!',
-        admin: profile,
-      };
+      if (resp.status >= 502 && resp.status <= 504) {
+        return {
+          success: false,
+          message:
+            'Máy chủ Render đang khởi động lại (Cold Start ~15–20 giây). Vui lòng thử bấm đăng nhập lại sau vài giây!',
+        };
+      }
     } catch (err: any) {
-      return {
-        success: false,
-        message: err?.message || 'Không thể kết nối đến máy chủ cơ sở dữ liệu để xác thực!',
-      };
+      // Nếu máy chủ Render đang thức dậy (network timeout tạm thời), báo rõ cho Admin
+      if (!isStaticBackendFallbackAllowed()) {
+        return {
+          success: false,
+          message:
+            err?.message ||
+            'Không thể kết nối đến máy chủ xác thực. Vui lòng thử lại sau vài giây!',
+        };
+      }
     }
   }
 

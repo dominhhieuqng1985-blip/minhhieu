@@ -409,7 +409,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Tên đăng nhập Admin
+                  Tên đăng nhập hoặc Email Admin
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
@@ -419,7 +419,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="minhhieuvnbt"
+                    placeholder="minhhieuvnbt / admin / email"
                     required
                     autoComplete="username"
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 transition-colors font-mono"

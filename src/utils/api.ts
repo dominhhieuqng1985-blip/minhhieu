@@ -10,6 +10,8 @@ import {
 // Storage key for optional remote backend URL
 export const STORAGE_KEY_API_URL = 'casttube_custom_backend_url';
 
+const DEFAULT_PRODUCTION_RENDER_URL = 'https://minhhieu.onrender.com';
+
 /**
  * Get configured custom backend URL if user deployed server.ts to Render, Railway, etc.
  */
@@ -22,6 +24,11 @@ export function getCustomBackendUrl(): string | null {
   // Optional Vite env var: VITE_BACKEND_URL
   if (import.meta.env.VITE_BACKEND_URL) {
     return String(import.meta.env.VITE_BACKEND_URL).trim().replace(/\/$/, '');
+  }
+  // Automatic production routing for custom domain on GitHub Pages
+  const host = window.location.hostname.toLowerCase();
+  if (host.endsWith('vemaybaynhauyen.com') || host.endsWith('github.io')) {
+    return DEFAULT_PRODUCTION_RENDER_URL;
   }
   return null;
 }
@@ -44,6 +51,7 @@ export function setCustomBackendUrl(url: string | null): void {
 export const isStaticHost: boolean =
   typeof window !== 'undefined' &&
   (window.location.hostname.endsWith('github.io') ||
+    window.location.hostname.endsWith('vemaybaynhauyen.com') ||
     window.location.protocol === 'file:');
 
 /**
