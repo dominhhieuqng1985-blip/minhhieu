@@ -42,6 +42,76 @@ interface AdcashBannerProps {
   className?: string;
 }
 
+/**
+ * Universal safe script and HTML ad runner
+ * Properly executes <script> tags or pure JS snippets inside a dedicated container
+ */
+export const AdScriptRunner: React.FC<{
+  code: string;
+  className?: string;
+  width?: string | number;
+  height?: string | number;
+}> = ({ code, className = '', width = '100%', height = 'auto' }) => {
+  const mountRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = mountRef.current;
+    if (!container || !code || !code.trim()) return;
+
+    container.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ad-script-inner w-full h-full flex items-center justify-center';
+    container.appendChild(wrapper);
+
+    try {
+      const parser = new DOMParser();
+      const parsedDoc = parser.parseFromString(code, 'text/html');
+
+      // Append HTML non-script elements first
+      Array.from(parsedDoc.body.childNodes).forEach((node) => {
+        if (node.nodeName !== 'SCRIPT') {
+          wrapper.appendChild(node.cloneNode(true));
+        }
+      });
+
+      // Execute script tags by creating fresh script DOM elements
+      const scripts = parsedDoc.querySelectorAll('script');
+      if (scripts.length > 0) {
+        scripts.forEach((s) => {
+          const newScript = document.createElement('script');
+          Array.from(s.attributes).forEach((attr) => {
+            newScript.setAttribute(attr.name, attr.value);
+          });
+          newScript.text = s.textContent || '';
+          wrapper.appendChild(newScript);
+        });
+      } else {
+        // Plain JavaScript without script tag
+        const newScript = document.createElement('script');
+        newScript.text = code;
+        wrapper.appendChild(newScript);
+      }
+    } catch (e) {
+      console.warn('AdScriptRunner execution notice:', e);
+    }
+
+    return () => {
+      if (container) container.innerHTML = '';
+    };
+  }, [code]);
+
+  return (
+    <div
+      ref={mountRef}
+      style={{
+        width: typeof width === 'number' ? `${width}px` : width,
+        minHeight: typeof height === 'number' ? `${height}px` : height,
+      }}
+      className={`ad-script-container overflow-hidden ${className}`}
+    />
+  );
+};
+
 function ensureAdcashLibrary(): HTMLScriptElement | null {
   if (typeof document === 'undefined') return null;
   let scriptEl = document.getElementById('aclib') as HTMLScriptElement | null;
@@ -523,6 +593,39 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
 
   // Format: 300x250 Medium Rectangle
   if (format === '300x250') {
+    const hasCustom300 = Boolean(
+      adSettings.enableBanner300x250 !== false &&
+      adSettings.banner300x250Html &&
+      adSettings.banner300x250Html.trim()
+    );
+
+    // If random rotation is active, alternate between custom 300x250 script (70%) and Adcash/Sponsor (30%)
+    const showCustomThisTurn = hasCustom300 && (!adSettings.rotateVideoAds || Math.random() < 0.7);
+
+    if (showCustomThisTurn) {
+      return (
+        <div className={`w-full max-w-[300px] mx-auto flex flex-col items-center justify-start ${className}`}>
+          <div className="w-[300px] min-h-[250px] relative rounded-xl overflow-hidden bg-slate-950/80 border border-slate-800/90 shadow-lg flex flex-col items-center justify-between select-none group">
+            {/* Top Bar */}
+            <div className="w-full px-2.5 py-1.5 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-bold text-amber-400 shrink-0">Quảng cáo 300×250:</span>
+                <span className="text-slate-200 font-medium truncate max-w-[190px]">
+                  {advertiserName || 'Định Dạng Mới'}
+                </span>
+              </div>
+              <span className="text-[9px] text-slate-500 font-mono">HTML/JS</span>
+            </div>
+
+            {/* Injected Script Runner */}
+            <div className="w-[300px] h-[250px] flex items-center justify-center overflow-hidden bg-slate-900/50">
+              <AdScriptRunner code={adSettings.banner300x250Html!} width={300} height={250} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={`w-full max-w-[300px] mx-auto flex flex-col items-center justify-start ${className}`}>
         {/* Priority 1: Live Adcash Medium Rectangle 300x250 Container */}
@@ -826,6 +929,22 @@ export const AdcashVideoSlider: React.FC<AdcashVideoSliderProps> = ({
     }, 35000);
     return () => clearTimeout(hideTimer);
   }, [showFallbackSlider]);
+
+  const hasCustomSlider = Boolean(
+    adSettings.enabled &&
+    adSettings.enableVideoSlider !== false &&
+    adSettings.videoSliderHtml &&
+    adSettings.videoSliderHtml.trim()
+  );
+
+  // If user enabled custom MultiTag slider, inject the script so it handles floating video presentation
+  if (hasCustomSlider) {
+    return (
+      <div className="fixed bottom-3 right-3 z-40 pointer-events-auto">
+        <AdScriptRunner code={adSettings.videoSliderHtml!} />
+      </div>
+    );
+  }
 
   if (!showFallbackSlider || !adSettings.enabled || adSettings.enableBannerFallback === false) {
     return null;

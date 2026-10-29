@@ -8,7 +8,7 @@ import {
   Settings,
   Loader2,
 } from 'lucide-react';
-import { AdSettings } from '../types/adConfig';
+import { AdSettings, DEFAULT_VAST_30_TAG_URL } from '../types/adConfig';
 import { resolveAdvertiserName } from './AdcashBanner';
 import {
   ADCASH_INSTREAM_VAST_TAG_URL,
@@ -61,7 +61,7 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
   onOpenSettings,
   targetMediaTitle,
 }) => {
-  // Priority 1: VAST In-Stream Video (12358098) -> Fallback Priority 2: Default Ad (settings.videoUrl)
+  // Priority 1: VAST In-Stream Video (Rotated across VAST 3.0 & Adcash) -> Fallback: Default Ad
   const [adMode, setAdMode] = useState<'checking_vast' | 'vast' | 'default'>('checking_vast');
   const [vastAd, setVastAd] = useState<ParsedVastAd | null>(null);
 
@@ -80,7 +80,7 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
   const firedThirdQuartileRef = useRef<boolean>(false);
   const firedCompleteRef = useRef<boolean>(false);
 
-  // Step 1: Request VAST Tag (12358098) first; fallback to Default Ad if empty/unavailable
+  // Step 1: Request VAST Tag with random rotation & multi-tag fallback
   useEffect(() => {
     let cancelled = false;
 
@@ -94,38 +94,91 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
     setVastAd(null);
     setCanSkip(false);
 
-    fetchAndParseVastAd(ADCASH_INSTREAM_VAST_TAG_URL)
-      .then((parsed) => {
-        if (cancelled) return;
-        if (parsed && parsed.mediaUrl) {
-          const skipSec =
-            parsed.skipOffsetSeconds !== null
-              ? parsed.skipOffsetSeconds
-              : settings.skipDelaySeconds ?? 5;
-          setVastAd(parsed);
-          setSecondsRemaining(skipSec);
-          setCanSkip(skipSec <= 0);
-          setAdMode('vast');
-        } else {
-          // No VAST ad fill -> Fallback to Default Ad
-          const defaultSkip = settings.skipDelaySeconds ?? 5;
-          setSecondsRemaining(defaultSkip);
-          setCanSkip(defaultSkip <= 0);
-          setAdMode('default');
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
+    // If VAST disabled, jump straight to default ad
+    if (settings.enableVastAds === false) {
+      const defaultSkip = settings.skipDelaySeconds ?? 5;
+      setSecondsRemaining(defaultSkip);
+      setCanSkip(defaultSkip <= 0);
+      setAdMode('default');
+      return;
+    }
+
+    // Build VAST candidate tags
+    const userTag = settings.vastTagUrl?.trim();
+    let candidates: string[] = [
+      userTag || DEFAULT_VAST_30_TAG_URL,
+      DEFAULT_VAST_30_TAG_URL,
+      ADCASH_INSTREAM_VAST_TAG_URL,
+    ].filter(Boolean) as string[];
+
+    // Remove duplicates
+    candidates = Array.from(new Set(candidates));
+
+    // Rotate randomly between installed video ad sources if enabled
+    if (settings.rotateVideoAds !== false) {
+      // Fisher-Yates random shuffle
+      for (let i = candidates.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+      }
+
+      // 25% chance in random rotation to give direct channel sponsor ad spotlight
+      if (Math.random() < 0.25 && settings.videoUrl) {
         const defaultSkip = settings.skipDelaySeconds ?? 5;
         setSecondsRemaining(defaultSkip);
         setCanSkip(defaultSkip <= 0);
         setAdMode('default');
-      });
+        return;
+      }
+    }
+
+    // Sequential attempt through VAST candidates
+    (async () => {
+      let foundAd: ParsedVastAd | null = null;
+      for (const tagUrl of candidates) {
+        if (cancelled) return;
+        try {
+          const parsed = await fetchAndParseVastAd(tagUrl);
+          if (parsed && parsed.mediaUrl) {
+            foundAd = parsed;
+            break;
+          }
+        } catch {
+          // Continue to next candidate
+        }
+      }
+
+      if (cancelled) return;
+
+      if (foundAd && foundAd.mediaUrl) {
+        const skipSec =
+          foundAd.skipOffsetSeconds !== null
+            ? foundAd.skipOffsetSeconds
+            : settings.skipDelaySeconds ?? 5;
+        setVastAd(foundAd);
+        setSecondsRemaining(skipSec);
+        setCanSkip(skipSec <= 0);
+        setAdMode('vast');
+      } else {
+        // Fallback to Default Ad
+        const defaultSkip = settings.skipDelaySeconds ?? 5;
+        setSecondsRemaining(defaultSkip);
+        setCanSkip(defaultSkip <= 0);
+        setAdMode('default');
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [targetMediaTitle, settings.videoUrl, settings.skipDelaySeconds]);
+  }, [
+    targetMediaTitle,
+    settings.videoUrl,
+    settings.vastTagUrl,
+    settings.enableVastAds,
+    settings.rotateVideoAds,
+    settings.skipDelaySeconds,
+  ]);
 
   const fallbackToDefaultAd = () => {
     if (vastAd?.errorUrls?.length) {

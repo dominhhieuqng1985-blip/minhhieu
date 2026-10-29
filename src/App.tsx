@@ -2152,9 +2152,10 @@ function AppContent() {
           )}
         </section>
 
-        {/* Adcash Large Rectangle 336x280 (Zone 12358782) */}
-        <div className="py-6 border-t border-slate-800/80 flex justify-center">
+        {/* Banner 336x280 & 300x250 Định Dạng Mới */}
+        <div className="py-6 border-t border-slate-800/80 flex flex-wrap items-center justify-center gap-4">
           <AdcashBanner zoneId="12358782" format="336x280" />
+          <AdcashBanner zoneId="12358790" format="300x250" />
         </div>
         </div>
         )}

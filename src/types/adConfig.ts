@@ -1,6 +1,38 @@
 import { getAdminAuthHeaders } from '../utils/adminAuth';
 import { getApiBaseUrl, hasBackend, isStaticHost } from '../utils/api';
 
+export const DEFAULT_VAST_30_TAG_URL =
+  'https://troubled-entertainment.com/d/mOF.zdd/GlN/vDZuGNUc/deLmd9LucZ/UWlFkiPVTncc1dNxjAQf3UMWDgEGt/NlzrUN2sNoDjcvwBNVQE';
+
+export const ADCASH_INSTREAM_VAST_TAG_URL =
+  'https://youradexchange.com/video/select.php?r=12358098';
+
+export const DEFAULT_BANNER_300X250_SCRIPT = `<script>
+(function(petdp){
+var d = document,
+s = d.createElement('script'),
+l = d.currentScript || d.scripts[d.scripts.length - 1];
+s.settings = petdp || {};
+s.src = "\\/\\/fond-appointment.com\\/bYX-VAsLd.GklL0yY\\/Wjc-\\/Je\\/mh9-uiZ\\/UnlrkyPzTcc\\/1tNnjmQL3zMTDVkStgNUzfUd2yNhDrcfxOMqwd";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})
+</script>`;
+
+export const DEFAULT_VIDEO_SLIDER_SCRIPT = `<script>
+(function(alsq){
+var d = document,
+s = d.createElement('script'),
+l = d.currentScript || d.scripts[d.scripts.length - 1];
+s.settings = alsq || {};
+s.src = "\\/\\/fond-appointment.com\\/bOXGV.sodGGQlo0\\/YwW\\/cb\\/WeOmH9sumZ\\/U\\/lKk\\/PzTRcx1INRj\\/Q\\/3VMWjJUNtANdzWUb2TNBDCc_ywOkQG";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})
+</script>`;
+
 export interface AdSettings {
   enabled: boolean;
   videoUrl: string;
@@ -19,6 +51,17 @@ export interface AdSettings {
   enableBannerFallback?: boolean;
   bannerImageUrl?: string;
   sponsorName?: string;
+  // Rich Ad Formats: In-Stream VAST 3.0, 300x250 Banner, MultiTag Video Slider, Custom HTML/JS
+  vastTagUrl?: string;
+  enableVastAds?: boolean;
+  rotateVideoAds?: boolean; // Luân phiên ngẫu nhiên giữa các quảng cáo video đã cài sẵn
+  banner300x250Html?: string;
+  enableBanner300x250?: boolean;
+  videoSliderHtml?: string;
+  enableVideoSlider?: boolean;
+  customAdCodeType?: 'vast' | 'html' | 'js';
+  customHtmlJsCode?: string;
+  enableCustomHtmlJs?: boolean;
 }
 
 export interface WatermarkSettings {
@@ -47,6 +90,17 @@ export const DEFAULT_AD_SETTINGS: AdSettings = {
   preAdNoticeSeconds: 5,
   enableBannerFallback: true,
   bannerImageUrl: '',
+  // Rich ad formats defaults
+  vastTagUrl: DEFAULT_VAST_30_TAG_URL,
+  enableVastAds: true,
+  rotateVideoAds: true,
+  banner300x250Html: DEFAULT_BANNER_300X250_SCRIPT,
+  enableBanner300x250: true,
+  videoSliderHtml: DEFAULT_VIDEO_SLIDER_SCRIPT,
+  enableVideoSlider: true,
+  customAdCodeType: 'vast',
+  customHtmlJsCode: '',
+  enableCustomHtmlJs: true,
 };
 
 export function normalizeAdSettings(raw?: Partial<AdSettings> | Record<string, unknown> | null): AdSettings {
@@ -55,6 +109,21 @@ export function normalizeAdSettings(raw?: Partial<AdSettings> | Record<string, u
 
   const rawVideoUrl = typeof merged.videoUrl === 'string' ? merged.videoUrl : '';
   const isObsoleteSample = !rawVideoUrl.trim() || rawVideoUrl.includes('ForBiggerBlazes');
+
+  const rawVastUrl =
+    typeof merged.vastTagUrl === 'string' && merged.vastTagUrl.trim()
+      ? merged.vastTagUrl.trim()
+      : DEFAULT_AD_SETTINGS.vastTagUrl || DEFAULT_VAST_30_TAG_URL;
+
+  const rawBanner300 =
+    typeof merged.banner300x250Html === 'string' && merged.banner300x250Html.trim()
+      ? merged.banner300x250Html
+      : DEFAULT_BANNER_300X250_SCRIPT;
+
+  const rawSlider =
+    typeof merged.videoSliderHtml === 'string' && merged.videoSliderHtml.trim()
+      ? merged.videoSliderHtml
+      : DEFAULT_VIDEO_SLIDER_SCRIPT;
 
   return {
     enabled: typeof merged.enabled === 'boolean' ? merged.enabled : DEFAULT_AD_SETTINGS.enabled,
@@ -104,6 +173,33 @@ export function normalizeAdSettings(raw?: Partial<AdSettings> | Record<string, u
         ? merged.enableBannerFallback
         : DEFAULT_AD_SETTINGS.enableBannerFallback,
     bannerImageUrl: typeof merged.bannerImageUrl === 'string' ? merged.bannerImageUrl : '',
+    // Rich ad formats
+    vastTagUrl: rawVastUrl,
+    enableVastAds:
+      typeof merged.enableVastAds === 'boolean' ? merged.enableVastAds : DEFAULT_AD_SETTINGS.enableVastAds,
+    rotateVideoAds:
+      typeof merged.rotateVideoAds === 'boolean'
+        ? merged.rotateVideoAds
+        : DEFAULT_AD_SETTINGS.rotateVideoAds,
+    banner300x250Html: rawBanner300,
+    enableBanner300x250:
+      typeof merged.enableBanner300x250 === 'boolean'
+        ? merged.enableBanner300x250
+        : DEFAULT_AD_SETTINGS.enableBanner300x250,
+    videoSliderHtml: rawSlider,
+    enableVideoSlider:
+      typeof merged.enableVideoSlider === 'boolean'
+        ? merged.enableVideoSlider
+        : DEFAULT_AD_SETTINGS.enableVideoSlider,
+    customAdCodeType:
+      merged.customAdCodeType === 'html' || merged.customAdCodeType === 'js' || merged.customAdCodeType === 'vast'
+        ? merged.customAdCodeType
+        : 'vast',
+    customHtmlJsCode: typeof merged.customHtmlJsCode === 'string' ? merged.customHtmlJsCode : '',
+    enableCustomHtmlJs:
+      typeof merged.enableCustomHtmlJs === 'boolean'
+        ? merged.enableCustomHtmlJs
+        : DEFAULT_AD_SETTINGS.enableCustomHtmlJs,
   };
 }
 

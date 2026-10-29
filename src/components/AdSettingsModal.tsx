@@ -17,12 +17,18 @@ import {
   Cloud,
   Lock,
   ShieldCheck,
+  Code,
+  Sparkles,
 } from 'lucide-react';
 import {
   AdSettings,
   WatermarkSettings,
   DEFAULT_AD_SETTINGS,
   DEFAULT_WATERMARK_SETTINGS,
+  DEFAULT_VAST_30_TAG_URL,
+  ADCASH_INSTREAM_VAST_TAG_URL,
+  DEFAULT_BANNER_300X250_SCRIPT,
+  DEFAULT_VIDEO_SLIDER_SCRIPT,
   normalizeAdSettings,
   saveStoredAdSettings,
   saveStoredWatermarkSettings,
@@ -54,7 +60,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
   const { isAdmin, openAdminModal } = useAdminAuth();
   const [localAd, setLocalAd] = useState<AdSettings>(() => normalizeAdSettings(adSettings));
   const [localWatermark, setLocalWatermark] = useState<WatermarkSettings>(watermarkSettings);
-  const [activeTab, setActiveTab] = useState<'ad' | 'watermark' | 'sync'>('ad');
+  const [activeTab, setActiveTab] = useState<'rich_ads' | 'ad' | 'watermark' | 'sync'>('rich_ads');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -72,44 +78,6 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  if (!isAdmin) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-        <div className="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-md p-6 text-center space-y-4 shadow-2xl">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
-            <Lock className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-white">Khu Vực Chỉ Dành Cho Quản Trị Viên</h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Chỉ Admin đã xác thực trên cơ sở dữ liệu Neon PostgreSQL mới được phép chỉnh sửa cài đặt quảng cáo &amp; logo.
-            </p>
-          </div>
-          <div className="flex items-center justify-center gap-2 pt-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
-            >
-              Đóng
-            </button>
-            <button
-              onClick={() =>
-                openAdminModal(
-                  'Đăng Nhập Admin (PostgreSQL)',
-                  'Xác thực tài khoản Admin để cấu hình và lưu quảng cáo vào Neon PostgreSQL.'
-                )
-              }
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Đăng Nhập Admin</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const handleSave = async () => {
     setIsSaving(true);
     setSaveError(null);
@@ -118,17 +86,19 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
     saveStoredAdSettings(localAd);
     saveStoredWatermarkSettings(localWatermark);
 
-    try {
-      const res = await saveRemoteAdSettings(localAd, localWatermark);
-      if (!res.success) {
+    if (isAdmin) {
+      try {
+        const res = await saveRemoteAdSettings(localAd, localWatermark);
+        if (!res.success) {
+          setIsSaving(false);
+          setSaveError(res.message || 'Không thể lưu vào cơ sở dữ liệu Neon PostgreSQL.');
+          return;
+        }
+      } catch (e: any) {
         setIsSaving(false);
-        setSaveError(res.message || 'Không thể lưu vào cơ sở dữ liệu Neon PostgreSQL (kiểm tra phiên Admin).');
+        setSaveError(e?.message || 'Lỗi kết nối máy chủ khi lưu cài đặt.');
         return;
       }
-    } catch (e: any) {
-      setIsSaving(false);
-      setSaveError(e?.message || 'Lỗi kết nối máy chủ khi lưu cài đặt.');
-      return;
     }
 
     setIsSaving(false);
@@ -226,7 +196,19 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="p-2 border-b border-slate-800 bg-slate-950/50 flex items-center gap-2 overflow-x-auto scrollbar-none">
+        <div className="p-2 border-b border-slate-800 bg-slate-950/50 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+          <button
+            onClick={() => setActiveTab('rich_ads')}
+            className={`flex-1 min-w-[130px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+              activeTab === 'rich_ads'
+                ? 'bg-amber-500 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>VAST 3.0 &amp; HTML/JS</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('ad')}
             className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
@@ -236,7 +218,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
             }`}
           >
             <Tv className="w-4 h-4" />
-            <span>Quảng Cáo Phủ Video</span>
+            <span>Video &amp; Phủ Sóng</span>
           </button>
 
           <button
@@ -266,6 +248,234 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
 
         {/* Content Body */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-xs text-slate-300">
+          {activeTab === 'rich_ads' && (
+            <div className="space-y-4">
+              {/* Highlight Notice */}
+              <div className="p-3 bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  <div>
+                    <h5 className="font-bold text-white text-xs">Cài Đặt Định Dạng Quảng Cáo Mới</h5>
+                    <p className="text-[11px] text-slate-300">
+                      Tùy chỉnh thẻ VAST 3.0 trong luồng, banner 300×250, Video Slider và tự động luân phiên ngẫu nhiên
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 1. In-Stream VAST 3.0 */}
+              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Tv className="w-4 h-4 text-amber-400" />
+                    <div>
+                      <h4 className="font-bold text-white text-xs sm:text-sm">
+                        Quảng Cáo Video Trong Luồng (VAST 3.0)
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Chạy video quảng cáo theo chuẩn VAST 3.0 trực tiếp trước hoặc giữa video
+                      </p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={localAd.enableVastAds !== false}
+                      onChange={(e) => setLocalAd({ ...localAd, enableVastAds: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+
+                {/* Random Rotation Toggle */}
+                <div className="flex items-center justify-between p-3 bg-slate-900/90 rounded-xl border border-slate-800">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                      <span>🎲 Luân Phiên Ngẫu Nhiên Các Quảng Cáo Video Đã Cài Sẵn</span>
+                    </span>
+                    <p className="text-[11px] text-slate-400">
+                      Tự động hoán đổi luân phiên ngẫu nhiên giữa VAST 3.0 mới, VAST Adcash và video tài trợ khi phát
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={localAd.rotateVideoAds !== false}
+                    onChange={(e) => setLocalAd({ ...localAd, rotateVideoAds: e.target.checked })}
+                    className="accent-amber-500 w-4 h-4 rounded cursor-pointer"
+                  />
+                </div>
+
+                {/* VAST URL input */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-white text-xs">
+                      URL Thẻ Quảng Cáo VAST 3.0 Trong Luồng:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setLocalAd({ ...localAd, vastTagUrl: DEFAULT_VAST_30_TAG_URL })}
+                        className="text-[10px] text-amber-400 hover:underline font-mono"
+                      >
+                        Đặt lại VAST 3.0
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLocalAd({ ...localAd, vastTagUrl: ADCASH_INSTREAM_VAST_TAG_URL })}
+                        className="text-[10px] text-slate-400 hover:text-white font-mono"
+                      >
+                        Dùng VAST Adcash
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="https://... VAST 3.0 URL"
+                    value={localAd.vastTagUrl || ''}
+                    onChange={(e) => setLocalAd({ ...localAd, vastTagUrl: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-[11px] text-slate-100 font-mono focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                {/* Active VAST tags list */}
+                <div className="p-2.5 bg-slate-900/60 rounded-xl border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
+                  <div className="font-semibold text-slate-300">Nguồn quảng cáo video sẵn sàng luân phiên:</div>
+                  <div className="font-mono text-[10px] text-amber-300 truncate">1. VAST 3.0: {DEFAULT_VAST_30_TAG_URL}</div>
+                  <div className="font-mono text-[10px] text-slate-400 truncate">2. VAST Adcash: {ADCASH_INSTREAM_VAST_TAG_URL}</div>
+                  <div className="font-mono text-[10px] text-emerald-400 truncate">3. Video Tài Trợ Kênh: {localAd.videoUrl}</div>
+                </div>
+              </div>
+
+              {/* 2. Banner 300x250 HTML / Javascript */}
+              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Code className="w-4 h-4 text-amber-400" />
+                    <div>
+                      <h4 className="font-bold text-white text-xs sm:text-sm">
+                        Quảng Cáo Định Dạng Banner 300×250 (HTML / JavaScript)
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Hiển thị banner chữ nhật 300×250 bên dưới hoặc cạnh video phát
+                      </p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={localAd.enableBanner300x250 !== false}
+                      onChange={(e) => setLocalAd({ ...localAd, enableBanner300x250: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-white text-xs">
+                      Mã Nhúng HTML / JavaScript cho 300×250:
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setLocalAd({ ...localAd, banner300x250Html: DEFAULT_BANNER_300X250_SCRIPT })}
+                      className="text-[10px] text-amber-400 hover:underline font-mono"
+                    >
+                      Khôi phục mã 300×250 mẫu
+                    </button>
+                  </div>
+                  <textarea
+                    rows={4}
+                    placeholder="<script>...</script>"
+                    value={localAd.banner300x250Html || ''}
+                    onChange={(e) => setLocalAd({ ...localAd, banner300x250Html: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-100 font-mono focus:outline-none focus:border-amber-500 resize-y"
+                  />
+                </div>
+              </div>
+
+              {/* 3. MultiTag Video Slider HTML / Javascript */}
+              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Play className="w-4 h-4 text-amber-400" />
+                    <div>
+                      <h4 className="font-bold text-white text-xs sm:text-sm">
+                        Quảng Cáo MultiTag Video Slider (HTML / JavaScript)
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Quảng cáo video trượt nổi tự động ở góc dưới màn hình
+                      </p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={localAd.enableVideoSlider !== false}
+                      onChange={(e) => setLocalAd({ ...localAd, enableVideoSlider: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-white text-xs">
+                      Mã Nhúng MultiTag Video Slider:
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setLocalAd({ ...localAd, videoSliderHtml: DEFAULT_VIDEO_SLIDER_SCRIPT })}
+                      className="text-[10px] text-amber-400 hover:underline font-mono"
+                    >
+                      Khôi phục mã Slider mẫu
+                    </button>
+                  </div>
+                  <textarea
+                    rows={4}
+                    placeholder="<script>...</script>"
+                    value={localAd.videoSliderHtml || ''}
+                    onChange={(e) => setLocalAd({ ...localAd, videoSliderHtml: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-100 font-mono focus:outline-none focus:border-amber-500 resize-y"
+                  />
+                </div>
+              </div>
+
+              {/* 4. Custom Ad Code (HTML / JS / VAST) */}
+              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-white text-xs sm:text-sm">
+                      Mã Quảng Cáo Bổ Sung Khác (HTML, JS hoặc VAST)
+                    </h4>
+                    <p className="text-[11px] text-slate-400">
+                      Dễ dàng dán bất kỳ mã HTML, JS hoặc URL VAST quảng cáo trong luồng nào khác
+                    </p>
+                  </div>
+                  <select
+                    value={localAd.customAdCodeType || 'vast'}
+                    onChange={(e) => setLocalAd({ ...localAd, customAdCodeType: e.target.value as any })}
+                    className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-amber-300 font-semibold"
+                  >
+                    <option value="vast">VAST Trong Luồng</option>
+                    <option value="html">Mã HTML</option>
+                    <option value="js">Mã JavaScript</option>
+                  </select>
+                </div>
+
+                <textarea
+                  rows={3}
+                  placeholder="Dán mã HTML, JavaScript hoặc URL VAST vào đây..."
+                  value={localAd.customHtmlJsCode || ''}
+                  onChange={(e) => setLocalAd({ ...localAd, customHtmlJsCode: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-100 font-mono focus:outline-none focus:border-amber-500 resize-y"
+                />
+              </div>
+            </div>
+          )}
+
           {activeTab === 'ad' && (
             <div className="space-y-4">
               {/* Toggle Enable */}
