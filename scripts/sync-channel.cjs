@@ -386,17 +386,12 @@ export const DEFAULT_PODCASTS: PodcastEpisode[] = [
 ];
 `;
 
-  
-  // Đảm bảo thư mục src/data tồn tại trước khi ghi file
-  fs.mkdirSync(path.dirname(dataPath), { recursive: true });
-
-  // Ghi dữ liệu video YouTube vào file TypeScript
+  const dataDir = path.dirname(dataPath);
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
   fs.writeFileSync(dataPath, tsFileContent, 'utf8');
-
-  console.log(
-    `✅ Đã cập nhật thành công ${dataPath} với ${finalAllVideos.length} video thực tế của kênh!`
-  );
-
+  console.log(`✅ Đã cập nhật thành công ${dataPath} với ${finalAllVideos.length} video thực tế của kênh!`);
 
   // Generate Podcast RSS XML feed for studo.xml
   const publicDir = path.resolve(__dirname, '../public');
@@ -481,4 +476,31 @@ ${itemsXml}
   console.log(`URL trực tiếp trên GitHub Pages: ${feedUrl}`);
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error('Lỗi khi đồng bộ kênh YouTube:', err);
+  const fallbackPath = path.resolve(__dirname, '../src/data/minhhieuChannelData.ts');
+  const fallbackDir = path.dirname(fallbackPath);
+  if (!fs.existsSync(fallbackDir)) {
+    fs.mkdirSync(fallbackDir, { recursive: true });
+  }
+  if (!fs.existsSync(fallbackPath)) {
+    const minimalContent = `import { PodcastEpisode, PodcastSeries, PodcastPlaylist } from '../types/podcast';
+
+export const DEFAULT_CHANNEL_INFO = {
+  name: 'Minh Hiếu Official',
+  handle: '@MinhHieuOfficialvn',
+  avatar: '${CHANNEL_AVATAR}',
+  banner: '${CHANNEL_BANNER}',
+  subscribers: 'Kênh YouTube Chính Thức',
+  youtubeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn',
+  subscribeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1',
+};
+
+export const DEFAULT_PODCAST_SERIES: PodcastSeries[] = [];
+export const DEFAULT_CHANNEL_PLAYLISTS: PodcastPlaylist[] = [];
+export const DEFAULT_VIDEOS: PodcastEpisode[] = [];
+export const DEFAULT_PODCASTS: PodcastEpisode[] = [];
+`;
+    fs.writeFileSync(fallbackPath, minimalContent, 'utf8');
+  }
+});
