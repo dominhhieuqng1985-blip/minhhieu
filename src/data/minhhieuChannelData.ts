@@ -105,7 +105,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Bông điên điển cuối mùa - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "5 lượt xem",
+    "views": "7 lượt xem",
     "id": "mh-v3"
   },
   {
@@ -120,7 +120,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Hẹn nhau mùa nước nỗi - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "3 lượt xem",
+    "views": "5 lượt xem",
     "id": "mh-v4"
   },
   {
@@ -170,17 +170,17 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "ifZyisgYN4c",
-    "title": "Thư t��nh gửi người xưa",
+    "title": "Thư tình gửi người xưa",
     "channel": "Minh Hiếu review phim",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "4:53",
     "durationSeconds": 293,
     "thumbnail": "https://i.ytimg.com/vi/ifZyisgYN4c/hqdefault.jpg",
-    "description": "Thư t��nh gửi người xưa - Kênh Minh Hiếu review phim.",
+    "description": "Thư tình gửi người xưa - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "6 lượt xem",
+    "views": "7 lượt xem",
     "id": "mh-v8"
   },
   {
@@ -195,7 +195,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mùa lúa chín không anh - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "11 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v9"
   },
   {
@@ -210,7 +210,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mùa cưới vắng anh - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "10 lượt xem",
+    "views": "11 lượt xem",
     "id": "mh-v10"
   },
   {
@@ -238,8 +238,9 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "durationSeconds": 326,
     "thumbnail": "https://i.ytimg.com/vi/zNiMLKn1nSc/hqdefault.jpg",
     "description": "Trăng tàn bến cũ - Kênh Minh Hiếu review phim.",
-    "publishedDate": "Mới cập nhật",
+    "publishedDate": "Video chính thức",
     "isShort": false,
+    "views": "17 lượt xem",
     "id": "mh-v12"
   },
   {
@@ -329,7 +330,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu review phim.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "41 lượt xem",
+    "views": "42 lượt xem",
     "id": "mh-v18"
   },
   {
@@ -513,6 +514,20 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "id": "mh-v30"
   },
   {
+    "youtubeId": "OrUyLBzMNqg",
+    "title": "tâm an đờ nở hoa",
+    "channel": "Minh Hiếu review phim",
+    "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
+    "category": "nghe-thuat-sang-tao",
+    "duration": "03:30",
+    "durationSeconds": 210,
+    "thumbnail": "https://i.ytimg.com/vi/OrUyLBzMNqg/hqdefault.jpg",
+    "description": "tâm an đờ nở hoa - Kênh Minh Hiếu review phim.",
+    "publishedDate": "Mới cập nhật",
+    "isShort": false,
+    "id": "mh-v31"
+  },
+  {
     "youtubeId": "WjgrpSYEiJU",
     "title": "Xuyên Không Về Cổ Đại Làm CEO Triều Đình, Áp Dụng KPI Quản Lý Hoàng Đế Lật Đổ Gian Thần",
     "channel": "Minh Hiếu review phim",
@@ -525,7 +540,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "3 lượt xem",
-    "id": "mh-v31"
+    "id": "mh-v32"
   },
   {
     "youtubeId": "MVFNVguGR4Q",
@@ -540,20 +555,6 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "10 lượt xem",
-    "id": "mh-v32"
-  },
-  {
-    "youtubeId": "OrUyLBzMNqg",
-    "title": "tâm an đờ nở hoa",
-    "channel": "Minh Hiếu review phim",
-    "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
-    "category": "nghe-thuat-sang-tao",
-    "duration": "03:30",
-    "durationSeconds": 210,
-    "thumbnail": "https://i.ytimg.com/vi/OrUyLBzMNqg/hqdefault.jpg",
-    "description": "tâm an đờ nở hoa - Kênh Minh Hiếu review phim.",
-    "publishedDate": "Mới cập nhật",
-    "isShort": false,
     "id": "mh-v33"
   },
   {
