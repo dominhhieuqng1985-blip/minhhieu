@@ -86,6 +86,47 @@ export function getApiBaseUrl(): string | null {
 export const API_BASE = `${import.meta.env.BASE_URL || '/'}api/`;
 
 /**
+ * Safely resolves an API endpoint path without ever duplicating `/api/api/`.
+ * Works identically on localhost, Render, custom domains, and GitHub Pages.
+ */
+export function resolveApiEndpoint(subpath: string): string {
+  const cleanSubpath = subpath
+    .trim()
+    .replace(/^\/+/, '')
+    .replace(/^minhhieu\/api\//i, '')
+    .replace(/^api\//i, '');
+
+  const apiBase = getApiBaseUrl();
+  if (apiBase) {
+    const normalizedBase = apiBase.endsWith('/') ? apiBase : `${apiBase}/`;
+    return `${normalizedBase}${cleanSubpath}`;
+  }
+  return `/api/${cleanSubpath}`;
+}
+
+/**
+ * Optional headers forwarding Admin-configured Gemini key when calling cross-origin backend from static hosts.
+ */
+export function getOptionalAiHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (typeof window !== 'undefined') {
+    try {
+      const storedKey =
+        localStorage.getItem('gemini_custom_pro_api_key') ||
+        localStorage.getItem('gemini_api_key') ||
+        localStorage.getItem('casttube_gemini_key') ||
+        '';
+      if (storedKey && storedKey.trim()) {
+        headers['X-Gemini-Api-Key'] = storedKey.trim();
+      }
+    } catch {}
+  }
+  return headers;
+}
+
+/**
  * Safely fetches and parses JSON.
  * Throws clean errors if response is HTML (e.g. GitHub Pages 404.html).
  */
@@ -124,7 +165,7 @@ export async function safeFetchJson<T>(url: string, options?: RequestInit): Prom
 export function generateClientAIAnalysis(
   action: 'summary' | 'chapters' | 'quotes' | 'qa',
   title: string,
-  host: string = 'Minh Hiếu review phim',
+  host: string = 'Minh Hiếu Official VN',
   description?: string,
   question?: string
 ): string {

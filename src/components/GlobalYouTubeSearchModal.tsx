@@ -28,6 +28,10 @@ import {
   setStoredYouTubeApiKey,
   YouTubeSearchResult,
 } from '../utils/youtubeSearch';
+import {
+  ADMIN_SETTINGS_SYNCED_EVENT,
+  saveAdminSettingsToNeon,
+} from '../utils/adminSettingsSync';
 
 export type SearchFilterType = 'all' | 'channel' | 'podcasts' | 'global';
 
@@ -43,7 +47,7 @@ interface GlobalYouTubeSearchModalProps {
 }
 
 const POPULAR_SUGGESTIONS = [
-  'Minh Hiếu review phim',
+  'Minh Hiếu Official VN',
   'Xuyên không về đại đường',
   'Review phim sát thủ',
   'Review phim báo thù',
@@ -77,6 +81,12 @@ export const GlobalYouTubeSearchModal: React.FC<GlobalYouTubeSearchModalProps> =
   const [keySavedToast, setKeySavedToast] = useState<boolean>(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const syncYtKey = () => setCustomApiKey(getStoredYouTubeApiKey());
+    window.addEventListener(ADMIN_SETTINGS_SYNCED_EVENT, syncYtKey);
+    return () => window.removeEventListener(ADMIN_SETTINGS_SYNCED_EVENT, syncYtKey);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -318,10 +328,12 @@ export const GlobalYouTubeSearchModal: React.FC<GlobalYouTubeSearchModalProps> =
               <button
                 type="button"
                 onClick={() => {
-                  setStoredYouTubeApiKey(customApiKey);
+                  const trimmed = customApiKey.trim();
+                  setStoredYouTubeApiKey(trimmed);
+                  saveAdminSettingsToNeon({ apiKeys: { youtubeDataApiKey: trimmed } }).catch(() => {});
                   setKeySavedToast(true);
                   setTimeout(() => setKeySavedToast(false), 2500);
-                  if (onShowToast) onShowToast('Đã lưu cấu hình YouTube API Key!');
+                  if (onShowToast) onShowToast('Đã lưu & đồng bộ YouTube API Key!');
                 }}
                 className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1 shrink-0"
               >
@@ -334,6 +346,7 @@ export const GlobalYouTubeSearchModal: React.FC<GlobalYouTubeSearchModalProps> =
                   onClick={() => {
                     setCustomApiKey('');
                     setStoredYouTubeApiKey('');
+                    saveAdminSettingsToNeon({ apiKeys: { youtubeDataApiKey: '' } }).catch(() => {});
                     if (onShowToast) onShowToast('Đã xóa YouTube API Key. Sử dụng chế độ Piped CORS mặc định.');
                   }}
                   className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs shrink-0"

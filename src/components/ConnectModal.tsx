@@ -35,6 +35,7 @@ import {
   fetchTikTokVideoData,
   convertTikTokDataToEpisode,
 } from '../utils/tiktokApi';
+import { saveAdminSettingsToNeon } from '../utils/adminSettingsSync';
 
 interface ConnectModalProps {
   isOpen: boolean;
@@ -377,10 +378,10 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
 
   const sampleButtons = [
     { label: 'TikTok mẫu (@hiu.minh1093)', url: DEFAULT_TIKTOK_URL },
-    { label: '@minhhieureviewphim/podcasts', url: 'https://www.youtube.com/@minhhieureviewphim/podcasts' },
-    { label: '@minhhieureviewphim/playlists', url: 'https://www.youtube.com/@minhhieureviewphim/playlists' },
-    { label: '@minhhieureviewphim/videos', url: 'https://www.youtube.com/@minhhieureviewphim/videos' },
-    { label: '@minhhieureviewphim', url: 'https://www.youtube.com/@minhhieureviewphim' },
+    { label: '@MinhHieuOfficialvn/podcasts', url: 'https://www.youtube.com/@MinhHieuOfficialvn/podcasts' },
+    { label: '@MinhHieuOfficialvn/playlists', url: 'https://www.youtube.com/@MinhHieuOfficialvn/playlists' },
+    { label: '@MinhHieuOfficialvn/videos', url: 'https://www.youtube.com/@MinhHieuOfficialvn/videos' },
+    { label: '@MinhHieuOfficialvn', url: 'https://www.youtube.com/@MinhHieuOfficialvn' },
   ];
 
   return (
@@ -418,7 +419,7 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="https://www.youtube.com/@minhhieureviewphim/podcasts..."
+                placeholder="https://www.youtube.com/@MinhHieuOfficialvn/podcasts..."
                 value={urlInput}
                 onChange={(e) => {
                   setUrlInput(e.target.value);
@@ -671,7 +672,12 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setCustomBackendUrl(backendUrlInput);
+                      const clean = backendUrlInput.trim();
+                      setCustomBackendUrl(clean || null);
+                      saveAdminSettingsToNeon({
+                        apiKeys: { customBackendUrl: clean },
+                        storagePreferences: { customBackendUrl: clean },
+                      }).catch(() => {});
                       setBackendSavedSuccess(true);
                       setTimeout(() => setBackendSavedSuccess(false), 2500);
                     }}

@@ -19,6 +19,8 @@ import {
   createAdminAccountInNeon,
   deleteAdminAccountInNeon,
   getPublicAppSettingsFromNeon,
+  getAllAdminSettingsFromNeon,
+  getRuntimeApiKeysFromNeon,
   upsertAppSettingInNeon,
   upsertChannelVideosInNeon,
   queryNeonTable,
@@ -28,6 +30,7 @@ import {
   saveStudyRecordToNeon,
   AdminPrincipal,
 } from './src/server/neonClient';
+import { solveProblemLocally } from './src/utils/smartBoardSolver';
 
 dotenv.config();
 
@@ -75,7 +78,7 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE, PATCH');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, Authorization, X-Requested-With, X-Admin-Token, Accept, Origin'
+    'Content-Type, Authorization, X-Requested-With, X-Admin-Token, X-Gemini-Api-Key, X-RapidAPI-Key, Accept, Origin, Cache-Control'
   );
   res.setHeader('Access-Control-Max-Age', '86400');
   if (req.method === 'OPTIONS') {
@@ -272,10 +275,17 @@ app.use(['/api/vidkraken', '/minhhieu/api/vidkraken'], async (req, res) => {
     if (!subPath.startsWith('/')) subPath = '/' + subPath;
 
     const targetUrl = `https://vidkraken.com/api/v2${subPath}`;
-    let authHeader = req.headers.authorization || `Bearer ${VIDKRAKEN_DEFAULT_KEY}`;
-    // If incoming auth header contains depleted key, upgrade to working key
+    const runtimeKeys = await getRuntimeApiKeysFromNeon();
+    const fallbackVkKey = runtimeKeys.vidkrakenApiKey || VIDKRAKEN_DEFAULT_KEY;
+    let authHeader = req.headers.authorization || `Bearer ${fallbackVkKey}`;
+    // If incoming auth header contains depleted key or default placeholder while Admin configured a newer key in Neon
     if (authHeader.includes('f71cd7b5-2fcd-42b4-a4b7-40e6ca96b6ba')) {
-      authHeader = `Bearer 276b76d3-a265-447d-8d32-1bcf2258290c`;
+      authHeader = `Bearer ${fallbackVkKey}`;
+    } else if (
+      runtimeKeys.vidkrakenApiKey &&
+      authHeader === `Bearer ${VIDKRAKEN_DEFAULT_KEY}`
+    ) {
+      authHeader = `Bearer ${runtimeKeys.vidkrakenApiKey}`;
     }
 
     const headers: Record<string, string> = {
@@ -311,7 +321,12 @@ const EVERAI_DEFAULT_KEY = process.env.EVERAI_API_KEY || 'JZoMqN64fgxOuVcxViFyLj
 
 app.post(['/api/everai/tts', '/minhhieu/api/everai/tts', '/api/api/everai/tts', '/minhhieu/api/api/everai/tts'], async (req, res) => {
   try {
-    const authHeader = req.headers.authorization || `Bearer ${EVERAI_DEFAULT_KEY}`;
+    const runtimeKeys = await getRuntimeApiKeysFromNeon();
+    const fallbackEverKey = runtimeKeys.everaiApiKey || EVERAI_DEFAULT_KEY;
+    let authHeader = req.headers.authorization || `Bearer ${fallbackEverKey}`;
+    if (runtimeKeys.everaiApiKey && authHeader === `Bearer ${EVERAI_DEFAULT_KEY}`) {
+      authHeader = `Bearer ${runtimeKeys.everaiApiKey}`;
+    }
     const payload = req.body;
 
     const vkRes = await fetch('https://www.everai.vn/api/v1/tts', {
@@ -340,7 +355,12 @@ app.post(['/api/everai/tts', '/minhhieu/api/everai/tts', '/api/api/everai/tts', 
 app.get(['/api/everai/tts/:id', '/minhhieu/api/everai/tts/:id', '/api/api/everai/tts/:id', '/minhhieu/api/api/everai/tts/:id'], async (req, res) => {
   try {
     const { id } = req.params;
-    const authHeader = req.headers.authorization || `Bearer ${EVERAI_DEFAULT_KEY}`;
+    const runtimeKeys = await getRuntimeApiKeysFromNeon();
+    const fallbackEverKey = runtimeKeys.everaiApiKey || EVERAI_DEFAULT_KEY;
+    let authHeader = req.headers.authorization || `Bearer ${fallbackEverKey}`;
+    if (runtimeKeys.everaiApiKey && authHeader === `Bearer ${EVERAI_DEFAULT_KEY}`) {
+      authHeader = `Bearer ${runtimeKeys.everaiApiKey}`;
+    }
 
     const vkRes = await fetch(`https://www.everai.vn/api/v1/tts/${encodeURIComponent(id)}`, {
       method: 'GET',
@@ -375,7 +395,7 @@ app.get(['/api/health', '/api/everai/health', '/minhhieu/api/health', '/minhhieu
   });
 });
 
-// Initialize Google GenAI
+// Initialize Google GenAI + dynamic key resolver (supports Admin Data Neon Gemini key & x-gemini-api-key header)
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',
   httpOptions: {
@@ -383,6 +403,56 @@ const ai = new GoogleGenAI({
       'User-Agent': 'aistudio-build',
     },
   },
+});
+
+async function resolveGenAIClient(req?: express.Request): Promise<{ client: GoogleGenAI; hasKey: boolean }> {
+  const headerKey = req ? String(req.headers['x-gemini-api-key'] || '').trim() : '';
+  const runtimeKeys = await getRuntimeApiKeysFromNeon();
+  const activeKey = headerKey || runtimeKeys.geminiApiKey || process.env.GEMINI_API_KEY || '';
+  if (!activeKey) {
+    return { client: ai, hasKey: false };
+  }
+  if (activeKey === (process.env.GEMINI_API_KEY || '')) {
+    return { client: ai, hasKey: true };
+  }
+  return {
+    client: new GoogleGenAI({
+      apiKey: activeKey,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+    }),
+    hasKey: true,
+  };
+}
+
+// Endpoint: Verify & run Gemini AI chat (supports Admin Data custom Gemini API key)
+app.post(['/api/ai/chat', '/minhhieu/api/ai/chat'], async (req, res) => {
+  try {
+    const message = String(req.body?.message || '').trim();
+    if (!message) {
+      return res.status(400).json({ status: 0, error_message: 'Thiếu nội dung tin nhắn.' });
+    }
+    const { client, hasKey } = await resolveGenAIClient(req);
+    if (!hasKey) {
+      return res.status(400).json({
+        status: 0,
+        error_message: 'Chưa cấu hình GEMINI_API_KEY trên máy chủ hoặc trong Admin Data.',
+      });
+    }
+    const response = await client.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: message,
+      config: { temperature: 0.4 },
+    });
+    return res.json({
+      status: 1,
+      reply: response.text || 'OK',
+    });
+  } catch (err: any) {
+    return res.status(400).json({
+      status: 0,
+      error_message: err?.message || 'Khóa Gemini API không hợp lệ hoặc bị từ chối.',
+    });
+  }
 });
 
 // Endpoint: Fetch YouTube Video metadata via public oEmbed
@@ -882,9 +952,9 @@ app.get(['/api/podcast/channel-full', '/minhhieu/channel-full', '/minhhieu/api/p
     const handle = channelMatch ? channelMatch[1] : '@MinhHieuOfficialvn';
 
     // Fetch initial channel page to get channel name and avatar
-    let channelName = 'Minh Hiếu Official';
+    let channelName = 'Minh Hiếu Official VN';
     let channelAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(channelName)}`;
-    let subscribers = 'Kênh YouTube';
+    let subscribers = 'Kênh YouTube Chính Thức';
 
     try {
       const baseRes = await fetch(`https://www.youtube.com/${handle}`, { headers: YOUTUBE_HEADERS });
@@ -1039,13 +1109,13 @@ app.get(['/api/podcast/check-updates', '/minhhieu/check-updates', '/minhhieu/api
     let latestVideos: any[] = [];
     if (vRes.ok) {
       const vText = await vRes.text();
-      latestVideos = parseLockupBlocks(vText, 'Minh Hiếu review phim');
+      latestVideos = parseLockupBlocks(vText, 'Minh Hiếu Official VN');
     }
 
     let latestShorts: any[] = [];
     if (sRes.ok) {
       const sText = await sRes.text();
-      latestShorts = parseShortsBlocks(sText, 'Minh Hiếu review phim');
+      latestShorts = parseShortsBlocks(sText, 'Minh Hiếu Official VN');
     }
 
     let allLatest = [...latestVideos, ...latestShorts];
@@ -1065,7 +1135,7 @@ app.get(['/api/podcast/check-updates', '/minhhieu/check-updates', '/minhhieu/api
             allLatest.unshift({
               youtubeId: vId,
               title: titleM[1],
-              channel: 'Minh Hiếu review phim',
+              channel: 'Minh Hiếu Official VN',
               duration: isShort ? '00:60' : '03:30',
               thumbnail: `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`,
               isShort,
@@ -1189,6 +1259,37 @@ app.get(['/api/youtube/search', '/minhhieu/api/youtube/search'], async (req, res
       } catch {}
     }
 
+    // Optional: Use YouTube Data API v3 key from Admin Data if configured
+    const runtimeKeys = await getRuntimeApiKeysFromNeon();
+    if (runtimeKeys.youtubeDataApiKey) {
+      try {
+        const ytApiEndpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=25&q=${encodeURIComponent(
+          q
+        )}&key=${encodeURIComponent(runtimeKeys.youtubeDataApiKey)}`;
+        const apiRes = await fetch(ytApiEndpoint);
+        if (apiRes.ok) {
+          const apiData: any = await apiRes.json();
+          if (Array.isArray(apiData?.items) && apiData.items.length > 0) {
+            const apiResults = apiData.items
+              .filter((item: any) => item?.id?.videoId)
+              .map((item: any) => ({
+                youtubeId: String(item.id.videoId),
+                title: String(item.snippet?.title || 'Video YouTube'),
+                channel: String(item.snippet?.channelTitle || 'YouTube Creator'),
+                duration: '05:00',
+                thumbnail:
+                  item.snippet?.thumbnails?.high?.url ||
+                  `https://i.ytimg.com/vi/${item.id.videoId}/hqdefault.jpg`,
+                isShort: String(item.snippet?.title || '').toLowerCase().includes('#shorts'),
+              }));
+            if (apiResults.length > 0) {
+              return res.json({ results: apiResults, query: q, source: 'youtube_data_api_v3' });
+            }
+          }
+        }
+      } catch {}
+    }
+
     // Search on YouTube HTML
     const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&hl=vi&gl=VN`;
     const ytRes = await fetch(searchUrl, { headers: YOUTUBE_HEADERS });
@@ -1265,7 +1366,8 @@ app.post('/api/podcast/ai', async (req, res) => {
       return res.status(400).json({ error: 'Episode title is required' });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    const { client: genClient, hasKey } = await resolveGenAIClient(req);
+    if (!hasKey) {
       return res.status(503).json({
         error: 'GEMINI_API_KEY chưa được cấu hình. Vui lòng thêm khóa trong cài đặt.',
       });
@@ -1327,7 +1429,7 @@ Hãy trả lời câu hỏi của người nghe một cách sâu sắc, thực t
         setTimeout(() => reject(new Error('Model timeout')), 8000)
       );
 
-      const genPromise = ai.models.generateContent({
+      const genPromise = genClient.models.generateContent({
         model: 'gemini-3.8-flash',
         contents: userPrompt,
         config: {
@@ -1387,7 +1489,8 @@ Yêu cầu bắt buộc:
 
     let extractedText = '';
     try {
-      const response = await ai.models.generateContent({
+      const { client: genClient } = await resolveGenAIClient(req);
+      const response = await genClient.models.generateContent({
         model: 'gemini-3.8-flash',
         contents: [
           { text: prompt },
@@ -1496,9 +1599,10 @@ Trả về đối tượng JSON theo cấu trúc sau:
 }`;
 
     let jsonResult: any = null;
-    if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() !== '') {
+    const { client: scriptClient, hasKey: hasScriptKey } = await resolveGenAIClient(req);
+    if (hasScriptKey) {
       try {
-        const response = await ai.models.generateContent({
+        const response = await scriptClient.models.generateContent({
           model: 'gemini-3.8-flash',
           contents: userPrompt,
           config: {
@@ -1608,12 +1712,15 @@ app.post(['/api/ai/generate-image', '/minhhieu/api/ai/generate-image'], async (r
     // Generate optimized visual English prompt for pristine imagery
     let optimizedPrompt = prompt;
     try {
-      const resp = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: `Translate and refine this image prompt into an English high-detail digital art prompt with cinematic lighting, vivid colors, photorealistic texture: "${prompt}". Return ONLY the refined English prompt text in 1 line.`,
-        config: { temperature: 0.5 },
-      });
-      if (resp.text) optimizedPrompt = resp.text.trim();
+      const { client: imgClient, hasKey: hasImgKey } = await resolveGenAIClient(req);
+      if (hasImgKey) {
+        const resp = await imgClient.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: `Translate and refine this image prompt into an English high-detail digital art prompt with cinematic lighting, vivid colors, photorealistic texture: "${prompt}". Return ONLY the refined English prompt text in 1 line.`,
+          config: { temperature: 0.5 },
+        });
+        if (resp.text) optimizedPrompt = resp.text.trim();
+      }
     } catch {}
 
     const seed = Math.floor(Math.random() * 1000000);
@@ -1699,19 +1806,22 @@ Hãy trả về định dạng JSON DUY NHẤT:
 
     let songData: any = null;
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: userPrompt,
-        config: {
-          systemInstruction,
-          temperature: 0.75,
-        },
-      });
+      const { client: songClient, hasKey: hasSongKey } = await resolveGenAIClient(req);
+      if (hasSongKey) {
+        const response = await songClient.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: userPrompt,
+          config: {
+            systemInstruction,
+            temperature: 0.75,
+          },
+        });
 
-      const rawText = response.text || '';
-      const match = rawText.match(/\{[\s\S]*\}/);
-      if (match) {
-        songData = JSON.parse(match[0]);
+        const rawText = response.text || '';
+        const match = rawText.match(/\{[\s\S]*\}/);
+        if (match) {
+          songData = JSON.parse(match[0]);
+        }
       }
     } catch (err: any) {
       console.warn('Song generation error:', err);
@@ -1819,26 +1929,29 @@ Trả về DUY NHẤT một chuỗi JSON hợp lệ:
 
     let result: any = null;
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType,
-              data: cleanBase64,
+      const { client: visionClient, hasKey: hasVisionKey } = await resolveGenAIClient(req);
+      if (hasVisionKey) {
+        const response = await visionClient.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType,
+                data: cleanBase64,
+              },
             },
+          ],
+          config: {
+            temperature: 0.75,
           },
-        ],
-        config: {
-          temperature: 0.75,
-        },
-      });
+        });
 
-      const raw = response.text || '';
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (match) {
-        result = JSON.parse(match[0]);
+        const raw = response.text || '';
+        const match = raw.match(/\{[\s\S]*\}/);
+        if (match) {
+          result = JSON.parse(match[0]);
+        }
       }
     } catch (err: any) {
       console.warn('Gemini vision lyrics error:', err);
@@ -2030,7 +2143,11 @@ async function resolveTikTokVideoMetadataServer(rawUrl: string, customRapidKey?:
   }
 
   // 2. Fallback: RapidAPI TikTok Downloader
-  const apiKey = (customRapidKey && customRapidKey.trim()) || DEFAULT_TIKTOK_RAPIDAPI_KEY;
+  const runtimeKeys = await getRuntimeApiKeysFromNeon();
+  const apiKey =
+    (customRapidKey && customRapidKey.trim()) ||
+    runtimeKeys.tiktokRapidApiKey ||
+    DEFAULT_TIKTOK_RAPIDAPI_KEY;
   const rapidEndpoint = `https://${DEFAULT_TIKTOK_RAPIDAPI_HOST}/media?videoUrl=${encodeURIComponent(cleanUrl)}`;
   const rapidRes = await fetch(rapidEndpoint, {
     headers: {
@@ -2352,7 +2469,7 @@ app.get(['/api/youtube/sub-gate-config', '/minhhieu/api/youtube/sub-gate-config'
   res.json({
     channelId: MINHHIEU_YOUTUBE_CHANNEL_ID,
     channelHandle: '@MinhHieuOfficialvn',
-    channelName: 'Minh Hiếu Official',
+    channelName: 'Minh Hiếu Official VN',
     channelUrl: MINHHIEU_YOUTUBE_CHANNEL_URL,
     subscribeUrl: MINHHIEU_YOUTUBE_SUBSCRIBE_URL,
     googleOAuthEnabled: Boolean(googleClientId),
@@ -2938,7 +3055,8 @@ app.post(
         return res.status(400).json({ error: 'Vui lòng nhập chủ đề bài học cần tạo.' });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
+      const { client: kidsClient, hasKey: hasKidsKey } = await resolveGenAIClient(req);
+      if (!hasKidsKey) {
         return res.json(buildFallbackKidsLesson(grade, subject, topic));
       }
 
@@ -2965,7 +3083,7 @@ Yêu cầu bắt buộc:
         setTimeout(() => reject(new Error('Kids lesson generation timeout')), 12000)
       );
 
-      const genPromise = ai.models.generateContent({
+      const genPromise = kidsClient.models.generateContent({
         model: 'gemini-3.8-flash',
         contents: prompt,
         config: {
@@ -3062,7 +3180,8 @@ app.post(
         return res.json({ audioDataUrl: cached, voiceName, cached: true });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
+      const { client: ttsClient, hasKey: hasTtsKey } = await resolveGenAIClient(req);
+      if (!hasTtsKey) {
         return res.status(503).json({ error: 'Native TTS unavailable without server key' });
       }
 
@@ -3074,7 +3193,7 @@ app.post(
         setTimeout(() => reject(new Error('English TTS generation timeout')), 12000)
       );
 
-      const ttsPromise = ai.models.generateContent({
+      const ttsPromise = ttsClient.models.generateContent({
         model: 'gemini-3.8-flash-lite-tts',
         contents: [
           {
@@ -3144,7 +3263,8 @@ app.post(
       if (!audioBase64) {
         return res.status(400).json({ error: 'Không nhận được dữ liệu âm thanh từ micro.' });
       }
-      if (!process.env.GEMINI_API_KEY) {
+      const { client: transcribeClient, hasKey: hasTranscribeKey } = await resolveGenAIClient(req);
+      if (!hasTranscribeKey) {
         return res.status(503).json({ error: 'Chức năng nhận diện giọng nói máy chủ tạm thời chưa sẵn sàng.' });
       }
 
@@ -3156,7 +3276,7 @@ app.post(
         setTimeout(() => reject(new Error('Audio transcription timeout')), 12000)
       );
 
-      const transcribePromise = ai.models.generateContent({
+      const transcribePromise = transcribeClient.models.generateContent({
         model: 'gemini-3.5-transcribe',
         contents: {
           parts: [
@@ -3284,7 +3404,8 @@ app.post(
         return res.status(400).json({ error: 'Em hãy nhập hoặc nói câu hỏi trước nhé!' });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
+      const { client: tutorClient, hasKey: hasTutorKey } = await resolveGenAIClient(req);
+      if (!hasTutorKey) {
         return res.json(buildFallbackKidsChatReply(message, grade));
       }
 
@@ -3321,7 +3442,7 @@ Quy tắc bắt buộc:
         setTimeout(() => reject(new Error('Kids tutor chat timeout')), 14000)
       );
 
-      const chatPromise = ai.models.generateContent({
+      const chatPromise = tutorClient.models.generateContent({
         model: 'gemini-3.8-flash',
         contents: prompt,
         config: {
@@ -3393,8 +3514,9 @@ app.post(
       const mimeType = String(req.body?.mimeType || 'image/jpeg');
       const grade = Math.max(1, Math.min(12, Number(req.body?.grade) || 3));
       const subject = String(req.body?.subject || 'toan');
-      const promptText = String(req.body?.prompt || '').trim().slice(0, 1000);
-      const studentName = String(req.body?.studentName || 'Học sinh').slice(0, 50);
+      // Support very long problem statements and multi-question exams up to 24,000 chars
+      const promptText = String(req.body?.prompt || '').trim().slice(0, 24000);
+      const studentName = String(req.body?.studentName || 'em').slice(0, 50);
 
       const cleanBase64 = imageBase64Raw.includes(',')
         ? imageBase64Raw.split(',')[1]
@@ -3404,51 +3526,64 @@ app.post(
         return res.status(400).json({ error: 'Vui lòng tải ảnh đề bài hoặc gõ câu hỏi bài tập.' });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
-        const fallbackBoard = {
-          boardTitle: `Bài Tập Lớp ${grade} • Môn ${subject.toUpperCase()}`,
+      // Fast-path deterministic verification when no image is attached and exact math/MCQ answer is computable
+      if (!cleanBase64 && promptText) {
+        const localAttempt = solveProblemLocally({
+          prompt: promptText,
+          grade,
           subject,
-          extractedText: promptText || 'Đề bài tập từ ảnh tài liệu học sinh tải lên',
-          coreConcept: 'Phương pháp giải toán / phân tích logic từng bước',
-          steps: [
-            {
-              stepNumber: 1,
-              title: 'Xác định yêu cầu đề bài',
-              content: 'Đọc kỹ các dữ kiện đã cho và đại lượng cần tìm.',
-              formula: 'Đại lượng đã biết ⇒ Đại lượng cần tìm',
-            },
-            {
-              stepNumber: 2,
-              title: 'Thực hiện phép tính',
-              content: 'Áp dụng công thức và tính toán cẩn thận từng phép biến đổi.',
-              formula: 'A + B = C',
-            },
-          ],
-          finalAnswer: 'Đáp số bài toán đã được xác định chính xác.',
-          teacherAdvice: 'Em hãy ghi chép cẩn thận vào vở và rèn luyện thêm các dạng tương tự nhé!',
-          spokenExplanation: `Chào em ${studentName}! Thầy đã phân tích đề bài và trình bày lời giải chi tiết lên bảng xanh rồi. Em quan sát từng bước trên bảng nhé!`,
-        };
-        return res.json(fallbackBoard);
+          studentName,
+        });
+        if (localAttempt.isExactDeterministic) {
+          saveStudyRecordToNeon({
+            id: `hw-${Date.now()}`,
+            studentName,
+            grade,
+            subject,
+            prompt: promptText.slice(0, 4000),
+            boardTitle: localAttempt.boardTitle,
+            coreConcept: localAttempt.coreConcept,
+            stepsJson: localAttempt.steps,
+            finalAnswer: localAttempt.finalAnswer,
+            teacherAdvice: localAttempt.teacherAdvice,
+          }).catch(() => {});
+          return res.json(localAttempt);
+        }
       }
 
-      const instructions = `Bạn là Thầy giáo thông thái, mẫu mực và tận tâm trong lớp học trực quan "Thầy Giáo & Tấm Bảng Thông Minh" cho học sinh Lớp ${grade} Việt Nam (Môn trọng tâm: ${subject}).
-Học sinh tên là: "${studentName}".
-${promptText ? `Học sinh có gửi kèm câu hỏi/chú thích: "${promptText}".` : ''}
+      const { client: hwClient, hasKey: hasHwKey } = await resolveGenAIClient(req);
+      if (!hasHwKey) {
+        const localFallback = solveProblemLocally({
+          prompt: promptText,
+          grade,
+          subject,
+          studentName,
+        });
+        return res.json(localFallback);
+      }
 
-Nhiệm vụ của bạn:
-1. Nhìn vào hình ảnh chụp tài liệu/sách bài tập/vở ghi (hoặc câu hỏi đề bài được giao), nhận diện chính xác đề bài bài tập (Toán, Tiếng Việt, Tiếng Anh, Khoa học, Vật lý, Hóa học...).
-2. "boardTitle": Tiêu đề ngắn gọn, trang trọng ghi trên đầu bảng (ví dụ: "Toán Lớp 4: Tìm Hai Số Khi Biết Tổng Và Hiệu", "Tiếng Anh Lớp 6: Thì Quá Khứ Đơn", "Tiếng Việt Lớp 3: Luyện Từ Và Câu").
-3. "extractedText": Nội dung đề bài nguyên văn đã nhận diện rõ ràng từ ảnh hoặc câu hỏi của học sinh.
-4. "coreConcept": Quy tắc, công thức hoặc phương pháp cốt lõi cần nhớ (viết đẹp, ngắn gọn như chữ phấn vàng trên bảng).
-5. "steps": Danh sách từ 2 đến 5 bước giải logic, chi tiết và dễ hiểu nhất cho học sinh Lớp ${grade}. Mỗi bước gồm:
-   - "stepNumber": Số thứ tự (1, 2, 3...)
-   - "title": Tên bước (ví dụ: "Bước 1: Tìm số bé", "Bước 2: Tìm số lớn")
-   - "content": Lời giải thích mạch lạc
-   - "formula": Công thức toán học hoặc phép biến đổi nếu có (ví dụ: "Số bé = (Tổng - Hiệu) : 2 = (120 - 20) : 2 = 50")
-6. "finalAnswer": Kết luận / Đáp số chính xác của bài tập.
-7. "teacherAdvice": Lời động viên, mẹo tránh bẫy sai sót hoặc dặn dò ân cần của Thầy dành cho học sinh.
-8. "spokenExplanation": Lời giảng bài của Thầy giáo bằng giọng nói truyền cảm, tự nhiên, xưng Thầy gọi Em (dùng chữ tự nhiên để đọc to thành tiếng bằng loa, không dùng ký hiệu toán học lạ).
-9. Nếu là bài tập Tiếng Anh: bổ sung "englishPhrase" (cụm từ/câu mẫu cần phát âm), "phoneticIpa" (phiên âm quốc tế), và "englishExamples" (ví dụ thực tế). Nếu không phải Tiếng Anh, để trống chuỗi.`;
+      const isLongProblem = promptText.length > 500;
+      const instructions = `Bạn là Thầy giáo giỏi chuyên môn, chuẩn xác và tận tâm trong lớp học trực quan "Thầy Giáo & Tấm Bảng Thông Minh" cho học sinh Lớp ${grade} Việt Nam (Môn: ${subject}).
+Học sinh tên là: "${studentName}".
+${promptText ? `ĐỀ BÀI / CÂU HỎI HỌC SINH GỬI:\n"""\n${promptText}\n"""` : 'Hãy đọc chính xác toàn bộ đề bài trong hình ảnh tài liệu đính kèm.'}
+
+CÁC QUY TẮC BẮT BUỘC TUYỆT ĐỐI KHI GIẢI BÀI:
+1. NGHIÊM CẤM TRẢ LỜI CHUNG CHUNG: Tuyệt đối không được viết kiểu công thức mẫu sáo rỗng như "A + B = C" hay "Đáp số đã được xác định". Bạn PHẢI phân tích đúng dữ kiện thực tế của đề bài, tính toán cụ thể từng con số và đưa ra KẾT QUẢ CHÍNH XÁC CUỐI CÙNG.
+2. VỚI PHÉP TÍNH & BÀI TOÁN TỰ LUẬN:
+   - Ví dụ đề là "1 + 1" hoặc "1 + 1 = ?" hoặc "1 + 1 = 2", phải phân tích phép cộng và ở "finalAnswer" PHẢI kết luận rõ bằng số cụ thể: "Kết quả cuối cùng: 2 (1 + 1 = 2)".
+   - Kiểm tra kỹ mọi bước biến đổi đại số, dấu âm/dương, đơn vị đo trước khi chốt đáp số.
+3. VỚI CÂU HỎI TRẮC NGHIỆM (A, B, C, D hoặc a, b, c, d):
+   - Trong "steps", phải giải chi tiết ra kết quả hoặc phân tích từng phương án lựa chọn để loại trừ phương án sai.
+   - Trong "finalAnswer", BẮT BUỘC ghi rõ chữ cái của đáp án đúng ngay đầu câu kèm nội dung phương án đó. Ví dụ nếu kết quả rơi vào C thì ghi rõ: "Kết luận: Chọn đáp án C (...nội dung đáp án C...)". Kể cả khi người dùng gõ nhãn lựa chọn hơi lộn xộn (ví dụ "a, c, c"), hãy chỉ rõ phương án đúng tương ứng và giá trị đúng của nó.
+4. VỚI ĐỀ BÀI DÀI HOẶC NHIỀU CÂU / NHIỀU Ý (${isLongProblem ? 'Đề hiện tại khá dài, hãy chú ý giải đầy đủ từng phần!' : 'Nếu đề có nhiều câu a, b, c hoặc Câu 1, Câu 2'}):
+   - "extractedText": ${isLongProblem ? 'Tóm lược súc tích, đầy đủ các dữ kiện số liệu và câu hỏi chính của đề bài (khoảng 3-6 dòng rõ ràng) để bảng xanh dễ nhìn.' : 'Ghi lại rõ ràng nguyên văn đề bài hoặc nội dung đọc được từ ảnh.'}
+   - "steps": Chia thành các bước mạch lạc (từ 2 đến 12 bước tùy độ dài đề), giải dứt điểm từng câu/từng ý không bỏ sót ý nào.
+   - "finalAnswer": Tổng hợp rõ ràng kết quả/đáp án cuối cùng của TẤT CẢ các câu/ý (ví dụ: "Câu 1: Đáp án C | Câu 2: x = 5 | Câu 3: 120 cm²").
+5. ĐỊNH DẠNG CÁC TRƯỜNG JSON:
+   - "boardTitle": Tiêu đề rõ ràng đúng dạng bài (ví dụ: "Toán Lớp 4: Phép Cộng & Tìm Kết Quả", "Trắc Nghiệm Toán Lớp 8: Giải Phương Trình").
+   - "coreConcept": Công thức, định lý hoặc quy tắc trọng tâm áp dụng trực tiếp cho bài này.
+   - "spokenExplanation": Lời giảng ngắn gọn, súc tích (2 đến 4 câu tự nhiên bằng chữ tiếng Việt dễ đọc thành tiếng, không dùng ký hiệu LaTeX phức tạp), nêu hướng giải chính và đọc to rõ KẾT QUẢ / ĐÁP ÁN CUỐI CÙNG để học sinh nắm bắt ngay.
+   - Nếu là bài Tiếng Anh: điền thêm "englishPhrase" (câu/từ tiếng Anh chuẩn), "phoneticIpa" (phiên âm IPA) và "englishExamples".`;
 
       const contents: any[] = [];
       if (cleanBase64) {
@@ -3461,11 +3596,12 @@ Nhiệm vụ của bạn:
       }
       contents.push(instructions);
 
-      const response: any = await ai.models.generateContent({
+      const response: any = await hwClient.models.generateContent({
         model: 'gemini-3.8-flash',
         contents,
         config: {
-          temperature: 0.35,
+          temperature: 0.15,
+          maxOutputTokens: 8192,
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
@@ -3513,13 +3649,12 @@ Nhiệm vụ của bạn:
       const rawJson = response?.text ? String(response.text).trim() : '';
       if (rawJson) {
         const parsed = JSON.parse(rawJson);
-        // Background auto-save to Neon.tech if connected
         saveStudyRecordToNeon({
           id: `hw-${Date.now()}`,
           studentName,
           grade,
           subject,
-          prompt: promptText || parsed.extractedText || 'Đề bài ảnh tài liệu',
+          prompt: (promptText || parsed.extractedText || 'Đề bài ảnh tài liệu').slice(0, 4000),
           boardTitle: parsed.boardTitle,
           coreConcept: parsed.coreConcept,
           stepsJson: parsed.steps,
@@ -3534,37 +3669,17 @@ Nhiệm vụ của bạn:
     } catch (err: any) {
       console.warn('Solve homework vision fallback:', err?.message || err);
       const grade = Math.max(1, Math.min(12, Number(req.body?.grade) || 3));
-      const promptText = String(req.body?.prompt || '');
+      const promptText = String(req.body?.prompt || '').trim();
       const subject = String(req.body?.subject || 'toan');
-      const studentName = String(req.body?.studentName || 'Học sinh');
-      return res.json({
-        boardTitle: `Bài Tập Lớp ${grade} • Môn ${subject.toUpperCase()}`,
-        subject,
-        extractedText: promptText || 'Đề bài tập từ ảnh tài liệu học sinh gửi',
-        coreConcept: 'Phương pháp giải toán & phân tích logic từng bước',
-        steps: [
-          {
-            stepNumber: 1,
-            title: 'Bước 1: Xác định yêu cầu đề bài',
-            content: 'Xác định rõ các dữ kiện đã biết và đại lượng cần tìm.',
-            formula: promptText ? `Đề bài: ${promptText}` : undefined,
-          },
-          {
-            stepNumber: 2,
-            title: 'Bước 2: Thực hiện phép biến đổi',
-            content: 'Áp dụng quy tắc chuyển vế đổi dấu hoặc công thức tính toán tương ứng.',
-            formula: 'Biến đổi biểu thức ⇒ Kết quả trung gian',
-          },
-          {
-            stepNumber: 3,
-            title: 'Bước 3: Kiểm tra và kết luận',
-            content: 'Thay kết quả vào điều kiện bài toán để xác nhận tính chính xác.',
-          },
-        ],
-        finalAnswer: 'Đáp số đã được xác định chính xác theo các bước trên bảng.',
-        teacherAdvice: 'Em hãy ghi chép cẩn thận vào vở và rèn luyện thêm các dạng bài tập tương tự nhé!',
-        spokenExplanation: `Chào em ${studentName}! Thầy đã phân tích đề bài và trình bày lời giải chi tiết lên bảng xanh rồi. Em quan sát từng bước trên bảng nhé!`,
-      });
+      const studentName = String(req.body?.studentName || 'em');
+      return res.json(
+        solveProblemLocally({
+          prompt: promptText,
+          grade,
+          subject,
+          studentName,
+        })
+      );
     }
   }
 );
@@ -3751,6 +3866,9 @@ app.post(
         watermarkSettings,
         channelProfile,
         playbackPreferences,
+        apiKeys,
+        storagePreferences,
+        customVoices,
         customVideos,
         deletedVideoIds,
       } = req.body || {};
@@ -3783,7 +3901,7 @@ app.post(
           value: channelProfile,
           category: 'channel',
           isPublic: true,
-          description: 'Thông tin kênh YouTube & RSS Podcast chính thức',
+          description: 'Thông tin kênh YouTube chính thức Minh Hiếu Official VN (@MinhHieuOfficialvn)',
           updatedBy: actor,
         });
       }
@@ -3795,6 +3913,39 @@ app.post(
           category: 'playback',
           isPublic: true,
           description: 'Tùy chọn phát tự động & chế độ học tập',
+          updatedBy: actor,
+        });
+      }
+
+      if (apiKeys && typeof apiKeys === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'api_keys_config',
+          value: apiKeys,
+          category: 'api',
+          isPublic: false,
+          description: 'Cấu hình khóa API (EverAI, VidKraken, Gemini, Backend Proxy) dành riêng cho Admin',
+          updatedBy: actor,
+        });
+      }
+
+      if (storagePreferences && typeof storagePreferences === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'storage_preferences',
+          value: storagePreferences,
+          category: 'storage',
+          isPublic: true,
+          description: 'Cấu hình lưu trữ và đồng bộ tự động trên Admin Data (Neon PostgreSQL)',
+          updatedBy: actor,
+        });
+      }
+
+      if (Array.isArray(customVoices)) {
+        await upsertAppSettingInNeon({
+          key: 'custom_voices',
+          value: customVoices,
+          category: 'tts',
+          isPublic: true,
+          description: 'Danh sách giọng đọc AI tùy chỉnh đồng bộ toàn hệ thống',
           updatedBy: actor,
         });
       }
@@ -3813,7 +3964,7 @@ app.post(
       return res.json({
         success: true,
         message:
-          'Đã tự động tạo đầy đủ 8 bảng dữ liệu và lưu trữ toàn bộ thông tin đăng nhập, mật khẩu & cài đặt trên Neon PostgreSQL!',
+          'Đã tự động tạo đầy đủ 8 bảng dữ liệu và lưu trữ toàn bộ thông tin đăng nhập, mật khẩu, API & cài đặt trên Neon PostgreSQL!',
         tables: schemaResult.tables,
         status: freshStatus,
         videoSync,
@@ -3822,6 +3973,137 @@ app.post(
       return res.status(500).json({
         success: false,
         error: err?.message || 'Lỗi tự động tạo bảng và đồng bộ cài đặt lên Neon PostgreSQL',
+      });
+    }
+  }
+);
+
+// GET /api/admin/settings - Đọc toàn bộ cài đặt Admin Data (bao gồm cả cấu hình API Keys riêng tư) từ Neon PostgreSQL (Chỉ Admin)
+app.get(
+  ['/api/admin/settings', '/minhhieu/api/admin/settings'],
+  requireAdminAuth,
+  async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try {
+      const settings = await getAllAdminSettingsFromNeon();
+      return res.json({
+        success: true,
+        settings,
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || 'Lỗi đọc cấu hình Admin Data từ Neon PostgreSQL',
+      });
+    }
+  }
+);
+
+// POST /api/admin/settings - Lưu trực tiếp API Keys, Lưu trữ, Giọng đọc, Hồ sơ kênh và Quảng cáo vào Admin Data trên Neon PostgreSQL (Chỉ Admin)
+app.post(
+  ['/api/admin/settings', '/minhhieu/api/admin/settings'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser as AdminPrincipal;
+      const actor = adminUser?.username || 'admin';
+      const {
+        adSettings,
+        watermarkSettings,
+        channelProfile,
+        playbackPreferences,
+        apiKeys,
+        storagePreferences,
+        customVoices,
+      } = req.body || {};
+
+      if (adSettings && typeof adSettings === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'ad_settings',
+          value: adSettings,
+          category: 'ads',
+          isPublic: true,
+          description: 'Cấu hình Quảng cáo Video VAST, Display Banner & Video Slider',
+          updatedBy: actor,
+        });
+      }
+
+      if (watermarkSettings && typeof watermarkSettings === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'watermark_settings',
+          value: watermarkSettings,
+          category: 'watermark',
+          isPublic: true,
+          description: 'Cấu hình Logo Watermark thương hiệu kênh',
+          updatedBy: actor,
+        });
+      }
+
+      if (channelProfile && typeof channelProfile === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'channel_profile',
+          value: channelProfile,
+          category: 'channel',
+          isPublic: true,
+          description: 'Thông tin kênh YouTube chính thức Minh Hiếu Official VN (@MinhHieuOfficialvn)',
+          updatedBy: actor,
+        });
+      }
+
+      if (playbackPreferences && typeof playbackPreferences === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'playback_preferences',
+          value: playbackPreferences,
+          category: 'playback',
+          isPublic: true,
+          description: 'Tùy chọn trải nghiệm phát tự động & giọng đọc',
+          updatedBy: actor,
+        });
+      }
+
+      if (apiKeys && typeof apiKeys === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'api_keys_config',
+          value: apiKeys,
+          category: 'api',
+          isPublic: false,
+          description: 'Cấu hình khóa API (EverAI, VidKraken, Gemini, Backend Proxy) dành riêng cho Admin',
+          updatedBy: actor,
+        });
+      }
+
+      if (storagePreferences && typeof storagePreferences === 'object') {
+        await upsertAppSettingInNeon({
+          key: 'storage_preferences',
+          value: storagePreferences,
+          category: 'storage',
+          isPublic: true,
+          description: 'Cấu hình lưu trữ và đồng bộ tự động trên Admin Data (Neon PostgreSQL)',
+          updatedBy: actor,
+        });
+      }
+
+      if (Array.isArray(customVoices)) {
+        await upsertAppSettingInNeon({
+          key: 'custom_voices',
+          value: customVoices,
+          category: 'tts',
+          isPublic: true,
+          description: 'Danh sách giọng đọc AI tùy chỉnh đồng bộ toàn hệ thống',
+          updatedBy: actor,
+        });
+      }
+
+      const freshSettings = await getAllAdminSettingsFromNeon();
+      return res.json({
+        success: true,
+        message: 'Đã lưu và đồng bộ cấu hình trực tiếp vào Admin Data (Neon PostgreSQL)!',
+        settings: freshSettings,
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || 'Lỗi lưu cấu hình vào Admin Data trên Neon PostgreSQL',
       });
     }
   }
@@ -3995,7 +4277,7 @@ app.post(
               key: k,
               value: v,
               category: 'synced',
-              isPublic: k !== 'security_policy',
+              isPublic: k !== 'security_policy' && k !== 'api_keys_config',
               updatedBy: actor,
             });
             syncedSettings++;

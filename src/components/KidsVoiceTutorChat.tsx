@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { SubjectId, SUBJECTS_META } from '../data/kidsCurriculumData';
-import { getApiBaseUrl } from '../utils/api';
+import { resolveApiEndpoint, getOptionalAiHeaders } from '../utils/api';
 
 export interface TutorChatMessage {
   id: string;
@@ -148,10 +148,7 @@ export const KidsVoiceTutorChat: React.FC<KidsVoiceTutorChatProps> = ({
       setMicStatusNote('');
 
       try {
-        const apiBase = getApiBaseUrl();
-        const endpoint = apiBase
-          ? `${apiBase.replace(/\/+$/, '')}/api/kids-learning/chat`
-          : '/api/kids-learning/chat';
+        const endpoint = resolveApiEndpoint('kids-learning/chat');
 
         const historyPayload = messages.slice(-6).map((m) => ({
           role: m.role,
@@ -160,7 +157,7 @@ export const KidsVoiceTutorChat: React.FC<KidsVoiceTutorChatProps> = ({
 
         const res = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getOptionalAiHeaders(),
           body: JSON.stringify({
             message: trimmed,
             grade,
@@ -302,14 +299,11 @@ export const KidsVoiceTutorChat: React.FC<KidsVoiceTutorChatProps> = ({
             reader.readAsDataURL(audioBlob);
           });
 
-          const apiBase = getApiBaseUrl();
-          const endpoint = apiBase
-            ? `${apiBase.replace(/\/+$/, '')}/api/kids-learning/transcribe`
-            : '/api/kids-learning/transcribe';
+          const endpoint = resolveApiEndpoint('kids-learning/transcribe');
 
           const resp = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getOptionalAiHeaders(),
             body: JSON.stringify({
               audioBase64: base64Audio,
               mimeType: audioBlob.type || 'audio/webm',

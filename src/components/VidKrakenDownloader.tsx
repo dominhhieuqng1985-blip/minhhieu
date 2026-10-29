@@ -72,6 +72,10 @@ import {
   VidKrakenFormat,
 } from '../config/vidkraken';
 import { PodcastEpisode } from '../types/podcast';
+import {
+  ADMIN_SETTINGS_SYNCED_EVENT,
+  saveAdminSettingsToNeon,
+} from '../utils/adminSettingsSync';
 
 interface VidKrakenDownloaderProps {
   currentEpisode?: PodcastEpisode | null;
@@ -233,22 +237,39 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
       setResumableJob(savedJob);
     }
 
+    const handleAdminSettingsHydrated = () => {
+      const hydratedKey = getStoredVidKrakenKey();
+      const hydratedProxy = getStoredVidKrakenProxy();
+      const hydratedAuto = getStoredAutoDownload();
+      setApiKey(hydratedKey);
+      setTempApiKey(hydratedKey);
+      setProxyUrl(hydratedProxy);
+      setTempProxyUrl(hydratedProxy);
+      setIsAutoDownload(hydratedAuto);
+    };
+    window.addEventListener(ADMIN_SETTINGS_SYNCED_EVENT, handleAdminSettingsHydrated);
+
     return () => {
+      window.removeEventListener(ADMIN_SETTINGS_SYNCED_EVENT, handleAdminSettingsHydrated);
       if (pollingRef.current) clearTimeout(pollingRef.current);
       if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
     };
   }, []);
 
-  // Save new Proxy URL
+  // Save new Proxy URL (and sync to Neon Admin Data)
   const handleSaveProxy = (urlToSave: string) => {
     const trimmed = urlToSave.trim();
     setStoredVidKrakenProxy(trimmed);
     setProxyUrl(trimmed);
     setTempProxyUrl(trimmed);
     fetchAccountDetails(apiKey);
+    saveAdminSettingsToNeon({
+      apiKeys: { vidkrakenProxyUrl: trimmed },
+      storagePreferences: { vidkrakenProxyUrl: trimmed },
+    }).catch(() => {});
     onShowToast(
       trimmed
-        ? '🌐 Đã lưu cấu hình Proxy VidKraken thành công!'
+        ? '🌐 Đã lưu & đồng bộ Proxy VidKraken lên Admin Data!'
         : '🔄 Đã xóa proxy, quay lại gọi trực tiếp.'
     );
   };
@@ -302,24 +323,35 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
     }
   };
 
-  // Save new API Key
+  // Save new API Key (and sync to Neon Admin Data)
   const handleSaveApiKey = () => {
     const trimmed = tempApiKey.trim() || DEFAULT_VIDKRAKEN_API_KEY;
     setStoredVidKrakenKey(trimmed);
     setApiKey(trimmed);
     setIsEditingKey(false);
     fetchAccountDetails(trimmed);
-    onShowToast('🔑 Đã lưu trữ API Key VidKraken thành công!');
+    saveAdminSettingsToNeon({ apiKeys: { vidkrakenApiKey: trimmed } })
+      .then((res) => {
+        if (res.success) {
+          onShowToast('🔑 Đã lưu & đồng bộ API Key VidKraken lên Admin Data (Neon PostgreSQL)!');
+        } else {
+          onShowToast('🔑 Đã lưu trữ API Key VidKraken thành công!');
+        }
+      })
+      .catch(() => {
+        onShowToast('🔑 Đã lưu trữ API Key VidKraken thành công!');
+      });
   };
 
-  // Reset to default provided key
+  // Reset to default provided key (and sync to Neon Admin Data)
   const handleResetDefaultKey = () => {
     setStoredVidKrakenKey(DEFAULT_VIDKRAKEN_API_KEY);
     setApiKey(DEFAULT_VIDKRAKEN_API_KEY);
     setTempApiKey(DEFAULT_VIDKRAKEN_API_KEY);
     setIsEditingKey(false);
     fetchAccountDetails(DEFAULT_VIDKRAKEN_API_KEY);
-    onShowToast('🔄 Đã khôi phục API Key gốc của bạn!');
+    saveAdminSettingsToNeon({ apiKeys: { vidkrakenApiKey: DEFAULT_VIDKRAKEN_API_KEY } }).catch(() => {});
+    onShowToast('🔄 Đã khôi phục & đồng bộ API Key gốc!');
   };
 
   // Populate from currently playing episode
@@ -647,7 +679,7 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
       id: 'vk-' + Date.now(),
       youtubeId: vidId,
       title: item.title || 'Tập VidKraken Download',
-      channel: 'Minh Hiếu review phim',
+      channel: 'Minh Hiếu Official VN',
       category: 'nghe-thuat-sang-tao',
       duration: formatDurationSeconds(durSec),
       durationSeconds: durSec,
@@ -1241,10 +1273,14 @@ export const VidKrakenDownloader: React.FC<VidKrakenDownloaderProps> = ({
                   type="checkbox"
                   checked={isAutoDownload}
                   onChange={(e) => {
-                    setIsAutoDownload(e.target.checked);
-                    setStoredAutoDownload(e.target.checked);
+                    const checked = e.target.checked;
+                    setIsAutoDownload(checked);
+                    setStoredAutoDownload(checked);
+                    saveAdminSettingsToNeon({
+                      storagePreferences: { vidkrakenAutoDownload: checked },
+                    }).catch(() => {});
                     onShowToast(
-                      e.target.checked
+                      checked
                         ? '⚡ Đã BẬT tự động tải về máy khi xử lý xong!'
                         : '⏸️ Đã TẮT tự động tải về (bạn sẽ bấm nút tải thủ công).'
                     );

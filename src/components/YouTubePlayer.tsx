@@ -1545,7 +1545,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
             <span>{episode.views || '15.420'} lượt xem</span>
             <span>·</span>
             <span>{episode.publishedDate || 'Đã phát hành'}</span>
-            <span className="text-amber-400/90">#MinhHieuReviewPhim</span>
+            <span className="text-amber-400/90">#MinhHieuOfficialVN</span>
             <span className="text-amber-400/90">#Podcast</span>
             {episode.seriesTitle && (
               <span className="text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
@@ -1555,7 +1555,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
           </div>
 
           <div className={`text-slate-300 leading-relaxed ${isDescriptionExpanded ? '' : 'line-clamp-2'}`}>
-            {episode.description || 'Nội dung video chọn lọc từ kênh YouTube Minh Hiếu review phim.'}
+            {episode.description || 'Nội dung video chọn lọc từ kênh YouTube Minh Hiếu Official VN.'}
             <div className="mt-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-1">
               <p>🔗 Kênh YouTube: <a href={channelUrl} target="_blank" rel="noopener noreferrer" className="text-red-400 underline">{channelUrl}</a></p>
               <p>📻 Podcast RSS: <code className="text-amber-400">https://www.vemaybaynhauyen.com/studo.xml</code></p>

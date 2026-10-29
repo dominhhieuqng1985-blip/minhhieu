@@ -307,7 +307,7 @@ async function main() {
   const tsFileContent = `import { PodcastEpisode, PodcastSeries, PodcastPlaylist } from '../types/podcast';
 
 export const DEFAULT_CHANNEL_INFO = {
-  name: 'Minh Hiếu Official',
+  name: 'Minh Hiếu Official VN',
   handle: '@MinhHieuOfficialvn',
   avatar: 'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj',
   banner: 'https://yt3.googleusercontent.com/nXC6CfLFHVL0mQjAJtqBxNqZM3nPyjtdk-zs9b9RIdblNxB_9CMOSBDc8iIFho4WiUMHbrU-zQ=w2560-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj',
@@ -367,7 +367,7 @@ export const DEFAULT_CHANNEL_PLAYLISTS: PodcastPlaylist[] = [
   },
 ];
 
-// Danh sách toàn bộ ${finalAllVideos.length} video chính thức từ kênh @minhhieureviewphim
+// Danh sách toàn bộ ${finalAllVideos.length} video chính thức từ kênh @MinhHieuOfficialvn (Minh Hiếu Official VN)
 export const DEFAULT_VIDEOS: PodcastEpisode[] = ${JSON.stringify(finalAllVideos, null, 2)};
 
 export const DEFAULT_PODCASTS: PodcastEpisode[] = [
@@ -399,11 +399,11 @@ export const DEFAULT_PODCASTS: PodcastEpisode[] = [
     fs.mkdirSync(publicDir, { recursive: true });
   }
 
-  const channelTitle = 'Minh Hiếu review phim';
+  const channelTitle = 'Minh Hiếu Official VN';
   const channelLink = 'https://www.vemaybaynhauyen.com/';
   const feedUrl = 'https://www.vemaybaynhauyen.com/studo.xml';
-  const channelDesc = 'Kênh Podcast chính thức của Minh Hiếu review phim (@minhhieureviewphim). Tổng hợp các bộ phim Phật giáo ý nghĩa, truyện ma rùng rợn, bài học tâm lý cuộc sống và âm nhạc chọn lọc.';
-  const author = 'Minh Hiếu';
+  const channelDesc = 'Kênh Podcast chính thức của Minh Hiếu Official VN (@MinhHieuOfficialvn). Tổng hợp các bộ phim Phật giáo ý nghĩa, truyện ma rùng rợn, bài học tâm lý cuộc sống và âm nhạc chọn lọc.';
+  const author = 'Minh Hiếu Official VN';
   const email = 'chieuthuaroi19852@gmail.com';
 
   const itemsXml = finalAllVideos.map((v, idx) => {
@@ -487,7 +487,7 @@ main().catch((err) => {
     const minimalContent = `import { PodcastEpisode, PodcastSeries, PodcastPlaylist } from '../types/podcast';
 
 export const DEFAULT_CHANNEL_INFO = {
-  name: 'Minh Hiếu Official',
+  name: 'Minh Hiếu Official VN',
   handle: '@MinhHieuOfficialvn',
   avatar: '${CHANNEL_AVATAR}',
   banner: '${CHANNEL_BANNER}',

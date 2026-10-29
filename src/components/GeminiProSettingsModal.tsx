@@ -19,6 +19,11 @@ import {
   Radio
 } from "lucide-react";
 import { safeParseJson } from "../utils/apiHelper";
+import { getApiBaseUrl } from "../utils/api";
+import {
+  ADMIN_SETTINGS_SYNCED_EVENT,
+  saveAdminSettingsToNeon,
+} from "../utils/adminSettingsSync";
 
 interface GeminiProSettingsModalProps {
   isOpen: boolean;
@@ -59,16 +64,29 @@ export const GeminiProSettingsModal: React.FC<GeminiProSettingsModalProps> = ({
   const [importText, setImportText] = useState("");
   const [copiedPromptKey, setCopiedPromptKey] = useState<string | null>(null);
 
+  useEffect(() => {
+    const syncState = () => {
+      setProEmail(localStorage.getItem("gemini_pro_email") || "");
+      setIsProLinked(localStorage.getItem("gemini_pro_account_connected") === "true");
+      setApiKeyInput(localStorage.getItem("gemini_custom_pro_api_key") || "");
+    };
+    if (isOpen) syncState();
+    window.addEventListener(ADMIN_SETTINGS_SYNCED_EVENT, syncState);
+    return () => window.removeEventListener(ADMIN_SETTINGS_SYNCED_EVENT, syncState);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  // Handle saving Pro account login status
+  // Handle saving Pro account login status (and sync to Admin Data)
   const handleSaveProAccount = () => {
-    if (proEmail.trim()) {
-      localStorage.setItem("gemini_pro_email", proEmail.trim());
+    const trimmedEmail = proEmail.trim();
+    if (trimmedEmail) {
+      localStorage.setItem("gemini_pro_email", trimmedEmail);
       localStorage.setItem("gemini_pro_account_connected", "true");
       setIsProLinked(true);
+      saveAdminSettingsToNeon({ apiKeys: { geminiProEmail: trimmedEmail } }).catch(() => {});
       setVerifyStatus("success");
-      setVerifyMessage(`Đã ghi nhớ tài khoản Google Pro: ${proEmail.trim()}. Trạng thái gói Pro đã sẵn sàng.`);
+      setVerifyMessage(`Đã ghi nhớ & đồng bộ tài khoản Google Pro: ${trimmedEmail}.`);
     } else {
       localStorage.setItem("gemini_pro_account_connected", "true");
       setIsProLinked(true);
@@ -82,20 +100,17 @@ export const GeminiProSettingsModal: React.FC<GeminiProSettingsModalProps> = ({
     localStorage.removeItem("gemini_pro_email");
     setIsProLinked(false);
     setProEmail("");
+    saveAdminSettingsToNeon({ apiKeys: { geminiProEmail: "" } }).catch(() => {});
     setVerifyStatus("idle");
     setVerifyMessage("");
   };
 
-  // Open gemini.google.com in new window
-  const handleOpenGeminiWeb = () => {
-    window.open("https://gemini.google.com/app", "_blank", "noopener,noreferrer");
-  };
-
-  // Save & verify API key
+  // Save & verify API key (using backend API base URL + Admin Data sync)
   const handleSaveAndVerifyApiKey = async () => {
     const key = apiKeyInput.trim();
     if (!key) {
       localStorage.removeItem("gemini_custom_pro_api_key");
+      saveAdminSettingsToNeon({ apiKeys: { geminiApiKey: "" } }).catch(() => {});
       setVerifyStatus("success");
       setVerifyMessage("Đã chuyển về sử dụng khóa Gemini mặc định của hệ thống.");
       return;
@@ -106,7 +121,8 @@ export const GeminiProSettingsModal: React.FC<GeminiProSettingsModalProps> = ({
     setVerifyMessage("");
 
     try {
-      const res = await fetch("/api/ai/chat", {
+      const apiBase = getApiBaseUrl() || "/api/";
+      const res = await fetch(`${apiBase}ai/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -121,8 +137,13 @@ export const GeminiProSettingsModal: React.FC<GeminiProSettingsModalProps> = ({
       const data = await safeParseJson(res);
       if (res.ok && data.status === 1) {
         localStorage.setItem("gemini_custom_pro_api_key", key);
+        const syncRes = await saveAdminSettingsToNeon({ apiKeys: { geminiApiKey: key } });
         setVerifyStatus("success");
-        setVerifyMessage("Xác thực thành công! Khóa Gemini API riêng của bạn đã hoạt động không giới hạn quota.");
+        setVerifyMessage(
+          syncRes.success
+            ? "Xác thực & lưu vĩnh viễn khóa Gemini API vào Admin Data (Neon PostgreSQL) thành công!"
+            : "Xác thực thành công! Khóa Gemini API riêng của bạn đã sẵn sàng hoạt động."
+        );
       } else {
         throw new Error(data.error_message || "Khóa API không hợp lệ hoặc đã hết hạn.");
       }
@@ -137,8 +158,9 @@ export const GeminiProSettingsModal: React.FC<GeminiProSettingsModalProps> = ({
   const handleClearApiKey = () => {
     localStorage.removeItem("gemini_custom_pro_api_key");
     setApiKeyInput("");
+    saveAdminSettingsToNeon({ apiKeys: { geminiApiKey: "" } }).catch(() => {});
     setVerifyStatus("idle");
-    setVerifyMessage("Đã xóa khóa tùy chỉnh. Đang dùng khóa mặc định của hệ thống.");
+    setVerifyMessage("Đã xóa khóa tùy chỉnh và đồng bộ Admin Data.");
   };
 
   // Pre-formatted master prompts for Gemini Pro
@@ -286,13 +308,15 @@ export const GeminiProSettingsModal: React.FC<GeminiProSettingsModalProps> = ({
 
                 {/* 1-Click Open gemini.google.com */}
                 <div className="pt-1 flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={handleOpenGeminiWeb}
+                  <a
+                    href="https://gemini.google.com/app"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition-all"
                   >
                     <ExternalLink className="w-4 h-4" />
-                    <span>🚀 Mở & Đăng Nhập Gemini.google.com (Gói Pro)</span>
-                  </button>
+                    <span>🚀 Mở &amp; Đăng Nhập Gemini.google.com (Gói Pro)</span>
+                  </a>
                 </div>
               </div>
 
@@ -536,13 +560,15 @@ export const GeminiProSettingsModal: React.FC<GeminiProSettingsModalProps> = ({
           )}
 
           {activeTab === "sync_bridge" && (
-            <button
-              onClick={handleOpenGeminiWeb}
+            <a
+              href="https://gemini.google.com/app"
+              target="_blank"
+              rel="noopener noreferrer"
               className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-1.5"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Mở Gemini Pro</span>
-            </button>
+            </a>
           )}
         </div>
       </div>

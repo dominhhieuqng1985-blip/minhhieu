@@ -499,7 +499,7 @@ export const AIVideoScriptStudio: React.FC<AIVideoScriptStudioProps> = ({ onShow
     ctx.fillStyle = '#fbbf24';
     ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`🎬 MINH HIẾU REVIEW PHIM · CẢNH ${sceneIdx + 1}/3 (10s)`, 28, 42);
+    ctx.fillText(`🎬 MINH HIẾU OFFICIAL VN · CẢNH ${sceneIdx + 1}/3 (10s)`, 28, 42);
 
     ctx.fillStyle = '#38bdf8';
     ctx.font = '11px sans-serif';
@@ -1128,7 +1128,7 @@ export const AIVideoScriptStudio: React.FC<AIVideoScriptStudioProps> = ({ onShow
     setPreviewingVoiceId(v.id);
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
-      const text = `Xin chào! Đây là giọng đọc ${v.name}, chuyên lồng tiếng video ngắn tại Minh Hiếu Review Phim.`;
+      const text = `Xin chào! Đây là giọng đọc ${v.name}, chuyên lồng tiếng video ngắn tại Minh Hiếu Official VN.`;
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'vi-VN';
       utterance.onend = () => setPreviewingVoiceId(null);

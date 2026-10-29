@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Key, Check, ShieldCheck, Copy, Terminal, ExternalLink } from "lucide-react";
+import { saveAdminSettingsToNeon } from "../utils/adminSettingsSync";
 
 interface ApiSettingsModalProps {
   isOpen: boolean;
@@ -18,11 +19,17 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [copiedSnippet, setCopiedSnippet] = useState(false);
 
+  useEffect(() => {
+    setApiKeyInput(customApiKey);
+  }, [customApiKey]);
+
   if (!isOpen) return null;
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    onSaveApiKey(apiKeyInput.trim());
+    const trimmed = apiKeyInput.trim();
+    onSaveApiKey(trimmed);
+    saveAdminSettingsToNeon({ apiKeys: { everaiApiKey: trimmed } }).catch(() => {});
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
   };
@@ -30,6 +37,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   const handleClear = () => {
     setApiKeyInput("");
     onSaveApiKey("");
+    saveAdminSettingsToNeon({ apiKeys: { everaiApiKey: "" } }).catch(() => {});
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2000);
   };

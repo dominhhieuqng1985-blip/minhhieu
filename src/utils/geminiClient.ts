@@ -126,7 +126,7 @@ export function generateSmartAnalysisOffline(options: {
   description?: string;
   question?: string;
 }): string {
-  const { action, title, channel = 'Minh Hiếu review phim', description = '', question = '' } = options;
+  const { action, title, channel = 'Minh Hiếu Official VN', description = '', question = '' } = options;
   const lowerTitle = title.toLowerCase();
 
   // Topic classification

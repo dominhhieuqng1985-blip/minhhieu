@@ -53,6 +53,10 @@ import {
   subscribeYouTubeUnlockState,
   MINHHIEU_SUBSCRIBE_URL,
 } from './YouTubeSubscribeGateModal';
+import {
+  ADMIN_SETTINGS_SYNCED_EVENT,
+  saveAdminSettingsToNeon,
+} from '../utils/adminSettingsSync';
 
 interface TikTokDownloaderStudioProps {
   onShowToast?: (msg: string) => void;
@@ -92,7 +96,13 @@ export const TikTokDownloaderStudio: React.FC<TikTokDownloaderStudioProps> = ({
   const didAutoLoadRef = useRef<boolean>(false);
 
   useEffect(() => {
-    return subscribeYouTubeUnlockState((unlocked) => setIsSubUnlocked(unlocked));
+    const syncKey = () => setCustomKey(getTikTokApiKey());
+    window.addEventListener(ADMIN_SETTINGS_SYNCED_EVENT, syncKey);
+    const unsub = subscribeYouTubeUnlockState((unlocked) => setIsSubUnlocked(unlocked));
+    return () => {
+      window.removeEventListener(ADMIN_SETTINGS_SYNCED_EVENT, syncKey);
+      unsub();
+    };
   }, []);
 
   // Generate filename whenever videoData is updated
@@ -338,8 +348,21 @@ export const TikTokDownloaderStudio: React.FC<TikTokDownloaderStudioProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setTikTokApiKey(customKey);
-                  if (onShowToast) onShowToast('Đã lưu mã RapidAPI Key!');
+                  const trimmed = customKey.trim();
+                  setTikTokApiKey(trimmed);
+                  saveAdminSettingsToNeon({ apiKeys: { tiktokRapidApiKey: trimmed } })
+                    .then((res) => {
+                      if (onShowToast) {
+                        onShowToast(
+                          res.success
+                            ? 'Đã lưu & đồng bộ mã RapidAPI Key lên Admin Data!'
+                            : 'Đã lưu mã RapidAPI Key!'
+                        );
+                      }
+                    })
+                    .catch(() => {
+                      if (onShowToast) onShowToast('Đã lưu mã RapidAPI Key!');
+                    });
                   setShowSettings(false);
                 }}
                 className="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shrink-0 transition-colors"
@@ -351,7 +374,8 @@ export const TikTokDownloaderStudio: React.FC<TikTokDownloaderStudioProps> = ({
                 onClick={() => {
                   setCustomKey(DEFAULT_RAPIDAPI_KEY);
                   setTikTokApiKey(DEFAULT_RAPIDAPI_KEY);
-                  if (onShowToast) onShowToast('Đã khôi phục mã RapidAPI mặc định.');
+                  saveAdminSettingsToNeon({ apiKeys: { tiktokRapidApiKey: DEFAULT_RAPIDAPI_KEY } }).catch(() => {});
+                  if (onShowToast) onShowToast('Đã khôi phục & đồng bộ mã RapidAPI mặc định.');
                 }}
                 className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs shrink-0 transition-colors"
               >
@@ -647,7 +671,7 @@ export const TikTokDownloaderStudio: React.FC<TikTokDownloaderStudioProps> = ({
                   <div className="flex items-center gap-2">
                     <Unlock className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>
-                      Đã đăng ký kênh <strong>@minhhieureviewphim</strong> · Đã mở khóa tải video
+                      Đã đăng ký kênh <strong>@MinhHieuOfficialvn</strong> · Đã mở khóa tải video
                     </span>
                   </div>
                 </div>
@@ -656,7 +680,7 @@ export const TikTokDownloaderStudio: React.FC<TikTokDownloaderStudioProps> = ({
                   <div className="flex items-start gap-2 text-slate-200">
                     <Lock className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                     <span>
-                      Đăng ký kênh YouTube <strong className="text-amber-300">@minhhieureviewphim</strong> để mở khóa tính năng tải về miễn phí.
+                      Đăng ký kênh YouTube <strong className="text-amber-300">@MinhHieuOfficialvn</strong> để mở khóa tính năng tải về miễn phí.
                     </span>
                   </div>
                   <a

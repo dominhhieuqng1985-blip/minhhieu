@@ -84,7 +84,7 @@ export const AIPodcastCompanion: React.FC<AIPodcastCompanionProps> = ({
           finalResult = await callGeminiDirectClient({
             prompt,
             systemInstruction:
-              'Bạn là chuyên gia cố vấn nội dung và trợ lý AI thông minh của kênh Minh Hiếu review phim. Hãy trả lời bằng tiếng Việt tự nhiên, gãy gọn, văn phong điện ảnh cuốn hút và giàu ý nghĩa.',
+              'Bạn là chuyên gia cố vấn nội dung và trợ lý AI thông minh của kênh Minh Hiếu Official VN. Hãy trả lời bằng tiếng Việt tự nhiên, gãy gọn, văn phong điện ảnh cuốn hút và giàu ý nghĩa.',
           });
         } catch (directErr) {
           console.warn('Lỗi gọi trực tiếp Gemini API client, chuyển sang phân tích ngoại tuyến:', directErr);

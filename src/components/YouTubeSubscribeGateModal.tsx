@@ -16,7 +16,7 @@ import { getApiBaseUrl, hasBackend } from '../utils/api';
 export const MINHHIEU_CHANNEL_URL = 'https://www.youtube.com/@MinhHieuOfficialvn';
 export const MINHHIEU_SUBSCRIBE_URL = 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1';
 export const MINHHIEU_CHANNEL_ID = 'UCUr78N1iiRNyg_UoBgtPPhw';
-export const MINHHIEU_CHANNEL_NAME = 'Minh Hiếu Official';
+export const MINHHIEU_CHANNEL_NAME = 'Minh Hiếu Official VN';
 export const MINHHIEU_CHANNEL_AVATAR =
   'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj';
 
@@ -53,8 +53,8 @@ export function setYouTubeSubUnlocked(method: 'smart_focus' | 'google_oauth' | '
     // Also mark in main app subscribed channels list if present
     const subsRaw = localStorage.getItem('casttube_subscribed_channels');
     const subs: string[] = subsRaw ? JSON.parse(subsRaw) : [];
-    if (!subs.includes('Minh Hiếu review phim')) {
-      subs.push('Minh Hiếu review phim');
+    if (!subs.includes('Minh Hiếu Official VN')) {
+      subs.push('Minh Hiếu Official VN');
       localStorage.setItem('casttube_subscribed_channels', JSON.stringify(subs));
     }
     window.dispatchEvent(new CustomEvent(YT_SUB_UNLOCKED_EVENT, { detail: { unlocked: true } }));

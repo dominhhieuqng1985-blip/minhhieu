@@ -104,6 +104,12 @@ import {
   isStaticHost,
   getStaticChannelData,
 } from './utils/api';
+import {
+  fetchAndHydrateAdminPrivateSettings,
+  getStoredChannelProfile,
+  OFFICIAL_DEFAULT_CHANNEL_PROFILE,
+  saveStoredChannelProfile,
+} from './utils/adminSettingsSync';
 
 const STORAGE_KEY_USER_EPISODES = 'casttube_user_episodes_v2';
 const STORAGE_KEY_FAVORITES = 'casttube_user_favorites';
@@ -160,7 +166,8 @@ function AppContent() {
   const deletedIds = getBlacklistedDeletedIds();
   const initialPodcasts = DEFAULT_PODCASTS.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
 
-  // Channel Profile State
+  // Channel Profile State (hydrated from Admin Data / localStorage, default: Minh Hiếu Official VN)
+  const neonChannelProfileLockedRef = useRef<boolean>(Boolean(getStoredChannelProfile()));
   const [channelInfo, setChannelInfo] = useState<{
     name: string;
     handle: string;
@@ -168,14 +175,7 @@ function AppContent() {
     subscribers: string;
     youtubeUrl: string;
     subscribeUrl: string;
-  }>({
-    name: 'Minh Hiếu Official',
-    handle: '@MinhHieuOfficialvn',
-    avatar: 'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj',
-    subscribers: 'Kênh YouTube Chính Thức',
-    youtubeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn',
-    subscribeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1',
-  });
+  }>(() => getStoredChannelProfile() || OFFICIAL_DEFAULT_CHANNEL_PROFILE);
 
   // Loaded Content Categorized: Videos, Podcasts, Playlists
   const [channelVideos, setChannelVideos] = useState<PodcastEpisode[]>(initialVideos);
@@ -200,8 +200,15 @@ function AppContent() {
   // Current playing episode
   const [currentEpisode, setCurrentEpisode] = useState<PodcastEpisode | null>(initialVideos[0] || null);
 
-  // Auto-play next episode toggle (default: true)
-  const [isAutoplayNext, setIsAutoplayNext] = useState<boolean>(true);
+  // Auto-play next episode toggle (persisted across F5 & synced with Neon PostgreSQL)
+  const [isAutoplayNext, setIsAutoplayNext] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('minhhieu_autoplay_next');
+      if (saved === 'false') return false;
+      if (saved === 'true') return true;
+    } catch {}
+    return true;
+  });
 
   // Loading state for automatic channel fetch
   const [isLoadingChannel, setIsLoadingChannel] = useState<boolean>(false);
@@ -242,10 +249,15 @@ function AppContent() {
         saveStoredWatermarkSettings(mergedWm);
       }
       if (s.channel_profile && typeof s.channel_profile === 'object' && s.channel_profile.name) {
-        setChannelInfo((prev) => ({ ...prev, ...s.channel_profile }));
+        neonChannelProfileLockedRef.current = true;
+        const upgraded = saveStoredChannelProfile(s.channel_profile);
+        setChannelInfo((prev) => ({ ...prev, ...upgraded }));
       }
       if (s.playback_preferences && typeof s.playback_preferences.autoplayNext === 'boolean') {
         setIsAutoplayNext(s.playback_preferences.autoplayNext);
+        try {
+          localStorage.setItem('minhhieu_autoplay_next', String(s.playback_preferences.autoplayNext));
+        } catch {}
       }
 
       // Sync deleted video blacklist from Neon PostgreSQL
@@ -309,6 +321,35 @@ function AppContent() {
     });
   }, []);
 
+  // Hydrate Admin-only private settings (API keys, storage preferences, custom voices, channel profile) on F5 or Admin login
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchAndHydrateAdminPrivateSettings().then((adminSettings) => {
+      if (!adminSettings) return;
+      if (adminSettings.ad_settings) {
+        const normalized = normalizeAdSettings(adminSettings.ad_settings);
+        setAdSettings(normalized);
+        saveStoredAdSettings(normalized);
+      }
+      if (adminSettings.watermark_settings) {
+        const mergedWm = { ...DEFAULT_WATERMARK_SETTINGS, ...adminSettings.watermark_settings };
+        setWatermarkSettings(mergedWm);
+        saveStoredWatermarkSettings(mergedWm);
+      }
+      if (adminSettings.channel_profile && adminSettings.channel_profile.name) {
+        neonChannelProfileLockedRef.current = true;
+        const upgraded = saveStoredChannelProfile(adminSettings.channel_profile);
+        setChannelInfo((prev) => ({ ...prev, ...upgraded }));
+      }
+      if (adminSettings.playback_preferences && typeof adminSettings.playback_preferences.autoplayNext === 'boolean') {
+        setIsAutoplayNext(adminSettings.playback_preferences.autoplayNext);
+        try {
+          localStorage.setItem('minhhieu_autoplay_next', String(adminSettings.playback_preferences.autoplayNext));
+        } catch {}
+      }
+    });
+  }, [isAdmin]);
+
   // Auto filter out any videos marked as deleted/removed on YouTube
   useEffect(() => {
     try {
@@ -344,9 +385,21 @@ function AppContent() {
   const [subscribedChannels, setSubscribedChannels] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_SUBS);
-      return saved ? JSON.parse(saved) : ['Minh Hiếu Official'];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return Array.from(
+            new Set(
+              parsed.map((c: string) =>
+                c === 'Minh Hiếu Official' || c === 'Minh Hiếu review phim' ? 'Minh Hiếu Official VN' : c
+              )
+            )
+          );
+        }
+      }
+      return ['Minh Hiếu Official VN'];
     } catch {
-      return ['Minh Hiếu Official'];
+      return ['Minh Hiếu Official VN'];
     }
   });
 
@@ -430,7 +483,9 @@ function AppContent() {
     const deletedIds = getBlacklistedDeletedIds();
     const allVids = getMergedInitialVideos().filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
     const cleanPodcasts = DEFAULT_PODCASTS.filter((v) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id));
-    setChannelInfo(DEFAULT_CHANNEL_INFO);
+    if (!neonChannelProfileLockedRef.current) {
+      setChannelInfo(getStoredChannelProfile() || DEFAULT_CHANNEL_INFO);
+    }
     setChannelVideos(allVids);
     setChannelPodcasts(cleanPodcasts);
     setChannelPlaylists(DEFAULT_CHANNEL_PLAYLISTS);
@@ -536,7 +591,7 @@ function AppContent() {
     if (!hasBackend()) {
       applyLocalChannelData();
       setIsLoadingChannel(false);
-      showToast(`Đã nạp toàn bộ ${DEFAULT_VIDEOS.length} video chính thức của kênh Minh Hiếu review phim.`);
+      showToast(`Đã nạp toàn bộ ${DEFAULT_VIDEOS.length} video chính thức của kênh Minh Hiếu Official VN.`);
       return;
     }
 
@@ -555,33 +610,79 @@ function AppContent() {
       }
 
       const data = await response.json();
+      const isDefaultOfficialChannel =
+        trimmedUrl.toLowerCase().includes('@minhhieuofficialvn') ||
+        trimmedUrl.toLowerCase().includes('@minhhieureviewphim') ||
+        trimmedUrl.includes('UCUr78N1iiRNyg_UoBgtPPhw');
 
-      // Update Channel Info
+      // Update Channel Info: Respect Admin Data's saved channel_profile when loading default channel!
       if (data.channel) {
-        setChannelInfo(data.channel);
+        if (isDefaultOfficialChannel && neonChannelProfileLockedRef.current) {
+          const savedProfile = getStoredChannelProfile() || OFFICIAL_DEFAULT_CHANNEL_PROFILE;
+          setChannelInfo((prev) => ({
+            ...data.channel,
+            ...prev,
+            name: savedProfile.name,
+            handle: savedProfile.handle,
+            youtubeUrl: savedProfile.youtubeUrl,
+            subscribeUrl: savedProfile.subscribeUrl,
+            avatar: savedProfile.avatar || data.channel.avatar,
+          }));
+        } else if (isDefaultOfficialChannel) {
+          setChannelInfo({
+            ...data.channel,
+            name: 'Minh Hiếu Official VN',
+            handle: '@MinhHieuOfficialvn',
+            youtubeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn',
+            subscribeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1',
+          });
+        } else {
+          setChannelInfo(data.channel);
+        }
       }
 
       const deletedIds = getBlacklistedDeletedIds();
+      const resolvedChannelLabel = isDefaultOfficialChannel
+        ? (getStoredChannelProfile()?.name || 'Minh Hiếu Official VN')
+        : (data.channel?.name || 'Minh Hiếu Official VN');
 
       // Format Videos (all videos, excluding any permanently deleted on YouTube)
-      const formattedVideos: PodcastEpisode[] = (data.videos || [])
+      const crawledVideos: PodcastEpisode[] = (data.videos || [])
         .filter((v: any) => !deletedIds.has(v.youtubeId) && !deletedIds.has(v.id))
         .map((v: any, idx: number) => ({
           id: `v-${idx}-${v.youtubeId}`,
           youtubeId: v.youtubeId,
           title: v.title,
-          channel: v.channel || data.channel?.name || 'Minh Hiếu review phim',
+          channel: isDefaultOfficialChannel ? resolvedChannelLabel : (v.channel || resolvedChannelLabel),
           channelAvatar: v.channelAvatar || data.channel?.avatar,
           category: 'phat-trien-ban-than',
           duration: v.duration,
           durationSeconds: v.isShort ? 60 : 600,
           thumbnail: v.thumbnail,
           description: v.isShort
-            ? `Shorts từ kênh ${data.channel?.name || 'Minh Hiếu review phim'}`
-            : `Video #${idx + 1} từ kênh ${data.channel?.name || 'Minh Hiếu review phim'}`,
+            ? `Shorts từ kênh ${resolvedChannelLabel}`
+            : `Video #${idx + 1} từ kênh ${resolvedChannelLabel}`,
           publishedDate: v.isShort ? 'YouTube Shorts' : 'Video chính thức',
           isShort: v.isShort,
         }));
+
+      // Preserve Admin/Neon custom videos at top when loading the official channel!
+      let formattedVideos = crawledVideos;
+      if (isDefaultOfficialChannel) {
+        try {
+          const rawSaved = localStorage.getItem('casttube_user_saved_videos');
+          if (rawSaved) {
+            const savedList: PodcastEpisode[] = JSON.parse(rawSaved);
+            const crawledIds = new Set(crawledVideos.map((cv) => cv.youtubeId));
+            const uniqueSaved = savedList.filter(
+              (sv) => sv && sv.youtubeId && !crawledIds.has(sv.youtubeId) && !deletedIds.has(sv.youtubeId)
+            );
+            if (uniqueSaved.length > 0) {
+              formattedVideos = [...uniqueSaved, ...crawledVideos];
+            }
+          }
+        } catch {}
+      }
 
       // Format Podcasts (excluding any permanently deleted)
       const formattedPodcasts: PodcastEpisode[] = (data.podcasts || [])
@@ -590,19 +691,19 @@ function AppContent() {
           id: `p-${idx}-${p.youtubeId}`,
           youtubeId: p.youtubeId,
           title: p.title,
-          channel: p.channel || data.channel?.name || 'Minh Hiếu review phim',
+          channel: isDefaultOfficialChannel ? resolvedChannelLabel : (p.channel || resolvedChannelLabel),
           channelAvatar: p.channelAvatar || data.channel?.avatar,
           category: 'phat-trien-ban-than',
           duration: p.duration,
           durationSeconds: 900,
           thumbnail: p.thumbnail,
-          description: p.seriesTitle ? `Series Podcast: ${p.seriesTitle}` : `Tập podcast từ ${data.channel?.name}`,
+          description: p.seriesTitle ? `Series Podcast: ${p.seriesTitle}` : `Tập podcast từ ${resolvedChannelLabel}`,
           publishedDate: p.seriesTitle || 'Podcast',
           seriesTitle: p.seriesTitle,
         }));
 
-      const longCount = data.longVideosCount || formattedVideos.filter((v) => !v.isShort).length;
-      const shortsCount = data.shortsCount || formattedVideos.filter((v) => v.isShort).length;
+      const longCount = formattedVideos.filter((v) => !v.isShort).length;
+      const shortsCount = formattedVideos.filter((v) => v.isShort).length;
 
       setVideoCounts({
         all: formattedVideos.length,
@@ -643,7 +744,7 @@ function AppContent() {
     } catch (err: any) {
       console.warn('Backend API chưa sẵn sàng trên GitHub Pages, tự động nạp thư viện video kênh:', err);
       applyLocalChannelData();
-      showToast(`Đã nạp ${DEFAULT_VIDEOS.length} video của kênh Minh Hiếu review phim.`);
+      showToast(`Đã nạp ${DEFAULT_VIDEOS.length} video của kênh Minh Hiếu Official VN.`);
       // Tự động kiểm tra studo.xml cho GitHub Pages
       setTimeout(() => {
         checkForNewVideos(false);
@@ -769,12 +870,12 @@ function AppContent() {
                 id: `studo-${Date.now()}-${i}-${yId}`,
                 youtubeId: yId,
               title: t,
-              channel: 'Minh Hiếu review phim',
+              channel: 'Minh Hiếu Official VN',
               category: t.includes('đức phật') ? 'tam-ly-doi-song' : 'nghe-thuat-sang-tao',
               duration: dur,
               durationSeconds: isShort ? 60 : 210,
               thumbnail: imgM ? imgM[1] : `https://i.ytimg.com/vi/${yId}/hqdefault.jpg`,
-              description: descM ? descM[1].trim() : `Tập podcast từ kênh Minh Hiếu review phim`,
+              description: descM ? descM[1].trim() : `Tập podcast từ kênh Minh Hiếu Official VN`,
               publishedDate: 'Mới cập nhật từ studo.xml',
               isShort,
             });
@@ -861,12 +962,12 @@ function AppContent() {
               id: `rss-${Date.now()}-${idx}-${item.id}`,
               youtubeId: item.id,
               title: item.title,
-              channel: 'Minh Hiếu review phim',
+              channel: 'Minh Hiếu Official VN',
               category: item.title.includes('đức phật') ? 'tam-ly-doi-song' : 'nghe-thuat-sang-tao',
               duration: isShort ? '00:60' : '03:30',
               durationSeconds: isShort ? 60 : 210,
               thumbnail: `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
-              description: `Video mới cập nhật từ kênh Minh Hiếu review phim.`,
+              description: `Video mới cập nhật từ kênh Minh Hiếu Official VN.`,
               publishedDate: 'Vừa tải lên',
               isShort,
             };
@@ -1527,6 +1628,12 @@ function AppContent() {
                 onClick={() => {
                   const next = !isAutoplayNext;
                   setIsAutoplayNext(next);
+                  try {
+                    localStorage.setItem('minhhieu_autoplay_next', String(next));
+                  } catch {}
+                  if (isAdmin) {
+                    saveGeneralSettingsToDb({ playbackPreferences: { autoplayNext: next } }).catch(() => {});
+                  }
                   showToast(next ? 'Đã BẬT tự động phát tập tiếp theo' : 'Đã TẮT tự động phát tập tiếp theo');
                 }}
                 className={`px-3 py-2 rounded-full text-xs font-semibold border flex items-center gap-1.5 transition-all ${
@@ -1768,6 +1875,12 @@ function AppContent() {
                     onToggleAutoplay={() => {
                       const next = !isAutoplayNext;
                       setIsAutoplayNext(next);
+                      try {
+                        localStorage.setItem('minhhieu_autoplay_next', String(next));
+                      } catch {}
+                      if (isAdmin) {
+                        saveGeneralSettingsToDb({ playbackPreferences: { autoplayNext: next } }).catch(() => {});
+                      }
                       showToast(next ? 'Đã BẬT tự động phát tập tiếp theo' : 'Đã TẮT tự động phát tập tiếp theo');
                     }}
                     onPlayEpisode={handlePlayEpisode}
@@ -2074,6 +2187,12 @@ function AppContent() {
         onToggleAutoplay={() => {
           const next = !isAutoplayNext;
           setIsAutoplayNext(next);
+          try {
+            localStorage.setItem('minhhieu_autoplay_next', String(next));
+          } catch {}
+          if (isAdmin) {
+            saveGeneralSettingsToDb({ playbackPreferences: { autoplayNext: next } }).catch(() => {});
+          }
           showToast(next ? 'Đã BẬT tự động phát tập tiếp theo' : 'Đã TẮT tự động phát tập tiếp theo');
         }}
         onPlayEpisode={handlePlayEpisode}
@@ -2254,6 +2373,9 @@ function AppContent() {
             () => {
               const next = !isAutoplayNext;
               setIsAutoplayNext(next);
+              try {
+                localStorage.setItem('minhhieu_autoplay_next', String(next));
+              } catch {}
               saveGeneralSettingsToDb({ playbackPreferences: { autoplayNext: next } }).catch(() => {});
               showToast(next ? 'Đã BẬT tự động phát tập tiếp theo' : 'Đã TẮT tự động phát tập tiếp theo');
             },
@@ -2262,6 +2384,11 @@ function AppContent() {
           );
         }}
         channelInfo={channelInfo}
+        onUpdateChannelInfo={(updated) => {
+          neonChannelProfileLockedRef.current = true;
+          const saved = saveStoredChannelProfile(updated);
+          setChannelInfo(saved);
+        }}
         onShowToast={showToast}
       />
 

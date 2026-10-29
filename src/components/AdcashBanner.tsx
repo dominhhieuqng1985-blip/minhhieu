@@ -99,7 +99,7 @@ export function resolveAdvertiserName(
     }
     if (titleToCheck.length <= 35) return titleToCheck;
   }
-  return 'Minh Hiếu Review Phim';
+  return 'Minh Hiếu Official VN';
 }
 
 function checkNodeHasRenderedAd(el: HTMLElement | null): boolean {
@@ -283,10 +283,10 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
   const targetHref =
     adSettings.redirectUrl ||
     watermarkSettings.targetUrl ||
-    'https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1';
+    'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1';
   const sponsorTitle =
     adSettings.adTitle ||
-    'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Review Phim';
+    'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Official VN';
   const logoAvatar = watermarkSettings.logoUrl;
 
   const advertiserName = resolveAdvertiserName(adSettings);
@@ -372,7 +372,7 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
                     </div>
                   )}
                   <span className="text-[10px] font-semibold text-white/90 leading-tight line-clamp-2 drop-shadow">
-                    Minh Hiếu Review Phim
+                    {advertiserName}
                   </span>
                 </div>
               </div>
@@ -391,7 +391,7 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
 
                 <div className="space-y-2">
                   <div className="text-[10px] text-slate-500 truncate font-mono">
-                    youtube.com/@minhhieureviewphim
+                    youtube.com/@MinhHieuOfficialvn
                   </div>
                   <div className="w-full py-2 px-2.5 rounded-lg bg-white/10 group-hover:bg-red-600 text-white text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap">
                     <span>Xem Ngay</span>
@@ -493,7 +493,7 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
                     </div>
                   )}
                   <span className="text-[11px] font-semibold text-white/95 truncate drop-shadow">
-                    Minh Hiếu Review Phim
+                    {advertiserName}
                   </span>
                 </div>
               </div>
@@ -506,7 +506,7 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
 
                 <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
                   <span className="text-[10px] text-slate-500 font-mono truncate max-w-[140px]">
-                    @minhhieureviewphim
+                    @MinhHieuOfficialvn
                   </span>
                   <span className="px-3 py-1.5 rounded-lg bg-white/10 group-hover:bg-red-600 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0">
                     <span>Xem ngay</span>
@@ -603,7 +603,7 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
 
                 <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-slate-800/80">
                   <span className="text-[10px] text-slate-500 font-mono truncate max-w-[125px]">
-                    @minhhieureviewphim
+                    @MinhHieuOfficialvn
                   </span>
                   <span className="px-3 py-1.5 rounded-lg bg-white/10 group-hover:bg-red-600 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0">
                     <span>Xem ngay</span>
@@ -833,7 +833,7 @@ export const AdcashVideoSlider: React.FC<AdcashVideoSliderProps> = ({
 
   const ytId = extractYouTubeId(adSettings.videoUrl);
   const targetHref =
-    adSettings.redirectUrl || 'https://www.youtube.com/@minhhieureviewphim?sub_confirmation=1';
+    adSettings.redirectUrl || 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1';
 
   return (
     <div className="fixed bottom-4 right-4 z-40 w-64 sm:w-72 aspect-video rounded-xl overflow-hidden bg-black border border-slate-800 shadow-2xl animate-in slide-in-from-bottom-4 fade-in select-none">

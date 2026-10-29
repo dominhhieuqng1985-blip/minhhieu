@@ -42,9 +42,9 @@ export const DocumentConverterStudio: React.FC<DocumentConverterStudioProps> = (
   const [activeTab, setActiveTab] = useState<'word-to-pdf' | 'pdf-to-word' | 'ocr-to-word' | 'tts-speech'>('word-to-pdf');
 
   // Word to PDF State
-  const [wordDocTitle, setWordDocTitle] = useState<string>('Kịch Bản Minh Hiếu Review Phim');
+  const [wordDocTitle, setWordDocTitle] = useState<string>('Kịch Bản Minh Hiếu Official VN');
   const [wordContent, setWordContent] = useState<string>(
-    `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc\n-------------------\n\nKỊCH BẢN & NỘI DUNG TỔNG KẾT PODCAST\n\n1. GIỚI THIỆU CHƯƠNG TRÌNH\nKênh Podcast chính thức của Minh Hiếu review phim (@minhhieureviewphim). Tổng hợp các bộ phim Phật giáo ý nghĩa, truyện ma rùng rợn, bài học tâm lý cuộc sống và âm nhạc chọn lọc.\n\n2. MỤC TIÊU PHÁT HÀNH\n- Cung cấp nguồn nội dung chất lượng cao cho thính giả.\n- Đồng bộ hóa các tập podcast đa nền tảng (YouTube, Apple Podcasts, Spotify).\n- Truyền tải thông điệp nhân văn, hiếu nghĩa và bình an tâm hồn.\n\n3. LƯU Ý KHI THỰC HIỆN\nCác nội dung cần được kiểm duyệt âm thanh, hình ảnh và bản quyền trước khi xuất bản.`
+    `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc\n-------------------\n\nKỊCH BẢN & NỘI DUNG TỔNG KẾT PODCAST\n\n1. GIỚI THIỆU CHƯƠNG TRÌNH\nKênh Podcast chính thức của Minh Hiếu Official VN (@MinhHieuOfficialvn). Tổng hợp các bộ phim Phật giáo ý nghĩa, truyện ma rùng rợn, bài học tâm lý cuộc sống và âm nhạc chọn lọc.\n\n2. MỤC TIÊU PHÁT HÀNH\n- Cung cấp nguồn nội dung chất lượng cao cho thính giả.\n- Đồng bộ hóa các tập podcast đa nền tảng (YouTube, Apple Podcasts, Spotify).\n- Truyền tải thông điệp nhân văn, hiếu nghĩa và bình an tâm hồn.\n\n3. LƯU Ý KHI THỰC HIỆN\nCác nội dung cần được kiểm duyệt âm thanh, hình ảnh và bản quyền trước khi xuất bản.`
   );
   const [pdfFontSize, setPdfFontSize] = useState<number>(12);
   const [pdfMargin, setPdfMargin] = useState<number>(15);
@@ -54,7 +54,7 @@ export const DocumentConverterStudio: React.FC<DocumentConverterStudioProps> = (
   const [pdfFileName, setPdfFileName] = useState<string>('');
   const [isExtractingPdf, setIsExtractingPdf] = useState<boolean>(false);
   const [pdfExtractedText, setPdfExtractedText] = useState<string>(
-    `# BẢN DỊCH VÀ TRÍCH XUẤT TỪ FILE PDF\n\nTiêu đề: Bản Thuyết Minh Phim & Đạo Lý Làm Con\nTác giả: Minh Hiếu review phim\n\nNội dung chính:\nĐức Phật đã từng dạy rằng trong muôn vàn hạnh lành trên thế gian, hạnh hiếu là đứng đầu. Cha mẹ là hai vị Phật sống trong gia đình, nuôi nấng con từ thuở lọt lòng, không quản ngại bao khó nhọc nhọc nhằn.\n\nKết luận:\nHãy luôn hiếu kính và trân trọng từng phút giây bên cạnh đấng sinh thành.`
+    `# BẢN DỊCH VÀ TRÍCH XUẤT TỪ FILE PDF\n\nTiêu đề: Bản Thuyết Minh Phim & Đạo Lý Làm Con\nTác giả: Minh Hiếu Official VN\n\nNội dung chính:\nĐức Phật đã từng dạy rằng trong muôn vàn hạnh lành trên thế gian, hạnh hiếu là đứng đầu. Cha mẹ là hai vị Phật sống trong gia đình, nuôi nấng con từ thuở lọt lòng, không quản ngại bao khó nhọc nhọc nhằn.\n\nKết luận:\nHãy luôn hiếu kính và trân trọng từng phút giây bên cạnh đấng sinh thành.`
   );
 
   // OCR (PDF Dạng Ảnh Sang Word) State

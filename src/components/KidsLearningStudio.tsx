@@ -53,7 +53,7 @@ import {
   pollEverAiTtsJob,
   getStoredEverAiKey,
 } from '../utils/everai';
-import { getApiBaseUrl } from '../utils/api';
+import { resolveApiEndpoint, getOptionalAiHeaders } from '../utils/api';
 
 interface KidsLearningStudioProps {
   onShowToast: (msg: string) => void;
@@ -720,14 +720,11 @@ export const KidsLearningStudio: React.FC<KidsLearningStudioProps> = ({ onShowTo
       // Layer 1: Server-side Gemini 3.8 Native English TTS
       try {
         setSpeakingStatus(`Đang chuẩn bị giọng bản xứ ${activeEnVoiceMeta.label}...`);
-        const apiBase = getApiBaseUrl();
-        const endpoint = apiBase
-          ? `${apiBase.replace(/\/+$/, '')}/api/kids-learning/english-tts`
-          : '/api/kids-learning/english-tts';
+        const endpoint = resolveApiEndpoint('kids-learning/english-tts');
 
         const resp = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getOptionalAiHeaders(),
           body: JSON.stringify({
             text: cleanText,
             voiceName: selectedEnVoiceId,
@@ -966,14 +963,11 @@ export const KidsLearningStudio: React.FC<KidsLearningStudioProps> = ({ onShowTo
 
     setIsGeneratingTutor(true);
     try {
-      const apiBase = getApiBaseUrl();
-      const endpoint = apiBase
-        ? `${apiBase.replace(/\/+$/, '')}/api/kids-learning/generate`
-        : '/api/kids-learning/generate';
+      const endpoint = resolveApiEndpoint('kids-learning/generate');
 
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getOptionalAiHeaders(),
         body: JSON.stringify({
           grade: tutorGrade,
           subject: tutorSubject,

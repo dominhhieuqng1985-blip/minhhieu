@@ -1,4 +1,5 @@
 import { getAdminAuthHeaders } from '../utils/adminAuth';
+import { getApiBaseUrl, hasBackend, isStaticHost } from '../utils/api';
 
 export interface AdSettings {
   enabled: boolean;
@@ -35,8 +36,8 @@ export const DEFAULT_AD_SETTINGS: AdSettings = {
   videoUrl: 'https://youtu.be/Co2OgH2FGr0?si=pBe3YR7Em398Ayqf',
   redirectUrl: 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1',
   skipDelaySeconds: 5,
-  adTitle: 'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Official',
-  sponsorName: 'Minh Hiếu Official',
+  adTitle: 'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Official VN',
+  sponsorName: 'Minh Hiếu Official VN',
   showInMovie: true,
   showInYouTube: true,
   enablePreRoll: true,
@@ -233,9 +234,23 @@ export function saveStoredWatermarkSettings(settings: WatermarkSettings): void {
   } catch {}
 }
 
+function buildSettingsApiEndpoints(subPath: string): string[] {
+  const cleanSub = subPath.replace(/^\/+/, '');
+  const urls: string[] = [];
+  const apiBase = getApiBaseUrl();
+  if (apiBase) {
+    urls.push(`${apiBase.replace(/\/+$/, '')}/${cleanSub}`);
+  }
+  if (!isStaticHost) {
+    urls.push(`/api/${cleanSub}`);
+    urls.push(`/minhhieu/api/${cleanSub}`);
+  }
+  return Array.from(new Set(urls));
+}
+
 /**
- * Fetch remote ad settings from server or public json file
- * Automatically saves to localStorage and notifies components if new settings are loaded.
+ * Fetch remote ad settings from Neon PostgreSQL backend API.
+ * NEVER overwrites saved settings with static ./ad-settings.json on F5 reload!
  */
 export async function fetchRemoteAdSettings(): Promise<{
   adSettings: AdSettings;
@@ -243,15 +258,10 @@ export async function fetchRemoteAdSettings(): Promise<{
 } | null> {
   if (typeof window === 'undefined') return null;
 
-  const candidateUrls = [
-    '/api/settings/ads',
-    '/minhhieu/api/settings/ads',
-    './ad-settings.json',
-    '/ad-settings.json',
-    '/minhhieu/ad-settings.json',
-  ];
+  // 1. Always prioritize live Neon PostgreSQL backend endpoints (works on both local & GitHub Pages -> Render)
+  const apiUrls = buildSettingsApiEndpoints('settings/ads');
 
-  for (const url of candidateUrls) {
+  for (const url of apiUrls) {
     try {
       const res = await fetch(`${url}?nocache=${Date.now()}`, {
         headers: { 'Cache-Control': 'no-cache', Accept: 'application/json' },
@@ -288,24 +298,67 @@ export async function fetchRemoteAdSettings(): Promise<{
       }
     } catch {}
   }
+
+  // 2. Only fall back to static ./ad-settings.json if NO backend exists AND localStorage has NEVER been initialized
+  const hasExistingLocal = Boolean(localStorage.getItem(STORAGE_KEY_AD_SETTINGS));
+  if (hasBackend() || hasExistingLocal) {
+    return null;
+  }
+
+  const staticCandidates = ['./ad-settings.json', '/ad-settings.json', '/minhhieu/ad-settings.json'];
+  for (const url of staticCandidates) {
+    try {
+      const res = await fetch(`${url}?nocache=${Date.now()}`, {
+        headers: { 'Cache-Control': 'no-cache', Accept: 'application/json' },
+      });
+      if (res.ok) {
+        const text = await res.text();
+        if (text && !text.trim().startsWith('<')) {
+          const data = JSON.parse(text);
+          if (data && (data.adSettings || data.watermarkSettings)) {
+            const finalAd = data.adSettings ? normalizeAdSettings(data.adSettings) : null;
+            const finalWatermark = data.watermarkSettings
+              ? { ...DEFAULT_WATERMARK_SETTINGS, ...data.watermarkSettings }
+              : null;
+            if (finalAd) localStorage.setItem(STORAGE_KEY_AD_SETTINGS, JSON.stringify(finalAd));
+            if (finalWatermark) localStorage.setItem(STORAGE_KEY_WATERMARK_SETTINGS, JSON.stringify(finalWatermark));
+            return {
+              adSettings: finalAd || DEFAULT_AD_SETTINGS,
+              watermarkSettings: finalWatermark || DEFAULT_WATERMARK_SETTINGS,
+            };
+          }
+        }
+      }
+    } catch {}
+  }
+
   return null;
 }
 
 /**
- * Save ad and watermark settings to Neon PostgreSQL (Admin Only) so ANY other device automatically loads it.
+ * Save ad and watermark settings to Neon PostgreSQL (Admin Only) so ANY device and F5 reload automatically loads it.
  */
 export async function saveRemoteAdSettings(
   adSettings: AdSettings,
   watermarkSettings: WatermarkSettings
 ): Promise<{ success: boolean; message?: string }> {
-  saveStoredAdSettings(adSettings);
+  const normalizedAd = normalizeAdSettings(adSettings);
+  saveStoredAdSettings(normalizedAd);
   saveStoredWatermarkSettings(watermarkSettings);
 
-  const candidateEndpoints = ['/api/settings/ads', '/minhhieu/api/settings/ads'];
+  const candidateEndpoints = buildSettingsApiEndpoints('settings/ads');
   const authHeaders = getAdminAuthHeaders();
+
+  if (!authHeaders.Authorization) {
+    return {
+      success: false,
+      message: 'Cần đăng nhập Quản trị viên (Admin) để lưu cấu hình lên Admin Data (Neon PostgreSQL).',
+    };
+  }
 
   let savedToServer = false;
   let unauthorizedError = '';
+  let lastErrorMsg = '';
 
   for (const endpoint of candidateEndpoints) {
     try {
@@ -313,9 +366,10 @@ export async function saveRemoteAdSettings(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
           ...authHeaders,
         },
-        body: JSON.stringify({ adSettings, watermarkSettings }),
+        body: JSON.stringify({ adSettings: normalizedAd, watermarkSettings }),
       });
       if (res.status === 401 || res.status === 403) {
         const errBody = await res.json().catch(() => ({}));
@@ -324,10 +378,18 @@ export async function saveRemoteAdSettings(
         break;
       }
       if (res.ok) {
-        savedToServer = true;
-        break;
+        const text = await res.text();
+        if (!text.trim().startsWith('<')) {
+          savedToServer = true;
+          break;
+        }
+      } else {
+        const errBody = await res.json().catch(() => ({}));
+        lastErrorMsg = errBody?.error || `HTTP ${res.status}`;
       }
-    } catch {}
+    } catch (err: any) {
+      lastErrorMsg = err?.message || '';
+    }
   }
 
   if (unauthorizedError) {
@@ -337,16 +399,61 @@ export async function saveRemoteAdSettings(
     };
   }
 
+  // Backup upsert directly to neon_app_settings table if primary endpoint encountered a transient issue
+  if (!savedToServer) {
+    for (const neonEndpoint of buildSettingsApiEndpoints('neon/table/neon_app_settings')) {
+      try {
+        const [r1, r2] = await Promise.all([
+          fetch(neonEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders },
+            body: JSON.stringify({
+              setting_key: 'ad_settings',
+              setting_value: normalizedAd,
+              category: 'ads',
+              is_public: true,
+              description: 'Cấu hình Quảng cáo Video VAST, Display Banner & Video Slider',
+            }),
+          }),
+          fetch(neonEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders },
+            body: JSON.stringify({
+              setting_key: 'watermark_settings',
+              setting_value: watermarkSettings,
+              category: 'watermark',
+              is_public: true,
+              description: 'Cấu hình Logo Watermark thương hiệu kênh',
+            }),
+          }),
+        ]);
+        if (r1.ok && r2.ok) {
+          savedToServer = true;
+          break;
+        }
+      } catch {}
+    }
+  }
+
+  if (!savedToServer && hasBackend()) {
+    return {
+      success: false,
+      message:
+        lastErrorMsg ||
+        'Không thể đồng bộ lên máy chủ Admin Data (Neon PostgreSQL). Vui lòng thử lại sau giây lát.',
+    };
+  }
+
   return {
     success: true,
     message: savedToServer
-      ? 'Đã lưu cấu hình lên Neon PostgreSQL & đồng bộ cho mọi thiết bị!'
+      ? 'Đã lưu cấu hình lên Admin Data (Neon PostgreSQL) & đồng bộ cho mọi thiết bị!'
       : 'Đã lưu vào bộ nhớ trình duyệt!',
   };
 }
 
 /**
- * Load all public settings (channel profile, playback preferences, custom videos, deleted IDs) from Neon PostgreSQL
+ * Load all public settings (channel profile, playback preferences, custom voices, storage prefs, custom videos, deleted IDs) from Neon PostgreSQL
  */
 export async function fetchPublicSystemSettingsFromDb(): Promise<{
   connected: boolean;
@@ -356,7 +463,7 @@ export async function fetchPublicSystemSettingsFromDb(): Promise<{
 } | null> {
   if (typeof window === 'undefined') return null;
 
-  const endpoints = ['/api/settings/public', '/minhhieu/api/settings/public'];
+  const endpoints = buildSettingsApiEndpoints('settings/public');
   for (const endpoint of endpoints) {
     try {
       const res = await fetch(`${endpoint}?nocache=${Date.now()}`, {
@@ -397,13 +504,14 @@ export async function saveGeneralSettingsToDb(payload: {
     return { success: false, message: 'Cần quyền Admin để lưu lên cơ sở dữ liệu.' };
   }
 
-  const endpoints = ['/api/settings/general', '/minhhieu/api/settings/general'];
+  const endpoints = buildSettingsApiEndpoints('settings/general');
   for (const endpoint of endpoints) {
     try {
       const res = await fetch(endpoint, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
           ...authHeaders,
         },
         body: JSON.stringify(payload),
@@ -418,7 +526,7 @@ export async function saveGeneralSettingsToDb(payload: {
     } catch {}
   }
 
-  return { success: false, message: 'Không thể đồng bộ cài đặt lên máy chủ.' };
+  return { success: false, message: 'Không thể đồng bộ cài đặt lên máy chủ Admin Data.' };
 }
 
 /**

@@ -102,7 +102,7 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({ isOpen, onClose, o
         const resolved: PreviewVideoState = {
           id: parsed.id,
           title: data.title || `Video YouTube #${parsed.id}`,
-          author: data.author_name || 'Minh Hiếu review phim',
+          author: data.author_name || 'Minh Hiếu Official VN',
           thumbnail: `https://i.ytimg.com/vi/${parsed.id}/hqdefault.jpg`,
           isShort: parsed.isShort,
           sourceType: 'youtube',
@@ -114,7 +114,7 @@ export const AddVideoModal: React.FC<AddVideoModalProps> = ({ isOpen, onClose, o
         const fallback: PreviewVideoState = {
           id: parsed.id,
           title: `Video YouTube #${parsed.id}`,
-          author: 'Minh Hiếu review phim',
+          author: 'Minh Hiếu Official VN',
           thumbnail: `https://i.ytimg.com/vi/${parsed.id}/hqdefault.jpg`,
           isShort: parsed.isShort,
           sourceType: 'youtube',

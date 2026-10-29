@@ -1,7 +1,7 @@
 import { PodcastEpisode, PodcastSeries, PodcastPlaylist } from '../types/podcast';
 
 export const DEFAULT_CHANNEL_INFO = {
-  name: 'Minh Hiếu Official',
+  name: 'Minh Hiếu Official VN',
   handle: '@MinhHieuOfficialvn',
   avatar: 'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj',
   banner: 'https://yt3.googleusercontent.com/nXC6CfLFHVL0mQjAJtqBxNqZM3nPyjtdk-zs9b9RIdblNxB_9CMOSBDc8iIFho4WiUMHbrU-zQ=w2560-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj',
@@ -61,7 +61,7 @@ export const DEFAULT_CHANNEL_PLAYLISTS: PodcastPlaylist[] = [
   },
 ];
 
-// Danh sách toàn bộ 54 video chính thức từ kênh @minhhieureviewphim
+// Danh sách toàn bộ 54 video chính thức từ kênh @MinhHieuOfficialvn (Minh Hiếu Official VN)
 export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   {
     "youtubeId": "6ITpsytCz4g",

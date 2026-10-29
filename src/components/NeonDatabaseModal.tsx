@@ -32,6 +32,13 @@ import { getApiBaseUrl } from '../utils/api';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { getAdminAuthHeaders } from '../utils/adminAuth';
 import { getStoredAdSettings, getStoredWatermarkSettings } from '../types/adConfig';
+import { getCustomVoices } from '../utils/everai';
+import {
+  getCurrentApiKeysSnapshot,
+  getStoredChannelProfile,
+  getStoredStoragePreferences,
+  OFFICIAL_DEFAULT_CHANNEL_PROFILE,
+} from '../utils/adminSettingsSync';
 
 export interface NeonDatabaseModalProps {
   isOpen: boolean;
@@ -394,6 +401,15 @@ export const NeonDatabaseModal: React.FC<NeonDatabaseModalProps> = ({
           appSettings: {
             ad_settings: getStoredAdSettings(),
             watermark_settings: getStoredWatermarkSettings(),
+            channel_profile: getStoredChannelProfile() || OFFICIAL_DEFAULT_CHANNEL_PROFILE,
+            playback_preferences: {
+              autoplayNext: localStorage.getItem('minhhieu_autoplay_next') !== 'false',
+              defaultKidsVoice: 'le_hoang_nam',
+              kidsStudioAdFree: true,
+            },
+            api_keys_config: getCurrentApiKeysSnapshot(),
+            storage_preferences: getStoredStoragePreferences(),
+            custom_voices: getCustomVoices(),
           },
           customVideos,
           deletedVideoIds,

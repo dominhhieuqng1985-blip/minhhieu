@@ -58,6 +58,11 @@ import { hasBackend, isStaticHost, getCustomBackendUrl } from '../utils/api';
 import { VoiceManagerModal } from './VoiceManagerModal';
 import { EverAiProxyModal } from './EverAiProxyModal';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import {
+  ADMIN_SETTINGS_SYNCED_EVENT,
+  saveAdminSettingsToNeon,
+  syncCustomVoicesToNeonIfAdmin,
+} from '../utils/adminSettingsSync';
 
 interface TextToSpeechStudioProps {
   initialText?: string;
@@ -74,7 +79,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
   // Text State
   const [text, setText] = useState<string>(
     initialText ||
-      `Chào mừng bạn đến với kênh Minh Hiếu review phim. Hôm nay, chúng ta cùng lắng đọng tâm hồn qua câu chuyện sâu sắc về chữ hiếu, đạo lý làm người và triết lý sống an nhiên giữa cuộc đời bề bộn.`
+      `Chào mừng bạn đến với kênh Minh Hiếu Official VN. Hôm nay, chúng ta cùng lắng đọng tâm hồn qua câu chuyện sâu sắc về chữ hiếu, đạo lý làm người và triết lý sống an nhiên giữa cuộc đời bề bộn.`
   );
 
   // EverAI Settings
@@ -149,7 +154,14 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
       window.speechSynthesis.onvoiceschanged = updateBrowserVoices;
     }
 
+    const handleAdminSettingsHydrated = () => {
+      setApiKey(getStoredEverAiKey());
+      setCustomVoices(getCustomVoices());
+    };
+    window.addEventListener(ADMIN_SETTINGS_SYNCED_EVENT, handleAdminSettingsHydrated);
+
     return () => {
+      window.removeEventListener(ADMIN_SETTINGS_SYNCED_EVENT, handleAdminSettingsHydrated);
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel();
@@ -157,11 +169,22 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
     };
   }, []);
 
-  // Save API key
+  // Save API key (and sync to Neon Admin Data if Admin)
   const handleSaveApiKey = () => {
-    setStoredEverAiKey(apiKey);
+    const trimmed = apiKey.trim();
+    setStoredEverAiKey(trimmed);
     setShowApiKeyInput(false);
-    onShowToast('🔑 Đã lưu cấu hình API Key EverAI!');
+    saveAdminSettingsToNeon({ apiKeys: { everaiApiKey: trimmed || DEFAULT_EVERAI_API_KEY } })
+      .then((res) => {
+        if (res.success) {
+          onShowToast('🔑 Đã lưu & đồng bộ API Key EverAI vào Admin Data (Neon PostgreSQL)!');
+        } else {
+          onShowToast('🔑 Đã lưu cấu hình API Key EverAI!');
+        }
+      })
+      .catch(() => {
+        onShowToast('🔑 Đã lưu cấu hình API Key EverAI!');
+      });
   };
 
   // Sample texts
@@ -173,7 +196,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
     },
     {
       title: 'Review Phim Kịch Tính',
-      text: `Chào mừng các bạn đã quay trở lại với Minh Hiếu review phim! Ngay trong tập phim ngày hôm nay, chúng ta sẽ bước chân vào một hành trình nghẹt thở nơi ranh giới giữa chính nghĩa và tội ác bị xóa nhòa. Liệu cái thiện có chiến thắng được bóng tối? Đừng rời mắt khỏi màn hình!`,
+      text: `Chào mừng các bạn đã quay trở lại với Minh Hiếu Official VN! Ngay trong tập phim ngày hôm nay, chúng ta sẽ bước chân vào một hành trình nghẹt thở nơi ranh giới giữa chính nghĩa và tội ác bị xóa nhòa. Liệu cái thiện có chiến thắng được bóng tối? Đừng rời mắt khỏi màn hình!`,
       recommendedVoice: 'voice-f9ae90f1-12e4-470d',
     },
     {
@@ -194,11 +217,12 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
     allEverAiVoices.find((v) => v.id.toLowerCase() === selectedEverAiVoice.toLowerCase()) ||
     allEverAiVoices.find((v) => v.id === selectedEverAiVoice);
 
-  // Custom Voice Management Handlers
+  // Custom Voice Management Handlers (synced with Neon Admin Data)
   const handleSaveCustomVoice = (voiceData: Partial<EverAiVoice> & { id: string; name: string }) => {
     const updated = saveCustomVoice(voiceData);
     setCustomVoices(updated);
     setSelectedEverAiVoice(voiceData.id.trim());
+    syncCustomVoicesToNeonIfAdmin(updated);
   };
 
   const handleDeleteCustomVoice = (id: string) => {
@@ -207,6 +231,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
     if (selectedEverAiVoice.toLowerCase() === id.trim().toLowerCase()) {
       setSelectedEverAiVoice(updated[0]?.id || EVERAI_VOICES[0].id);
     }
+    syncCustomVoicesToNeonIfAdmin(updated);
   };
 
   const handleImportCustomVoices = (imported: EverAiVoice[]) => {
@@ -214,6 +239,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
     if (imported.length > 0) {
       setSelectedEverAiVoice(imported[0].id);
     }
+    syncCustomVoicesToNeonIfAdmin(imported);
   };
 
   // 1. Generate Voice via EverAI API

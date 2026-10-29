@@ -21,6 +21,11 @@ import {
   Database,
   CheckCircle2,
   Server,
+  Key,
+  HardDrive,
+  Eye,
+  EyeOff,
+  Save,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { getAdminAuthHeaders } from '../utils/adminAuth';
@@ -29,6 +34,17 @@ import {
   getStoredAdSettings,
   getStoredWatermarkSettings,
 } from '../types/adConfig';
+import { getCustomVoices } from '../utils/everai';
+import {
+  ADMIN_SETTINGS_SYNCED_EVENT,
+  ApiKeysConfig,
+  getCurrentApiKeysSnapshot,
+  getStoredStoragePreferences,
+  OFFICIAL_DEFAULT_CHANNEL_PROFILE,
+  OfficialChannelProfile,
+  saveAdminSettingsToNeon,
+  StoragePreferences,
+} from '../utils/adminSettingsSync';
 
 interface ChannelSettingsModalProps {
   isOpen: boolean;
@@ -52,6 +68,7 @@ interface ChannelSettingsModalProps {
     youtubeUrl: string;
     subscribeUrl: string;
   };
+  onUpdateChannelInfo?: (info: OfficialChannelProfile) => void;
   rssFeedUrl?: string;
   onShowToast: (msg: string) => void;
 }
@@ -71,11 +88,29 @@ export const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   isAutoplayNext,
   onToggleAutoplay,
   channelInfo,
+  onUpdateChannelInfo,
   rssFeedUrl = 'https://www.vemaybaynhauyen.com/studo.xml',
   onShowToast,
 }) => {
   const { isAdmin, adminUser, requireAdmin, openAdminModal, logout } = useAdminAuth();
   const [copiedRss, setCopiedRss] = useState(false);
+
+  // Channel Profile Form State (Minh Hiếu Official VN / @MinhHieuOfficialvn)
+  const [profileForm, setProfileForm] = useState<OfficialChannelProfile>(() => ({
+    ...OFFICIAL_DEFAULT_CHANNEL_PROFILE,
+    ...(channelInfo || {}),
+    rssFeedUrl,
+  }));
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // API Keys & Proxy Form State (Admin Data)
+  const [apiKeysForm, setApiKeysForm] = useState<ApiKeysConfig>(() => getCurrentApiKeysSnapshot());
+  const [showApiSecrets, setShowApiSecrets] = useState(false);
+  const [isSavingApiKeys, setIsSavingApiKeys] = useState(false);
+
+  // Storage Preferences Form State (Admin Data)
+  const [storageForm, setStorageForm] = useState<StoragePreferences>(() => getStoredStoragePreferences());
+  const [isSavingStorage, setIsSavingStorage] = useState(false);
 
   // Live Neon PostgreSQL status & 1-click Auto-Setup state inside Settings
   const [dbStatus, setDbStatus] = useState<{
@@ -112,10 +147,27 @@ export const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   };
 
   useEffect(() => {
+    if (channelInfo) {
+      setProfileForm((prev) => ({
+        ...prev,
+        ...channelInfo,
+        rssFeedUrl,
+      }));
+    }
+  }, [channelInfo, rssFeedUrl]);
+
+  useEffect(() => {
+    const refreshFromBrowser = () => {
+      setApiKeysForm(getCurrentApiKeysSnapshot());
+      setStorageForm(getStoredStoragePreferences());
+    };
     if (isOpen && isAdmin) {
       loadDbStatus();
       setLastProvisionMessage(null);
+      refreshFromBrowser();
     }
+    window.addEventListener(ADMIN_SETTINGS_SYNCED_EVENT, refreshFromBrowser);
+    return () => window.removeEventListener(ADMIN_SETTINGS_SYNCED_EVENT, refreshFromBrowser);
   }, [isOpen, isAdmin]);
 
   if (!isOpen) return null;
@@ -160,14 +212,18 @@ export const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
         body: JSON.stringify({
           adSettings: getStoredAdSettings(),
           watermarkSettings: getStoredWatermarkSettings(),
-          channelProfile: channelInfo
-            ? { ...channelInfo, rssFeedUrl }
-            : { rssFeedUrl },
+          channelProfile: {
+            ...profileForm,
+            rssFeedUrl,
+          },
           playbackPreferences: {
             autoplayNext: isAutoplayNext,
             defaultKidsVoice: 'le_hoang_nam',
             kidsStudioAdFree: true,
           },
+          apiKeys: apiKeysForm,
+          storagePreferences: storageForm,
+          customVoices: getCustomVoices(),
           customVideos,
           deletedVideoIds,
         }),
@@ -192,6 +248,94 @@ export const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       onShowToast('⚠️ Lỗi kết nối máy chủ: ' + (err?.message || 'Thử lại sau'));
     } finally {
       setIsAutoProvisioning(false);
+    }
+  };
+
+  // Save Channel Profile (Minh Hiếu Official VN / @MinhHieuOfficialvn) directly to Admin Data
+  const handleSaveChannelProfileToDb = async () => {
+    setIsSavingProfile(true);
+    try {
+      const normalizedHandle = profileForm.handle.trim().startsWith('@')
+        ? profileForm.handle.trim()
+        : `@${profileForm.handle.trim() || 'MinhHieuOfficialvn'}`;
+      const cleanYtUrl =
+        profileForm.youtubeUrl.trim() || `https://www.youtube.com/${normalizedHandle}`;
+      const cleanSubUrl = cleanYtUrl.includes('sub_confirmation=1')
+        ? cleanYtUrl
+        : `${cleanYtUrl}${cleanYtUrl.includes('?') ? '&' : '?'}sub_confirmation=1`;
+
+      const nextProfile: OfficialChannelProfile = {
+        ...profileForm,
+        name: profileForm.name.trim() || 'Minh Hiếu Official VN',
+        handle: normalizedHandle,
+        youtubeUrl: cleanYtUrl,
+        subscribeUrl: cleanSubUrl,
+        rssFeedUrl,
+      };
+
+      setProfileForm(nextProfile);
+      if (onUpdateChannelInfo) {
+        onUpdateChannelInfo(nextProfile);
+      }
+
+      const res = await saveAdminSettingsToNeon({ channelProfile: nextProfile });
+      if (res.success) {
+        onShowToast(`✅ Đã đồng bộ kênh "${nextProfile.name}" (${nextProfile.handle}) vào Admin Data!`);
+        loadDbStatus();
+      } else {
+        onShowToast('⚠️ ' + res.message);
+      }
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // Save API Keys & Proxy URLs directly to Admin Data (Neon PostgreSQL)
+  const handleSaveApiKeysToDb = async () => {
+    setIsSavingApiKeys(true);
+    try {
+      const nextStorage: StoragePreferences = {
+        ...storageForm,
+        customBackendUrl: apiKeysForm.customBackendUrl.trim(),
+        vidkrakenProxyUrl: apiKeysForm.vidkrakenProxyUrl.trim(),
+      };
+      setStorageForm(nextStorage);
+      const res = await saveAdminSettingsToNeon({
+        apiKeys: apiKeysForm,
+        storagePreferences: nextStorage,
+      });
+      if (res.success) {
+        onShowToast('🔑 Đã lưu toàn bộ API Keys & Máy chủ Proxy vào Admin Data (không bị mất khi F5)!');
+        loadDbStatus();
+      } else {
+        onShowToast('⚠️ ' + res.message);
+      }
+    } finally {
+      setIsSavingApiKeys(false);
+    }
+  };
+
+  // Save Storage & Sync Preferences directly to Admin Data (Neon PostgreSQL)
+  const handleSaveStorageToDb = async () => {
+    setIsSavingStorage(true);
+    try {
+      const res = await saveAdminSettingsToNeon({
+        storagePreferences: storageForm,
+        playbackPreferences: {
+          autoplayNext: isAutoplayNext,
+          defaultKidsVoice: 'le_hoang_nam',
+          kidsStudioAdFree: true,
+        },
+        customVoices: getCustomVoices(),
+      });
+      if (res.success) {
+        onShowToast('💾 Đã lưu cấu hình Lưu Trữ & Đồng Bộ vào Admin Data (Neon PostgreSQL)!');
+        loadDbStatus();
+      } else {
+        onShowToast('⚠️ ' + res.message);
+      }
+    } finally {
+      setIsSavingStorage(false);
     }
   };
 
@@ -381,6 +525,298 @@ export const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
                       <span>Quản Lý Bảng &amp; Tài Khoản Admin</span>
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+
+            {/* Group 0.5: Official Channel Name & Handle Sync (Minh Hiếu Official VN / @MinhHieuOfficialvn) */}
+            <div className="space-y-2.5 pt-2 border-t border-slate-800/80">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                  <Tv className="w-4 h-4" />
+                  <span>Đồng Bộ Tên Kênh &amp; @Handle Chính Thức (Admin Data)</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setProfileForm({
+                      ...OFFICIAL_DEFAULT_CHANNEL_PROFILE,
+                      rssFeedUrl,
+                    })
+                  }
+                  className="text-[11px] text-amber-400 hover:underline font-semibold"
+                >
+                  Đặt chuẩn @MinhHieuOfficialvn
+                </button>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Tên Kênh Chính Thức:
+                    </label>
+                    <input
+                      type="text"
+                      value={profileForm.name}
+                      onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                      placeholder="Minh Hiếu Official VN"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-semibold focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Định Danh Kênh (@Handle):
+                    </label>
+                    <input
+                      type="text"
+                      value={profileForm.handle}
+                      onChange={(e) => setProfileForm({ ...profileForm, handle: e.target.value })}
+                      placeholder="@MinhHieuOfficialvn"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Link Kênh YouTube:
+                    </label>
+                    <input
+                      type="text"
+                      value={profileForm.youtubeUrl}
+                      onChange={(e) => setProfileForm({ ...profileForm, youtubeUrl: e.target.value })}
+                      placeholder="https://www.youtube.com/@MinhHieuOfficialvn"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-[11px] text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Ảnh Đại Diện Kênh (Avatar URL):
+                    </label>
+                    <input
+                      type="text"
+                      value={profileForm.avatar}
+                      onChange={(e) => setProfileForm({ ...profileForm, avatar: e.target.value })}
+                      placeholder="https://yt3.googleusercontent.com/..."
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-[11px] text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                  <span className="text-[11px] text-slate-400">
+                    Lưu vĩnh viễn vào <code className="text-emerald-400 font-mono">neon_app_settings.channel_profile</code> (giữ nguyên sau khi F5)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSaveChannelProfileToDb}
+                    disabled={isSavingProfile}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow transition-all"
+                  >
+                    {isSavingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    <span>{isSavingProfile ? 'Đang lưu...' : 'Lưu Tên Kênh Vào Admin Data'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Group 0.6: API Keys & Proxy Configuration Sync (Admin Data) */}
+            <div className="space-y-2.5 pt-2 border-t border-slate-800/80">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                  <Key className="w-4 h-4" />
+                  <span>Thay Đổi API &amp; Máy Chủ Proxy (Đồng Bộ Admin Data)</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowApiSecrets(!showApiSecrets)}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] flex items-center gap-1"
+                >
+                  {showApiSecrets ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span>{showApiSecrets ? 'Ẩn mã khóa' : 'Hiện mã khóa'}</span>
+                </button>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      EverAI TTS API Key (Giọng Đọc AI):
+                    </label>
+                    <input
+                      type={showApiSecrets ? 'text' : 'password'}
+                      value={apiKeysForm.everaiApiKey}
+                      onChange={(e) => setApiKeysForm({ ...apiKeysForm, everaiApiKey: e.target.value })}
+                      placeholder="Nhập EverAI API Key..."
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      VidKraken API Key (Tải Video/MP3):
+                    </label>
+                    <input
+                      type={showApiSecrets ? 'text' : 'password'}
+                      value={apiKeysForm.vidkrakenApiKey}
+                      onChange={(e) => setApiKeysForm({ ...apiKeysForm, vidkrakenApiKey: e.target.value })}
+                      placeholder="vk_live_..."
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-sky-300 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Gemini AI API Key (Trợ Lý &amp; Học Tập):
+                    </label>
+                    <input
+                      type={showApiSecrets ? 'text' : 'password'}
+                      value={apiKeysForm.geminiApiKey}
+                      onChange={(e) => setApiKeysForm({ ...apiKeysForm, geminiApiKey: e.target.value })}
+                      placeholder="AIzaSy... (để trống dùng mặc định server)"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-emerald-300 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      TikTok RapidAPI Key (Dự Phòng):
+                    </label>
+                    <input
+                      type={showApiSecrets ? 'text' : 'password'}
+                      value={apiKeysForm.tiktokRapidApiKey}
+                      onChange={(e) => setApiKeysForm({ ...apiKeysForm, tiktokRapidApiKey: e.target.value })}
+                      placeholder="Nhập X-RapidAPI-Key..."
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-cyan-300 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      Backend API Server URL:
+                    </label>
+                    <input
+                      type="text"
+                      value={apiKeysForm.customBackendUrl}
+                      onChange={(e) => setApiKeysForm({ ...apiKeysForm, customBackendUrl: e.target.value })}
+                      placeholder="https://minhhieu.onrender.com (để trống = tự động)"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-[11px] text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                      VidKraken Proxy URL Riêng:
+                    </label>
+                    <input
+                      type="text"
+                      value={apiKeysForm.vidkrakenProxyUrl}
+                      onChange={(e) => setApiKeysForm({ ...apiKeysForm, vidkrakenProxyUrl: e.target.value })}
+                      placeholder="Để trống tự động dùng Backend Proxy"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-[11px] text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                  <span className="text-[11px] text-slate-400">
+                    Bảo mật riêng cho Admin (<code className="text-amber-300 font-mono">is_public = false</code>), tự động nạp lại khi F5
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSaveApiKeysToDb}
+                    disabled={isSavingApiKeys}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow transition-all"
+                  >
+                    {isSavingApiKeys ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Key className="w-3.5 h-3.5" />}
+                    <span>{isSavingApiKeys ? 'Đang lưu API...' : 'Lưu Thay Đổi API Vào Admin Data'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Group 0.7: Storage & Automatic Sync Preferences (Neon PostgreSQL) */}
+            <div className="space-y-2.5 pt-2 border-t border-slate-800/80">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                <HardDrive className="w-4 h-4" />
+                <span>Cài Đặt Lưu Trữ &amp; Đồng Bộ Dữ Liệu (Neon PostgreSQL)</span>
+              </h3>
+
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={storageForm.autoSyncVideosToDb}
+                      onChange={(e) =>
+                        setStorageForm({ ...storageForm, autoSyncVideosToDb: e.target.checked })
+                      }
+                      className="accent-emerald-500 w-4 h-4 rounded"
+                    />
+                    <span className="text-xs text-slate-200 font-medium">
+                      Tự động lưu Video &amp; Blacklist vào PostgreSQL
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={storageForm.autoSyncVoicesToDb}
+                      onChange={(e) =>
+                        setStorageForm({ ...storageForm, autoSyncVoicesToDb: e.target.checked })
+                      }
+                      className="accent-emerald-500 w-4 h-4 rounded"
+                    />
+                    <span className="text-xs text-slate-200 font-medium">
+                      Đồng bộ danh sách Giọng đọc tùy chỉnh lên DB
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={storageForm.autoSyncHistoryToDb}
+                      onChange={(e) =>
+                        setStorageForm({ ...storageForm, autoSyncHistoryToDb: e.target.checked })
+                      }
+                      className="accent-emerald-500 w-4 h-4 rounded"
+                    />
+                    <span className="text-xs text-slate-200 font-medium">
+                      Lưu lịch sử tải &amp; học tập lên PostgreSQL
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={storageForm.vidkrakenAutoDownload}
+                      onChange={(e) =>
+                        setStorageForm({ ...storageForm, vidkrakenAutoDownload: e.target.checked })
+                      }
+                      className="accent-emerald-500 w-4 h-4 rounded"
+                    />
+                    <span className="text-xs text-slate-200 font-medium">
+                      Tự động tải file VidKraken khi xử lý xong
+                    </span>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                  <span className="text-[11px] text-slate-400">
+                    Nền tảng lưu trữ chính: <strong className="text-emerald-400">Neon Serverless PostgreSQL (neondb)</strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSaveStorageToDb}
+                    disabled={isSavingStorage}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-all"
+                  >
+                    {isSavingStorage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <HardDrive className="w-3.5 h-3.5" />}
+                    <span>{isSavingStorage ? 'Đang lưu...' : 'Lưu Cài Đặt Lưu Trữ'}</span>
+                  </button>
                 </div>
               </div>
             </div>

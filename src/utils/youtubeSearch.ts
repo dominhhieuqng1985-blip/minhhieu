@@ -1,5 +1,5 @@
 import { PodcastEpisode } from '../types/podcast';
-import { getApiBaseUrl, hasBackend, isStaticHost } from './api';
+import { getApiBaseUrl, hasBackend, isStaticHost, resolveApiEndpoint } from './api';
 
 export interface YouTubeSearchResult {
   youtubeId: string;
@@ -162,6 +162,14 @@ function formatSecondsToDuration(sec: number): string {
 const PIPED_CORS_INSTANCES = [
   'https://api.piped.private.coffee',
   'https://pipedapi.ducks.party',
+  'https://pipedapi.kavin.rocks',
+  'https://pipedapi.adminforge.de',
+];
+
+const INVIDIOUS_CORS_INSTANCES = [
+  'https://inv.nadeko.net',
+  'https://invidious.nerdvpn.de',
+  'https://yewtu.be',
 ];
 
 /**
@@ -223,23 +231,62 @@ async function searchViaPipedMirrors(query: string): Promise<YouTubeSearchResult
       continue;
     }
   }
+  // Fallback to Invidious CORS instances if Piped mirrors were busy
+  for (const invBase of INVIDIOUS_CORS_INSTANCES) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4500);
+      const url = `${invBase}/api/v1/search?q=${encodeURIComponent(query)}&type=video`;
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { Accept: 'application/json' },
+      });
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      const arr = await res.json();
+      if (Array.isArray(arr) && arr.length > 0) {
+        const results: YouTubeSearchResult[] = [];
+        for (const item of arr) {
+          const vidId = String(item?.videoId || '').trim();
+          if (!vidId || vidId.length !== 11) continue;
+          const lengthSec = Number(item?.lengthSeconds) || 300;
+          results.push({
+            youtubeId: vidId,
+            title: String(item?.title || `Video [${vidId}]`),
+            channel: String(item?.author || 'YouTube Creator'),
+            duration: formatSecondsToDuration(lengthSec),
+            durationSeconds: lengthSec,
+            thumbnail: `https://i.ytimg.com/vi/${vidId}/hqdefault.jpg`,
+            isShort: lengthSec > 0 && lengthSec <= 60,
+            publishedDate: String(item?.publishedText || 'YouTube'),
+            source: 'piped',
+          });
+          if (results.length >= 25) break;
+        }
+        if (results.length > 0) return results;
+      }
+    } catch {
+      continue;
+    }
+  }
+
   return [];
 }
 
 /**
- * Search full-stack backend if available (does not run on static GitHub Pages)
+ * Search full-stack backend if available
  */
 async function searchViaBackend(query: string): Promise<YouTubeSearchResult[]> {
   const apiBase = getApiBaseUrl();
-  // If no backend configured or we are on static host without custom backend, don't ping /api
   if (!apiBase || (isStaticHost && !hasBackend())) {
     return [];
   }
 
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch(`${apiBase}youtube/search?q=${encodeURIComponent(query)}`, {
+    const timer = setTimeout(() => controller.abort(), 6500);
+    const endpoint = `${resolveApiEndpoint('youtube/search')}?q=${encodeURIComponent(query)}`;
+    const res = await fetch(endpoint, {
       signal: controller.signal,
     });
     clearTimeout(timer);

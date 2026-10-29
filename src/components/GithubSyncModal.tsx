@@ -52,8 +52,9 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({
     try {
       const backupData: Record<string, any> = {
         exportedAt: new Date().toISOString(),
-        version: '2.0',
-        channel: 'Minh Hiếu review phim',
+        version: '2.1',
+        channel: 'Minh Hiếu Official VN',
+        handle: '@MinhHieuOfficialvn',
         savedVideos: localStorage.getItem('casttube_user_saved_videos') ? JSON.parse(localStorage.getItem('casttube_user_saved_videos')!) : [],
         favorites: localStorage.getItem('casttube_user_favorites') ? JSON.parse(localStorage.getItem('casttube_user_favorites')!) : [],
         notes: localStorage.getItem('casttube_user_notes') ? JSON.parse(localStorage.getItem('casttube_user_notes')!) : [],
@@ -72,7 +73,7 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      alert('Lỗi xuất dữ liệu: ' + e.message);
+      console.error('Lỗi xuất dữ liệu:', e);
     }
   };
 

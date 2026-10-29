@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Server,
@@ -23,6 +23,10 @@ import {
   hasBackend,
 } from '../utils/api';
 import { testEverAiBackendConnection } from '../utils/everai';
+import {
+  ADMIN_SETTINGS_SYNCED_EVENT,
+  saveAdminSettingsToNeon,
+} from '../utils/adminSettingsSync';
 
 interface EverAiProxyModalProps {
   isOpen: boolean;
@@ -43,6 +47,13 @@ export const EverAiProxyModal: React.FC<EverAiProxyModalProps> = ({
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [copiedWorker, setCopiedWorker] = useState<boolean>(false);
   const [copiedRenderYaml, setCopiedRenderYaml] = useState<boolean>(false);
+
+  useEffect(() => {
+    const syncUrl = () => setBackendUrlInput(getCustomBackendUrl() || '');
+    if (isOpen) syncUrl();
+    window.addEventListener(ADMIN_SETTINGS_SYNCED_EVENT, syncUrl);
+    return () => window.removeEventListener(ADMIN_SETTINGS_SYNCED_EVENT, syncUrl);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -130,7 +141,24 @@ export default {
   const handleSaveBackendUrl = () => {
     const clean = backendUrlInput.trim();
     setCustomBackendUrl(clean || null);
-    onShowToast(clean ? '✅ Đã lưu cấu hình Backend URL!' : '🔄 Đã xóa Backend URL, sử dụng chế độ mặc định.');
+    saveAdminSettingsToNeon({
+      apiKeys: { customBackendUrl: clean },
+      storagePreferences: { customBackendUrl: clean },
+    })
+      .then((res) => {
+        if (res.success) {
+          onShowToast(
+            clean
+              ? '✅ Đã lưu & đồng bộ Backend URL vào Admin Data (Neon PostgreSQL)!'
+              : '🔄 Đã xóa Backend URL và đồng bộ Admin Data.'
+          );
+        } else {
+          onShowToast(clean ? '✅ Đã lưu cấu hình Backend URL!' : '🔄 Đã xóa Backend URL, sử dụng chế độ mặc định.');
+        }
+      })
+      .catch(() => {
+        onShowToast(clean ? '✅ Đã lưu cấu hình Backend URL!' : '🔄 Đã xóa Backend URL, sử dụng chế độ mặc định.');
+      });
     onClose();
   };
 

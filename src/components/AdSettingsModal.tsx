@@ -346,13 +346,13 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                   <label className="font-bold text-white">Tên Nhà Quảng Cáo (Hiển thị ở nhãn "Quảng cáo: [Tên]"):</label>
                   <input
                     type="text"
-                    placeholder="Minh Hiếu Review Phim"
+                    placeholder="Minh Hiếu Official VN"
                     value={typeof localAd.sponsorName === 'string' ? localAd.sponsorName : ''}
                     onChange={(e) => setLocalAd({ ...localAd, sponsorName: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
                   />
                   <p className="text-[11px] text-slate-400">
-                    Tự động hiển thị trên các banner 728x90, 336x280, 300x250 dưới dạng: <strong className="text-amber-400 font-semibold">Quảng cáo: {(typeof localAd.sponsorName === 'string' && localAd.sponsorName.trim()) || 'Minh Hiếu Review Phim'}</strong>
+                    Tự động hiển thị trên các banner 728x90, 336x280, 300x250 dưới dạng: <strong className="text-amber-400 font-semibold">Quảng cáo: {(typeof localAd.sponsorName === 'string' && localAd.sponsorName.trim()) || 'Minh Hiếu Official VN'}</strong>
                   </p>
                 </div>
 
@@ -607,9 +607,9 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                   <Cloud className="w-5 h-5" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="font-bold text-white text-sm">Đồng Bộ Lưu Trữ Đa Thiết Bị</h4>
+                  <h4 className="font-bold text-white text-sm">Đồng Bộ Lưu Trữ Vĩnh Viễn Trên Admin Data (Neon PostgreSQL)</h4>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Khi bạn bấm <strong className="text-amber-400">"Lưu Cài Đặt"</strong>, hệ thống tự động ghi nhớ cấu hình vào máy chủ (<code className="text-amber-300 font-mono">public/ad-settings.json</code>) để khi đổi máy khác, mở điện thoại hoặc trình duyệt khác, toàn bộ video quảng cáo và logo watermark sẽ tự động được tải về!
+                    Khi bạn bấm <strong className="text-amber-400">"Lưu Cho Mọi Máy"</strong>, hệ thống ghi trực tiếp cấu hình quảng cáo và logo vào bảng <code className="text-emerald-300 font-mono">neon_app_settings</code> trên cơ sở dữ liệu Neon PostgreSQL để giữ nguyên sau khi nhấn F5 và đồng bộ tự động trên mọi máy tính, điện thoại!
                   </p>
                 </div>
               </div>

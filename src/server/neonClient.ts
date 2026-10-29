@@ -252,8 +252,8 @@ function readInitialAdSettingsSeed(): { adSettings: any; watermarkSettings: any 
     videoUrl: 'https://youtu.be/Co2OgH2FGr0?si=pBe3YR7Em398Ayqf',
     redirectUrl: 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1',
     skipDelaySeconds: 5,
-    adTitle: 'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Official',
-    sponsorName: 'Minh Hiếu Official',
+    adTitle: 'Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Minh Hiếu Official VN',
+    sponsorName: 'Minh Hiếu Official VN',
     showInMovie: true,
     showInYouTube: true,
     enablePreRoll: true,
@@ -379,7 +379,7 @@ export async function initializeNeonSchema(): Promise<{
         id VARCHAR(120) PRIMARY KEY,
         youtube_id VARCHAR(120) UNIQUE NOT NULL,
         title TEXT NOT NULL,
-        channel VARCHAR(255) DEFAULT 'Minh Hiếu Official',
+        channel VARCHAR(255) DEFAULT 'Minh Hiếu Official VN',
         duration VARCHAR(50) DEFAULT '05:00',
         thumbnail TEXT,
         is_short BOOLEAN DEFAULT FALSE,
@@ -515,19 +515,19 @@ export async function initializeNeonSchema(): Promise<{
       {
         key: 'channel_profile',
         val: {
-          name: 'Minh Hiếu Official',
+          name: 'Minh Hiếu Official VN',
           handle: '@MinhHieuOfficialvn',
           avatar:
             'https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s900-c-k-c0x00ffffff-no-rj',
           subscribers: 'Kênh YouTube Chính Thức',
           youtubeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn',
           subscribeUrl: 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1',
-          subscribeGateChannelUrl: 'https://www.youtube.com/@minhhieureviewphim',
+          subscribeGateChannelUrl: 'https://www.youtube.com/@MinhHieuOfficialvn',
           rssFeedUrl: 'https://www.vemaybaynhauyen.com/studo.xml',
         },
         cat: 'channel',
         pub: true,
-        desc: 'Thông tin kênh YouTube chính thức, RSS Podcast và cổng mở khóa đăng ký kênh',
+        desc: 'Thông tin kênh YouTube chính thức Minh Hiếu Official VN (@MinhHieuOfficialvn), RSS Podcast và cổng mở khóa đăng ký kênh',
       },
       {
         key: 'playback_preferences',
@@ -540,6 +540,21 @@ export async function initializeNeonSchema(): Promise<{
         cat: 'playback',
         pub: true,
         desc: 'Tùy chọn phát tự động, giọng đọc mặc định Lê Hoàng Nam và chế độ học tập không quảng cáo',
+      },
+      {
+        key: 'storage_preferences',
+        val: {
+          primaryStorage: 'neon_postgresql',
+          autoSyncVideosToDb: true,
+          autoSyncVoicesToDb: true,
+          autoSyncHistoryToDb: true,
+          vidkrakenAutoDownload: false,
+          vidkrakenProxyUrl: '',
+          customBackendUrl: '',
+        },
+        cat: 'storage',
+        pub: true,
+        desc: 'Cấu hình lưu trữ và đồng bộ tự động trên Admin Data (Neon PostgreSQL)',
       },
       {
         key: 'security_policy',
@@ -564,6 +579,77 @@ export async function initializeNeonSchema(): Promise<{
         [item.key, JSON.stringify(item.val), item.cat, item.pub, item.desc]
       );
     }
+
+    // Tự động chuẩn hóa tên kênh thành "Minh Hiếu Official VN" và "@MinhHieuOfficialvn" nếu bản ghi cũ còn tên cũ
+    await client.query(
+      `UPDATE neon_app_settings
+       SET setting_value = jsonb_set(
+         jsonb_set(
+           jsonb_set(
+             jsonb_set(
+               setting_value,
+               '{name}',
+               '"Minh Hiếu Official VN"'::jsonb,
+               true
+             ),
+             '{handle}',
+             '"@MinhHieuOfficialvn"'::jsonb,
+             true
+           ),
+           '{youtubeUrl}',
+           '"https://www.youtube.com/@MinhHieuOfficialvn"'::jsonb,
+           true
+         ),
+         '{subscribeUrl}',
+         '"https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1"'::jsonb,
+         true
+       ),
+       updated_at = NOW()
+       WHERE setting_key = 'channel_profile'
+         AND (
+           setting_value->>'name' IN ('Minh Hiếu Official', 'Minh Hiếu review phim', 'Minh Hiếu Review Phim')
+           OR setting_value->>'handle' = '@minhhieureviewphim'
+         );`
+    );
+
+    await client.query(
+      `UPDATE neon_app_settings
+       SET setting_value = jsonb_set(
+         CASE
+           WHEN COALESCE(setting_value->>'redirectUrl', '') LIKE '%@minhhieureviewphim%'
+             THEN jsonb_set(setting_value, '{redirectUrl}', '"https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1"'::jsonb, true)
+           ELSE setting_value
+         END,
+         '{sponsorName}',
+         '"Minh Hiếu Official VN"'::jsonb,
+         true
+       ),
+       updated_at = NOW()
+       WHERE setting_key = 'ad_settings'
+         AND (
+           setting_value->>'sponsorName' IN ('Minh Hiếu Official', 'Minh Hiếu review phim', 'Minh Hiếu Review Phim')
+           OR COALESCE(setting_value->>'redirectUrl', '') LIKE '%@minhhieureviewphim%'
+         );`
+    );
+
+    await client.query(
+      `UPDATE neon_app_settings
+       SET setting_value = jsonb_set(
+         setting_value,
+         '{targetUrl}',
+         '"https://www.youtube.com/@MinhHieuOfficialvn"'::jsonb,
+         true
+       ),
+       updated_at = NOW()
+       WHERE setting_key = 'watermark_settings'
+         AND COALESCE(setting_value->>'targetUrl', '') LIKE '%@minhhieureviewphim%';`
+    );
+
+    await client.query(
+      `UPDATE neon_channel_videos
+       SET channel = 'Minh Hiếu Official VN', updated_at = NOW()
+       WHERE channel IN ('Minh Hiếu Official', 'Minh Hiếu review phim', 'Minh Hiếu Review Phim');`
+    );
 
     // Dọn dẹp các phiên đăng nhập đã hết hạn
     await client.query(`DELETE FROM neon_admin_sessions WHERE expires_at <= NOW();`);
@@ -1266,7 +1352,7 @@ export async function getPublicAppSettingsFromNeon(): Promise<{
           id: v.id,
           youtubeId: v.youtube_id,
           title: v.title,
-          channel: v.channel || 'Minh Hiếu Official',
+          channel: v.channel || 'Minh Hiếu Official VN',
           duration: v.duration || '05:00',
           thumbnail: v.thumbnail || `https://i.ytimg.com/vi/${v.youtube_id}/hqdefault.jpg`,
           isShort: Boolean(v.is_short),
@@ -1279,6 +1365,105 @@ export async function getPublicAppSettingsFromNeon(): Promise<{
   } catch (err) {
     console.warn('getPublicAppSettingsFromNeon warning:', (err as any)?.message || err);
     return null;
+  }
+}
+
+let cachedRuntimeApiKeys: {
+  expiresAt: number;
+  data: {
+    everaiApiKey: string;
+    vidkrakenApiKey: string;
+    geminiApiKey: string;
+    geminiProEmail: string;
+    tiktokRapidApiKey: string;
+    youtubeDataApiKey: string;
+    customBackendUrl: string;
+    vidkrakenProxyUrl: string;
+  };
+} | null = null;
+
+export function invalidateRuntimeApiKeysCache(): void {
+  cachedRuntimeApiKeys = null;
+}
+
+export async function getAllAdminSettingsFromNeon(): Promise<Record<string, any>> {
+  const ready = await ensureNeonBootstrapped();
+  if (!ready) return {};
+  const pool = getPool();
+  if (!pool) return {};
+
+  try {
+    const res = await pool.query(
+      `SELECT setting_key, setting_value
+       FROM neon_app_settings
+       ORDER BY updated_at DESC;`
+    );
+    const out: Record<string, any> = {};
+    for (const row of res.rows) {
+      out[row.setting_key] = row.setting_value;
+    }
+    return out;
+  } catch (err) {
+    console.warn('getAllAdminSettingsFromNeon warning:', (err as any)?.message || err);
+    return {};
+  }
+}
+
+export async function getRuntimeApiKeysFromNeon(): Promise<{
+  everaiApiKey: string;
+  vidkrakenApiKey: string;
+  geminiApiKey: string;
+  geminiProEmail: string;
+  tiktokRapidApiKey: string;
+  youtubeDataApiKey: string;
+  customBackendUrl: string;
+  vidkrakenProxyUrl: string;
+}> {
+  if (cachedRuntimeApiKeys && cachedRuntimeApiKeys.expiresAt > Date.now()) {
+    return cachedRuntimeApiKeys.data;
+  }
+
+  const empty = {
+    everaiApiKey: '',
+    vidkrakenApiKey: '',
+    geminiApiKey: '',
+    geminiProEmail: '',
+    tiktokRapidApiKey: '',
+    youtubeDataApiKey: '',
+    customBackendUrl: '',
+    vidkrakenProxyUrl: '',
+  };
+
+  try {
+    const ready = await ensureNeonBootstrapped();
+    if (!ready) return empty;
+    const pool = getPool();
+    if (!pool) return empty;
+
+    const res = await pool.query(
+      `SELECT setting_value
+       FROM neon_app_settings
+       WHERE setting_key = 'api_keys_config'
+       LIMIT 1;`
+    );
+    const raw = res.rows[0]?.setting_value || {};
+    const data = {
+      everaiApiKey: typeof raw.everaiApiKey === 'string' ? raw.everaiApiKey.trim() : '',
+      vidkrakenApiKey: typeof raw.vidkrakenApiKey === 'string' ? raw.vidkrakenApiKey.trim() : '',
+      geminiApiKey: typeof raw.geminiApiKey === 'string' ? raw.geminiApiKey.trim() : '',
+      geminiProEmail: typeof raw.geminiProEmail === 'string' ? raw.geminiProEmail.trim() : '',
+      tiktokRapidApiKey: typeof raw.tiktokRapidApiKey === 'string' ? raw.tiktokRapidApiKey.trim() : '',
+      youtubeDataApiKey: typeof raw.youtubeDataApiKey === 'string' ? raw.youtubeDataApiKey.trim() : '',
+      customBackendUrl: typeof raw.customBackendUrl === 'string' ? raw.customBackendUrl.trim() : '',
+      vidkrakenProxyUrl: typeof raw.vidkrakenProxyUrl === 'string' ? raw.vidkrakenProxyUrl.trim() : '',
+    };
+    cachedRuntimeApiKeys = {
+      expiresAt: Date.now() + 20000,
+      data,
+    };
+    return data;
+  } catch {
+    return empty;
   }
 }
 
@@ -1300,7 +1485,13 @@ export async function upsertAppSettingInNeon(params: {
       `INSERT INTO neon_app_settings (setting_key, setting_value, category, is_public, description, updated_by, updated_at)
        VALUES ($1, $2::jsonb, $3, $4, $5, $6, NOW())
        ON CONFLICT (setting_key) DO UPDATE SET
-         setting_value = EXCLUDED.setting_value,
+         setting_value = CASE
+           WHEN neon_app_settings.setting_key IN ('api_keys_config', 'storage_preferences')
+             AND jsonb_typeof(neon_app_settings.setting_value) = 'object'
+             AND jsonb_typeof(EXCLUDED.setting_value) = 'object'
+             THEN neon_app_settings.setting_value || EXCLUDED.setting_value
+           ELSE EXCLUDED.setting_value
+         END,
          category = COALESCE(EXCLUDED.category, neon_app_settings.category),
          is_public = COALESCE(EXCLUDED.is_public, neon_app_settings.is_public),
          description = COALESCE(EXCLUDED.description, neon_app_settings.description),
@@ -1315,6 +1506,10 @@ export async function upsertAppSettingInNeon(params: {
         params.updatedBy || 'admin',
       ]
     );
+
+    if (params.key === 'api_keys_config') {
+      invalidateRuntimeApiKeysCache();
+    }
 
     await recordAdminAuditLog(
       params.updatedBy || 'admin',
@@ -1367,7 +1562,7 @@ export async function upsertChannelVideosInNeon(params: {
             rowId,
             ytId.slice(0, 115),
             String(vid?.title || 'Video Kênh'),
-            String(vid?.channel || 'Minh Hiếu Official').slice(0, 250),
+            String(vid?.channel || 'Minh Hiếu Official VN').slice(0, 250),
             String(vid?.duration || '05:00').slice(0, 45),
             String(vid?.thumbnail || ''),
             Boolean(vid?.isShort),
@@ -1663,6 +1858,9 @@ export async function insertNeonTableRow(tableName: string, data: Record<string,
       `INSERT INTO "${tableName}" (${cols}) VALUES (${placeholders}) ${conflictClause} RETURNING *;`,
       values
     );
+    if (tableName === 'neon_app_settings') {
+      invalidateRuntimeApiKeysCache();
+    }
     return res.rows[0];
   } finally {
     client.release();
