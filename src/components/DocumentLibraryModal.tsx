@@ -40,7 +40,7 @@ import {
 } from '../types/documents';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { getAdminAuthHeaders } from '../utils/adminAuth';
-import { getApiBaseUrl } from '../utils/api';
+import { getApiBaseUrl, resolveApiEndpoint } from '../utils/api';
 
 interface DocumentLibraryModalProps {
   isOpen: boolean;
@@ -114,19 +114,67 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
     };
   };
 
-  // Load documents from server API
+  // Helper to trigger direct client-side download from base64 data or external URL
+  const triggerDirectDownload = (doc: DocumentItem): boolean => {
+    if (doc.fileData && doc.fileData.startsWith('data:')) {
+      try {
+        const arr = doc.fileData.split(',');
+        const mime = arr[0]?.match(/:(.*?);/)?.[1] || 'application/octet-stream';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = doc.fileName || 'tai_lieu.dat';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+        return true;
+      } catch (e) {
+        console.warn('Direct blob download error:', e);
+      }
+    }
+
+    if (doc.fileUrl && (doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://'))) {
+      const a = document.createElement('a');
+      a.href = doc.fileUrl;
+      a.download = doc.fileName || 'tai_lieu.dat';
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return true;
+    }
+    return false;
+  };
+
+  // Load documents from server API if reachable, then merge with stored documents
   const loadDocuments = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/documents');
+      const endpoint = resolveApiEndpoint('documents');
+      const res = await fetch(endpoint);
       if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.documents) && data.documents.length > 0) {
-          const normalized = data.documents.map(normalizeDocItem);
-          setDocuments(normalized);
-          saveStoredDocuments(normalized);
-          setIsLoading(false);
-          return;
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data && Array.isArray(data.documents) && data.documents.length > 0) {
+            const serverDocs = data.documents.map(normalizeDocItem);
+            const localDocs = getStoredDocuments().map(normalizeDocItem);
+            const serverIds = new Set(serverDocs.map((s: DocumentItem) => s.id));
+            const localOnly = localDocs.filter((l) => !serverIds.has(l.id));
+            const merged = [...serverDocs, ...localOnly];
+            setDocuments(merged);
+            saveStoredDocuments(merged);
+            setIsLoading(false);
+            return;
+          }
         }
       }
     } catch {}
@@ -159,7 +207,7 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
     return true;
   };
 
-  // Handle Download trigger
+  // Handle Download trigger (works on server, GitHub Pages, or offline)
   const handleDownload = async (doc: DocumentItem) => {
     // If locked, open PayPal checkout
     if (isDocLocked(doc)) {
@@ -168,41 +216,60 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
       return;
     }
 
+    // Update local download count
+    setDocuments((prev) =>
+      prev.map((d) => (d.id === doc.id ? { ...d, downloadCount: (d.downloadCount || 0) + 1 } : d))
+    );
+
+    // If client already has base64 data, download directly via Blob URL
+    if (doc.fileData && doc.fileData.startsWith('data:')) {
+      triggerDirectDownload(doc);
+      if (onShowToast) onShowToast(`📥 Đang tải tệp "${doc.fileName}"...`);
+      return;
+    }
+
+    // Try server download token endpoint if available
     try {
-      const res = await fetch(`/api/documents/${encodeURIComponent(doc.id)}/download-token`, {
+      const endpoint = resolveApiEndpoint(`documents/${encodeURIComponent(doc.id)}/download-token`);
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
 
       if (res.ok) {
-        const data = await res.json();
-        // Update local download count
-        setDocuments((prev) =>
-          prev.map((d) => (d.id === doc.id ? { ...d, downloadCount: (d.downloadCount || 0) + 1 } : d))
-        );
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data.directUrl && (data.directUrl.startsWith('http://') || data.directUrl.startsWith('https://'))) {
+            const a = document.createElement('a');
+            a.href = data.directUrl;
+            a.download = doc.fileName || 'tai_lieu.dat';
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          } else if (data.downloadUrl) {
+            const dlUrl = data.downloadUrl.startsWith('http')
+              ? data.downloadUrl
+              : resolveApiEndpoint(data.downloadUrl);
+            window.location.href = dlUrl;
+          } else {
+            triggerDirectDownload(doc);
+          }
 
-        if (data.directUrl && (data.directUrl.startsWith('http://') || data.directUrl.startsWith('https://'))) {
-          // Open direct download in background
-          const a = document.createElement('a');
-          a.href = data.directUrl;
-          a.download = doc.fileName || 'tai_lieu.dat';
-          a.target = '_blank';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        } else {
-          window.location.href = data.downloadUrl || `/api/documents/${encodeURIComponent(doc.id)}/download`;
+          if (onShowToast) onShowToast(`📥 Đang tải tệp "${doc.fileName}"...`);
+          return;
         }
-
-        if (onShowToast) onShowToast(`📥 Đang tải tệp "${doc.fileName}"...`);
-      } else {
-        // Fallback direct link
-        window.open(doc.fileUrl, '_blank');
       }
-    } catch {
+    } catch {}
+
+    // Fallback: direct download via Blob or direct URL
+    const downloaded = triggerDirectDownload(doc);
+    if (!downloaded && doc.fileUrl) {
       window.open(doc.fileUrl, '_blank');
     }
+    if (onShowToast) onShowToast(`📥 Đang tải tệp "${doc.fileName}"...`);
   };
 
   // Handle PayPal Payment Simulation / Live Checkout
@@ -290,13 +357,16 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
     setIsSubmitting(true);
     setUploadError(null);
 
+    const cleanId = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const docItem: DocumentItem = {
-      id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: cleanId,
       title: newTitle.trim(),
       fileName: newFileName.trim(),
       fileSize: newFileSize || '1.0 MB',
       fileType: newFileType,
-      fileUrl: newFileUrl.trim() || `/api/documents/uploaded/${encodeURIComponent(newFileName)}`,
+      fileUrl:
+        newFileUrl.trim() ||
+        (newFileData ? 'local-upload' : resolveApiEndpoint(`documents/uploaded/${encodeURIComponent(newFileName.trim())}`)),
       fileData: newFileData || undefined,
       isUploaded: Boolean(newFileData),
       requirePayment: newRequirePayment,
@@ -307,9 +377,22 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
       createdAt: new Date().toISOString(),
     };
 
+    const finalLocalDoc = normalizeDocItem(docItem);
+
+    // 1. ALWAYS save to local browser storage immediately (guarantees success on GitHub Pages)
+    setDocuments((prev) => {
+      const filtered = prev.filter((d) => d.id !== finalLocalDoc.id);
+      const updated = [finalLocalDoc, ...filtered];
+      saveStoredDocuments(updated);
+      return updated;
+    });
+
+    // 2. Try to sync to backend if server endpoint is reachable
+    let syncedToServer = false;
     try {
       const authHeaders = getAdminAuthHeaders();
-      const res = await fetch('/api/documents', {
+      const endpoint = resolveApiEndpoint('documents');
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -319,33 +402,46 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
       });
 
       if (res.ok) {
-        const savedData = await res.json();
-        const finalDoc = normalizeDocItem(savedData.document || docItem);
-        setDocuments((prev) => [finalDoc, ...prev]);
-        saveStoredDocuments([finalDoc, ...documents]);
-        setActiveTab('browse');
-        // Reset form
-        setNewTitle('');
-        setNewFileName('');
-        setNewFileSize('');
-        setNewFileUrl('');
-        setNewFileData('');
-        setNewDescription('');
-        setNewRequirePayment(false);
-
-        if (onShowToast) onShowToast('✅ Đã thêm tài liệu thành công vào cơ sở dữ liệu!');
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setUploadError(err.error || 'Lỗi lưu tài liệu lên máy chủ.');
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const savedData = await res.json().catch(() => ({}));
+          if (savedData && savedData.document) {
+            const serverDoc = normalizeDocItem(savedData.document);
+            setDocuments((prev) => {
+              const updated = prev.map((d) => (d.id === finalLocalDoc.id ? serverDoc : d));
+              saveStoredDocuments(updated);
+              return updated;
+            });
+            syncedToServer = true;
+          }
+        }
       }
-    } catch {
-      // Local fallback
-      const finalDoc = normalizeDocItem(docItem);
-      setDocuments((prev) => [finalDoc, ...prev]);
-      saveStoredDocuments([finalDoc, ...documents]);
-      setActiveTab('browse');
-    } finally {
-      setIsSubmitting(false);
+    } catch (e) {
+      console.warn('Backend sync skipped or offline:', e);
+    }
+
+    // Reset form
+    setNewTitle('');
+    setNewFileName('');
+    setNewFileSize('');
+    setNewFileUrl('');
+    setNewFileData('');
+    setNewDescription('');
+    setNewRequirePayment(false);
+    setUploadError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    setActiveTab('browse');
+    setIsSubmitting(false);
+
+    if (onShowToast) {
+      if (syncedToServer) {
+        onShowToast('✅ Đã lưu tài liệu thành công vào cơ sở dữ liệu!');
+      } else {
+        onShowToast('✅ Đã lưu tài liệu thành công vào bộ nhớ (Chế độ GitHub / Thiết bị)!');
+      }
     }
   };
 
@@ -355,7 +451,8 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
 
     try {
       const authHeaders = getAdminAuthHeaders();
-      await fetch(`/api/documents/${encodeURIComponent(id)}`, {
+      const endpoint = resolveApiEndpoint(`documents/${encodeURIComponent(id)}`);
+      await fetch(endpoint, {
         method: 'DELETE',
         headers: { ...authHeaders },
       });

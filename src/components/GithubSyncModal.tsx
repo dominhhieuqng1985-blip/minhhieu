@@ -61,6 +61,9 @@ export const GithubSyncModal: React.FC<GithubSyncModalProps> = ({
         subscriptions: localStorage.getItem('casttube_user_subs') ? JSON.parse(localStorage.getItem('casttube_user_subs')!) : [],
         adSettings: localStorage.getItem('minhhieu_ad_settings_v2') ? JSON.parse(localStorage.getItem('minhhieu_ad_settings_v2')!) : null,
         watermarkSettings: localStorage.getItem('minhhieu_watermark_settings_v2') ? JSON.parse(localStorage.getItem('minhhieu_watermark_settings_v2')!) : null,
+        documents: localStorage.getItem('minhhieu_documents_library_v1') ? JSON.parse(localStorage.getItem('minhhieu_documents_library_v1')!) : [],
+        paypalSettings: localStorage.getItem('minhhieu_paypal_settings_v1') ? JSON.parse(localStorage.getItem('minhhieu_paypal_settings_v1')!) : null,
+        documentSettings: localStorage.getItem('minhhieu_doc_settings_v1') ? JSON.parse(localStorage.getItem('minhhieu_doc_settings_v1')!) : null,
       };
 
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });

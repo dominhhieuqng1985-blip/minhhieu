@@ -102,6 +102,7 @@ import {
 import {
   hasBackend,
   getApiBaseUrl,
+  resolveApiEndpoint,
   isStaticHost,
   getStaticChannelData,
 } from './utils/api';
@@ -336,7 +337,9 @@ function AppContent() {
             }
             return dbData;
           }),
-          fetch('/api/documents').then((res) => (res.ok ? res.json() : null)).catch(() => null),
+          fetch(resolveApiEndpoint('documents'))
+            .then((res) => (res.ok && (res.headers.get('content-type') || '').includes('json') ? res.json() : null))
+            .catch(() => null),
         ]);
 
         if (isCancelled) return;
