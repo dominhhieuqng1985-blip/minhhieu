@@ -5,7 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script type="text/javascript">
       window.addEventListener('error', function(e) {
-        if (e && (e.message === 'Script error.' || !e.message || (e.filename && e.filename.indexOf('acscdn') !== -1))) {
+        var f = (e && e.filename) ? String(e.filename) : '';
+        if (
+          e &&
+          (e.message === 'Script error.' ||
+            !e.message ||
+            f.indexOf('acscdn') !== -1 ||
+            f.indexOf('fond-appointment') !== -1 ||
+            f.indexOf('troubled-entertainment') !== -1 ||
+            f.indexOf('youradexchange') !== -1 ||
+            f.indexOf('phoroglopsu') !== -1)
+        ) {
           if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
           if (typeof e.preventDefault === 'function') e.preventDefault();
           return true;

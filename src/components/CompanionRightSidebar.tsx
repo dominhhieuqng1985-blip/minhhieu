@@ -23,6 +23,7 @@ import { MovieDetail, EpisodeData, EpisodeServer, MovieItem } from '../types/mov
 import { CurrentlyPlayingSidebar } from './CurrentlyPlayingSidebar';
 import { AIPodcastCompanion } from './AIPodcastCompanion';
 import { TimecodedNotesPanel } from './TimecodedNotesPanel';
+import { StandaloneBanner300x250 } from './AdcashBanner';
 
 export interface ActiveMovieState {
   movie: MovieDetail;
@@ -62,6 +63,7 @@ interface CompanionRightSidebarProps {
   onSelectMovieServer?: (index: number) => void;
   onCloseMoviePlayer?: () => void;
   onOpenMovieDetail?: (slug: string) => void;
+  hideAds?: boolean;
 }
 
 export const CompanionRightSidebar: React.FC<CompanionRightSidebarProps> = ({
@@ -92,6 +94,7 @@ export const CompanionRightSidebar: React.FC<CompanionRightSidebarProps> = ({
   onSelectMovieServer,
   onCloseMoviePlayer,
   onOpenMovieDetail,
+  hideAds = false,
 }) => {
   const [activeTab, setActiveTab] = useState<'queue' | 'ai' | 'notes'>('queue');
 
@@ -331,6 +334,12 @@ export const CompanionRightSidebar: React.FC<CompanionRightSidebarProps> = ({
             onSeekToTime={onSeekToTime}
             onDeleteNote={onDeleteNote}
           />
+        )}
+
+        {!hideAds && (
+          <div className="pt-3 border-t border-slate-800/80 flex justify-center">
+            <StandaloneBanner300x250 />
+          </div>
         )}
       </div>
     </aside>

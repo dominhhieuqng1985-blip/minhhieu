@@ -52,6 +52,7 @@ import {
   saveStoredDocumentSettings,
 } from '../types/documents';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { StandaloneBanner300x250 } from './AdcashBanner';
 
 interface AdSettingsModalProps {
   isOpen: boolean;
@@ -85,6 +86,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [importJsonText, setImportJsonText] = useState<string>('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [preview300x250, setPreview300x250] = useState<boolean>(false);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -93,6 +95,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
       setLocalPayPal(getStoredPayPalSettings());
       setLocalDocSettings(getStoredDocumentSettings());
       setSaveError(null);
+      setPreview300x250(false);
     }
   }, [isOpen, adSettings, watermarkSettings]);
 
@@ -386,26 +389,40 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                   />
                 </div>
 
+                {/* Extra Multiline VAST URLs for Random Rotation */}
+                <div className="space-y-1.5 pt-1">
+                  <label className="font-bold text-white text-xs block">
+                    Danh Sách Nhiều Link VAST Luân Phiên Ngẫu Nhiên (Mỗi dòng 1 URL):
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Dán thêm các link VAST 2.0 / 3.0 / 4.0 khác (mỗi dòng 1 link) để hệ thống tự động xoay vòng ngẫu nhiên..."
+                    value={localAd.extraVastTagUrls || ''}
+                    onChange={(e) => setLocalAd({ ...localAd, extraVastTagUrls: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-[11px] text-slate-100 font-mono focus:outline-none focus:border-amber-500 resize-y"
+                  />
+                </div>
+
                 {/* Active VAST tags list */}
                 <div className="p-2.5 bg-slate-900/60 rounded-xl border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
                   <div className="font-semibold text-slate-300">Nguồn quảng cáo video sẵn sàng luân phiên:</div>
-                  <div className="font-mono text-[10px] text-amber-300 truncate">1. VAST 3.0: {DEFAULT_VAST_30_TAG_URL}</div>
+                  <div className="font-mono text-[10px] text-amber-300 truncate">1. VAST 3.0: {localAd.vastTagUrl || DEFAULT_VAST_30_TAG_URL}</div>
                   <div className="font-mono text-[10px] text-slate-400 truncate">2. VAST Adcash: {ADCASH_INSTREAM_VAST_TAG_URL}</div>
-                  <div className="font-mono text-[10px] text-emerald-400 truncate">3. Video Tài Trợ Kênh: {localAd.videoUrl} (Chỉ ưu tiên khi các quảng cáo trên không phân phối)</div>
+                  <div className="font-mono text-[10px] text-emerald-400 truncate">3. Video Dự Phòng: {localAd.videoUrl} (Chỉ phát khi các thẻ VAST không có quảng cáo)</div>
                 </div>
               </div>
 
-              {/* 2. Banner 300x250 HTML / Javascript */}
-              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3.5">
-                <div className="flex items-center justify-between">
+              {/* 2. Banner 300x250 HTML / Javascript (ylse Standalone - Zero YouTube) */}
+              <div className="p-4 bg-slate-950 rounded-2xl border border-amber-500/30 space-y-3.5">
+                <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <Code className="w-4 h-4 text-amber-400" />
+                    <Code className="w-4 h-4 text-amber-400 shrink-0" />
                     <div>
                       <h4 className="font-bold text-white text-xs sm:text-sm">
-                        Quảng Cáo Định Dạng Banner 300×250 (HTML / JavaScript)
+                        Quảng Cáo Banner 300×250 Độc Lập (ylse — Không Kèm YouTube)
                       </h4>
                       <p className="text-[11px] text-slate-400">
-                        Hiển thị banner chữ nhật 300×250 bên dưới hoặc cạnh video phát
+                        Chạy riêng hoàn toàn ở các vị trí ưu tiên ngoài trình phát YouTube, không kèm thẻ dự phòng kênh
                       </p>
                     </div>
                   </div>
@@ -420,18 +437,34 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                   </label>
                 </div>
 
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <label className="font-bold text-white text-xs">
-                      Mã Nhúng HTML / JavaScript cho 300×250:
+                      Mã Nhúng HTML / JavaScript cho 300×250 (ylse):
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setLocalAd({ ...localAd, banner300x250Html: DEFAULT_BANNER_300X250_SCRIPT })}
-                      className="text-[10px] text-amber-400 hover:underline font-mono"
-                    >
-                      Khôi phục mã 300×250 mẫu
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreview300x250((prev) => !prev)}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold flex items-center gap-1 transition-colors"
+                      >
+                        <Play className="w-3 h-3" />
+                        <span>{preview300x250 ? 'Ẩn khung chạy thử' : 'Chạy thử 300×250 ngay'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLocalAd({
+                            ...localAd,
+                            banner300x250Html: DEFAULT_BANNER_300X250_SCRIPT,
+                            enableBanner300x250: true,
+                          })
+                        }
+                        className="text-[10px] text-amber-400 hover:underline font-mono"
+                      >
+                        Khôi phục mã ylse 300×250
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     rows={4}
@@ -440,17 +473,29 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                     onChange={(e) => setLocalAd({ ...localAd, banner300x250Html: e.target.value })}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-100 font-mono focus:outline-none focus:border-amber-500 resize-y"
                   />
+
+                  {preview300x250 && (
+                    <div className="pt-2 pb-1 px-3 bg-slate-900/90 border border-slate-800 rounded-2xl flex flex-col items-center gap-2">
+                      <span className="text-[10px] text-emerald-400 font-semibold">
+                        Khung chạy thử trực tiếp 300×250 (độc lập 100%, không kèm YouTube):
+                      </span>
+                      <StandaloneBanner300x250
+                        forceShow={true}
+                        previewCode={localAd.banner300x250Html || DEFAULT_BANNER_300X250_SCRIPT}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* 3. MultiTag Video Slider HTML / Javascript */}
+              {/* 3. MultiTag Video Slider HTML / Javascript (alsq) */}
               <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Play className="w-4 h-4 text-amber-400" />
                     <div>
                       <h4 className="font-bold text-white text-xs sm:text-sm">
-                        Quảng Cáo MultiTag Video Slider (HTML / JavaScript)
+                        Quảng Cáo MultiTag Video Slider (alsq — HTML / JavaScript)
                       </h4>
                       <p className="text-[11px] text-slate-400">
                         Quảng cáo video trượt nổi tự động ở góc dưới màn hình
@@ -493,29 +538,40 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
 
               {/* 4. Custom Ad Code (HTML / JS / VAST) */}
               <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3.5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div>
                     <h4 className="font-bold text-white text-xs sm:text-sm">
-                      Mã Quảng Cáo Bổ Sung Khác (HTML, JS hoặc VAST)
+                      Mã Quảng Cáo Tùy Chỉnh Mở Rộng (HTML, JavaScript hoặc VAST)
                     </h4>
                     <p className="text-[11px] text-slate-400">
-                      Dễ dàng dán bất kỳ mã HTML, JS hoặc URL VAST quảng cáo trong luồng nào khác
+                      Dán mã HTML, JavaScript hoặc URL VAST tùy chỉnh — lưu trực tiếp vào Neon PostgreSQL
                     </p>
                   </div>
-                  <select
-                    value={localAd.customAdCodeType || 'vast'}
-                    onChange={(e) => setLocalAd({ ...localAd, customAdCodeType: e.target.value as any })}
-                    className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-amber-300 font-semibold"
-                  >
-                    <option value="vast">VAST Trong Luồng</option>
-                    <option value="html">Mã HTML</option>
-                    <option value="js">Mã JavaScript</option>
-                  </select>
+                  <div className="flex items-center gap-2.5">
+                    <select
+                      value={localAd.customAdCodeType || 'vast'}
+                      onChange={(e) => setLocalAd({ ...localAd, customAdCodeType: e.target.value as any })}
+                      className="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-amber-300 font-semibold"
+                    >
+                      <option value="vast">VAST Trong Luồng</option>
+                      <option value="html">Mã HTML</option>
+                      <option value="js">Mã JavaScript</option>
+                    </select>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={localAd.enableCustomHtmlJs !== false}
+                        onChange={(e) => setLocalAd({ ...localAd, enableCustomHtmlJs: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-10 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                    </label>
+                  </div>
                 </div>
 
                 <textarea
                   rows={3}
-                  placeholder="Dán mã HTML, JavaScript hoặc URL VAST vào đây..."
+                  placeholder="Dán mã HTML (<script>...</script>), JavaScript hoặc URL VAST vào đây..."
                   value={localAd.customHtmlJsCode || ''}
                   onChange={(e) => setLocalAd({ ...localAd, customHtmlJsCode: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-100 font-mono focus:outline-none focus:border-amber-500 resize-y"

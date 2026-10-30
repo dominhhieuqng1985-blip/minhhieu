@@ -46,6 +46,7 @@ import {
 } from '../utils/tiktokApi';
 import { PodcastEpisode } from '../types/podcast';
 import { TikTokVideoPlayer, PlayerErrorBoundary } from './TikTokVideoPlayer';
+import { StandaloneBanner300x250 } from './AdcashBanner';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import {
   YouTubeSubscribeGateModal,
@@ -871,6 +872,11 @@ export const TikTokDownloaderStudio: React.FC<TikTokDownloaderStudioProps> = ({
           </div>
         </div>
       )}
+
+      {/* Prioritized Standalone 300x250 Banner (ylse) */}
+      <div className="pt-2 flex justify-center">
+        <StandaloneBanner300x250 />
+      </div>
 
       {/* YouTube Subscription Gate Modal (Admin automatically bypasses) */}
       <YouTubeSubscribeGateModal

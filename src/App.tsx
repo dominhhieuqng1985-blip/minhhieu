@@ -71,10 +71,9 @@ import {
 import {
   AdcashBanner,
   AdcashVideoSlider,
-  AdcashRectangle336x280,
-  AdcashRectangle300x250,
-  ADCASH_RECTANGLE_336X280_ZONE_ID,
-  ADCASH_RECTANGLE_300X250_ZONE_ID,
+  StandaloneBanner300x250,
+  CustomHtmlJsAdSlot,
+  AdSlotErrorBoundary,
 } from './components/AdcashBanner';
 import { formatSeconds } from './utils/youtube';
 import {
@@ -1664,11 +1663,16 @@ function AppContent() {
           ) : activeNav === 'kids-learning' ? (
             <KidsLearningStudio onShowToast={showToast} />
           ) : activeNav === 'downloader' ? (
-            <VidKrakenDownloader
-              currentEpisode={currentEpisode}
-              onAddToQueue={handleAddCustomVideo}
-              onShowToast={showToast}
-            />
+            <div className="space-y-6">
+              <VidKrakenDownloader
+                currentEpisode={currentEpisode}
+                onAddToQueue={handleAddCustomVideo}
+                onShowToast={showToast}
+              />
+              <div className="pt-2 flex justify-center">
+                <StandaloneBanner300x250 />
+              </div>
+            </div>
           ) : activeNav === 'movies' ? (
             <MovieCinemaView
               initialTab={movieTab}
@@ -2049,9 +2053,10 @@ function AppContent() {
                   />
                 )}
 
-                {/* Adcash Medium Rectangle 300x250 (Zone 12358790) in Player Companion Area */}
-                <div className="pt-3 flex justify-center">
-                  <AdcashBanner zoneId="12358790" format="300x250" />
+                {/* Standalone 300x250 Banner (ylse) in Player Companion Column - Separated outside YouTubePlayer */}
+                <div className="pt-4 flex flex-col items-center gap-3">
+                  <StandaloneBanner300x250 />
+                  <CustomHtmlJsAdSlot />
                 </div>
               </div>
             </div>
@@ -2113,10 +2118,9 @@ function AppContent() {
             </div>
           </div>
 
-          {/* Adcash Sponsored Dual Placement: Large Rectangle 336x280 (Zone 12358782) & Medium Rectangle 300x250 (Zone 12358790) */}
-          <div className="py-3 px-3 rounded-3xl bg-slate-900/40 border border-slate-800/80 flex flex-wrap items-center justify-center gap-6">
-            <AdcashBanner zoneId="12358782" format="336x280" />
-            <AdcashBanner zoneId="12358790" format="300x250" />
+          {/* Prioritized Standalone 300x250 Banner Placement (Independent, Zero YouTube Fallback) */}
+          <div className="py-3 px-3 rounded-3xl bg-slate-900/40 border border-slate-800/80 flex flex-col items-center justify-center gap-3">
+            <StandaloneBanner300x250 />
           </div>
 
           {/* VIEW TAB 1 & 2: FULL UNABRIDGED VIDEO LIST WITH POSITION & THUMBNAILS */}
@@ -2284,10 +2288,10 @@ function AppContent() {
           )}
         </section>
 
-        {/* Banner 336x280 & 300x250 Định Dạng Mới */}
-        <div className="py-6 border-t border-slate-800/80 flex flex-wrap items-center justify-center gap-4">
-          <AdcashBanner zoneId="12358782" format="336x280" />
-          <AdcashBanner zoneId="12358790" format="300x250" />
+        {/* Prioritized Standalone 300x250 Banner Placement at Catalog Footer */}
+        <div className="py-6 border-t border-slate-800/80 flex flex-col items-center justify-center gap-4">
+          <StandaloneBanner300x250 />
+          <CustomHtmlJsAdSlot />
         </div>
         </div>
         )}
@@ -2312,6 +2316,7 @@ function AppContent() {
       <CompanionRightSidebar
         isOpen={isRightSidebarOpen}
         onClose={() => setIsRightSidebarOpen(false)}
+        hideAds={activeNav === 'kids-learning'}
         currentEpisode={currentEpisode}
         activeQueue={activeQueue}
         activePlaylistTitle={activePlaylistTitle}
@@ -2549,11 +2554,13 @@ function AppContent() {
       />
 
       {/* Kho Tài Liệu & Thanh Toán PayPal Download Manager */}
-      <DocumentLibraryModal
-        isOpen={isDocumentLibraryOpen}
-        onClose={() => setIsDocumentLibraryOpen(false)}
-        onShowToast={showToast}
-      />
+      <AdSlotErrorBoundary>
+        <DocumentLibraryModal
+          isOpen={isDocumentLibraryOpen}
+          onClose={() => setIsDocumentLibraryOpen(false)}
+          onShowToast={showToast}
+        />
+      </AdSlotErrorBoundary>
 
       {/* Floating Toggle Button for Right Sidebar when collapsed */}
       {!isRightSidebarOpen && (

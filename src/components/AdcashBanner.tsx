@@ -1,8 +1,9 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { Component, ErrorInfo, ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { ExternalLink, Play, Volume2, VolumeX, X } from 'lucide-react';
 import {
   AdSettings,
   WatermarkSettings,
+  DEFAULT_BANNER_300X250_SCRIPT,
   getStoredAdSettings,
   getStoredWatermarkSettings,
   normalizeAdSettings,
@@ -37,21 +38,63 @@ declare global {
 export type AdcashBannerFormat = '728x90' | '160x600' | '336x280' | '300x250';
 
 interface AdcashBannerProps {
-  zoneId: string;
+  zoneId?: string;
   format?: AdcashBannerFormat;
   className?: string;
 }
 
 /**
- * Universal safe script and HTML ad runner
- * Properly executes <script> tags or pure JS snippets inside a dedicated container
+ * Isolated Error Boundary for Third-Party Ad Slots
+ * Guarantees that any error inside external ad scripts or custom HTML/JS tags
+ * never propagates up or causes a white-screen crash on the main application.
+ */
+export class AdSlotErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.warn('AdSlotErrorBoundary isolated third-party ad error:', error?.message, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
+
+function normalizeAdSnippetProtocols(rawCode: string): string {
+  if (!rawCode) return '';
+  if (typeof window !== 'undefined' && window.location.protocol !== 'https:') {
+    return rawCode
+      .replace(/(["'])\\\/\\\/(fond-appointment\.com|troubled-entertainment\.com|acscdn\.com|youradexchange\.com)/gi, '$1https:\\/\\/$2')
+      .replace(/(["'])\/\/(fond-appointment\.com|troubled-entertainment\.com|acscdn\.com|youradexchange\.com)/gi, '$1https://$2');
+  }
+  return rawCode;
+}
+
+/**
+ * Universal safe script and HTML ad runner (Memoized)
+ * Uses <template> + live DOM mounting in document.body so tags relying on
+ * document.currentScript || document.scripts[document.scripts.length - 1] and
+ * l.parentNode.insertBefore(s, l) (such as ylse 300x250 & alsq Video Slider) execute reliably.
  */
 export const AdScriptRunner: React.FC<{
   code: string;
   className?: string;
   width?: string | number;
   height?: string | number;
-}> = ({ code, className = '', width = '100%', height = 'auto' }) => {
+}> = React.memo(({ code, className = '', width = '100%', height = 'auto' }) => {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,36 +103,54 @@ export const AdScriptRunner: React.FC<{
 
     container.innerHTML = '';
     const wrapper = document.createElement('div');
-    wrapper.className = 'ad-script-inner w-full h-full flex items-center justify-center';
+    wrapper.className = 'ad-script-inner w-full h-full flex items-center justify-center relative';
     container.appendChild(wrapper);
 
     try {
-      const parser = new DOMParser();
-      const parsedDoc = parser.parseFromString(code, 'text/html');
+      const normalized = normalizeAdSnippetProtocols(code.trim());
+      const hasHtmlTag = /<[a-z][\s\S]*>/i.test(normalized);
 
-      // Append HTML non-script elements first
-      Array.from(parsedDoc.body.childNodes).forEach((node) => {
-        if (node.nodeName !== 'SCRIPT') {
-          wrapper.appendChild(node.cloneNode(true));
-        }
-      });
-
-      // Execute script tags by creating fresh script DOM elements
-      const scripts = parsedDoc.querySelectorAll('script');
-      if (scripts.length > 0) {
-        scripts.forEach((s) => {
-          const newScript = document.createElement('script');
-          Array.from(s.attributes).forEach((attr) => {
-            newScript.setAttribute(attr.name, attr.value);
-          });
-          newScript.text = s.textContent || '';
-          wrapper.appendChild(newScript);
-        });
+      if (!hasHtmlTag) {
+        const scriptEl = document.createElement('script');
+        scriptEl.type = 'text/javascript';
+        scriptEl.text = normalized;
+        wrapper.appendChild(scriptEl);
       } else {
-        // Plain JavaScript without script tag
-        const newScript = document.createElement('script');
-        newScript.text = code;
-        wrapper.appendChild(newScript);
+        const tpl = document.createElement('template');
+        tpl.innerHTML = normalized;
+
+        const appendWithLiveScripts = (sourceParent: Node, targetParent: Node) => {
+          Array.from(sourceParent.childNodes).forEach((node) => {
+            if (node.nodeName.toUpperCase() === 'SCRIPT') {
+              const oldScript = node as HTMLScriptElement;
+              const liveScript = document.createElement('script');
+              Array.from(oldScript.attributes).forEach((attr) => {
+                let val = attr.value;
+                if (
+                  attr.name.toLowerCase() === 'src' &&
+                  val.startsWith('//') &&
+                  typeof window !== 'undefined' &&
+                  window.location.protocol !== 'https:'
+                ) {
+                  val = `https:${val}`;
+                }
+                liveScript.setAttribute(attr.name, val);
+              });
+              if (oldScript.textContent) {
+                liveScript.text = oldScript.textContent;
+              }
+              targetParent.appendChild(liveScript);
+            } else {
+              const cloned = node.cloneNode(false);
+              targetParent.appendChild(cloned);
+              if (node.childNodes && node.childNodes.length > 0) {
+                appendWithLiveScripts(node, cloned);
+              }
+            }
+          });
+        };
+
+        appendWithLiveScripts(tpl.content, wrapper);
       }
     } catch (e) {
       console.warn('AdScriptRunner execution notice:', e);
@@ -110,7 +171,97 @@ export const AdScriptRunner: React.FC<{
       className={`ad-script-container overflow-hidden ${className}`}
     />
   );
-};
+});
+
+/**
+ * Standalone 300x250 Ad Slot (ylse / fond-appointment.com)
+ * Runs 100% independently outside the YouTube player, fixed session lifecycle
+ * (never reloads on YouTube currentTime ticks and NEVER renders any YouTube fallback card).
+ */
+export const StandaloneBanner300x250: React.FC<{
+  className?: string;
+  forceShow?: boolean;
+  previewCode?: string;
+}> = React.memo(({ className = '', forceShow = false, previewCode }) => {
+  const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
+
+  useEffect(() => {
+    const handleUpdate = (e: Event) => {
+      const customEv = e as CustomEvent;
+      if (customEv.detail?.adSettings) {
+        setAdSettings(normalizeAdSettings(customEv.detail.adSettings));
+      } else {
+        setAdSettings(getStoredAdSettings());
+      }
+    };
+    window.addEventListener(AD_SETTINGS_UPDATED_EVENT, handleUpdate);
+    return () => window.removeEventListener(AD_SETTINGS_UPDATED_EVENT, handleUpdate);
+  }, []);
+
+  const activeCode =
+    typeof previewCode === 'string' && previewCode.trim()
+      ? previewCode
+      : adSettings.banner300x250Html && adSettings.banner300x250Html.trim()
+      ? adSettings.banner300x250Html
+      : DEFAULT_BANNER_300X250_SCRIPT;
+
+  if (!forceShow && (!adSettings.enabled || adSettings.enableBanner300x250 === false || !activeCode.trim())) {
+    return null;
+  }
+
+  return (
+    <AdSlotErrorBoundary>
+      <div className={`w-full max-w-[300px] mx-auto flex flex-col items-center justify-center ${className}`}>
+        <div className="w-[300px] min-h-[250px] rounded-xl overflow-hidden bg-slate-950/85 border border-slate-800/80 shadow-lg flex flex-col items-center justify-center select-none">
+          <div className="w-full px-2.5 py-1 bg-slate-950/95 border-b border-slate-800/70 flex items-center justify-between text-[10px] text-slate-400">
+            <span className="font-semibold text-amber-400/90">Quảng cáo · 300×250</span>
+            <span className="text-[9px] text-slate-500 font-mono">Sponsored</span>
+          </div>
+          <div className="w-[300px] min-h-[250px] flex items-center justify-center overflow-hidden bg-slate-900/40">
+            <AdScriptRunner code={activeCode} width={300} height={250} />
+          </div>
+        </div>
+      </div>
+    </AdSlotErrorBoundary>
+  );
+});
+
+/**
+ * Custom HTML / JavaScript Ad Slot configured by Admin in AdSettingsModal
+ */
+export const CustomHtmlJsAdSlot: React.FC<{ className?: string }> = React.memo(({ className = '' }) => {
+  const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
+
+  useEffect(() => {
+    const handleUpdate = (e: Event) => {
+      const customEv = e as CustomEvent;
+      if (customEv.detail?.adSettings) {
+        setAdSettings(normalizeAdSettings(customEv.detail.adSettings));
+      } else {
+        setAdSettings(getStoredAdSettings());
+      }
+    };
+    window.addEventListener(AD_SETTINGS_UPDATED_EVENT, handleUpdate);
+    return () => window.removeEventListener(AD_SETTINGS_UPDATED_EVENT, handleUpdate);
+  }, []);
+
+  const code = typeof adSettings.customHtmlJsCode === 'string' ? adSettings.customHtmlJsCode.trim() : '';
+  const isHtmlOrJs = adSettings.customAdCodeType === 'html' || adSettings.customAdCodeType === 'js';
+
+  if (!adSettings.enabled || adSettings.enableCustomHtmlJs === false || !isHtmlOrJs || !code) {
+    return null;
+  }
+
+  return (
+    <AdSlotErrorBoundary>
+      <div className={`w-full flex justify-center ${className}`}>
+        <div className="max-w-full rounded-xl overflow-hidden bg-slate-950/80 border border-slate-800/80 p-2 shadow-md">
+          <AdScriptRunner code={code} />
+        </div>
+      </div>
+    </AdSlotErrorBoundary>
+  );
+});
 
 function ensureAdcashLibrary(): HTMLScriptElement | null {
   if (typeof document === 'undefined') return null;
@@ -189,10 +340,23 @@ function checkNodeHasRenderedAd(el: HTMLElement | null): boolean {
  * Priority 2: Pre-configured Sponsor Display Banner (from AdSettings) whenever Adcash returns 204 No-Fill
  */
 export const AdcashBanner: React.FC<AdcashBannerProps> = ({
-  zoneId,
+  zoneId = ADCASH_LEADERBOARD_728X90_ZONE_ID,
   format = '728x90',
   className = '',
 }) => {
+  // Format 300x250 runs 100% standalone (ylse) with zero YouTube fallback and isolated error boundary
+  if (format === '300x250') {
+    return <StandaloneBanner300x250 className={className} />;
+  }
+
+  return <AdcashBannerStandard zoneId={zoneId} format={format} className={className} />;
+};
+
+const AdcashBannerStandard: React.FC<{
+  zoneId: string;
+  format: Exclude<AdcashBannerFormat, '300x250'>;
+  className: string;
+}> = ({ zoneId, format, className }) => {
   const reactId = useId();
   const safeUid = reactId.replace(/[^a-zA-Z0-9_-]/g, '');
   const containerId = `adcash-zone-${zoneId}-${safeUid}`;
@@ -273,9 +437,6 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
         if (format === '336x280') {
           runOptions.width = 336;
           runOptions.height = 280;
-        } else if (format === '300x250') {
-          runOptions.width = 300;
-          runOptions.height = 250;
         } else if (format === '160x600') {
           runOptions.width = 160;
           runOptions.height = 600;
@@ -363,6 +524,7 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
 
   if (format === '160x600') {
     return (
+      <AdSlotErrorBoundary>
       <div className={`w-[160px] mx-auto flex flex-col items-center justify-start ${className}`}>
         {/* Priority 1: Live Adcash Skyscraper Container */}
         {hasExternalFill && (
@@ -473,12 +635,14 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
           </div>
         )}
       </div>
+      </AdSlotErrorBoundary>
     );
   }
 
   // Format: 336x280 Large Rectangle
   if (format === '336x280') {
     return (
+      <AdSlotErrorBoundary>
       <div className={`w-full max-w-[336px] mx-auto flex flex-col items-center justify-start ${className}`}>
         {/* Priority 1: Live Adcash Large Rectangle 336x280 Container */}
         {hasExternalFill && (
@@ -588,141 +752,13 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
           </div>
         )}
       </div>
-    );
-  }
-
-  // Format: 300x250 Medium Rectangle
-  if (format === '300x250') {
-    const hasCustom300 = Boolean(
-      adSettings.enableBanner300x250 !== false &&
-      adSettings.banner300x250Html &&
-      adSettings.banner300x250Html.trim()
-    );
-
-    // If random rotation is active, alternate between custom 300x250 script (70%) and Adcash/Sponsor (30%)
-    const showCustomThisTurn = hasCustom300 && (!adSettings.rotateVideoAds || Math.random() < 0.7);
-
-    if (showCustomThisTurn) {
-      return (
-        <div className={`w-full max-w-[300px] mx-auto flex flex-col items-center justify-start ${className}`}>
-          <div className="w-[300px] min-h-[250px] relative rounded-xl overflow-hidden bg-slate-950/80 border border-slate-800/90 shadow-lg flex flex-col items-center justify-between select-none group">
-            {/* Top Bar */}
-            <div className="w-full px-2.5 py-1.5 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="font-bold text-amber-400 shrink-0">Quảng cáo 300×250:</span>
-                <span className="text-slate-200 font-medium truncate max-w-[190px]">
-                  {advertiserName || 'Định Dạng Mới'}
-                </span>
-              </div>
-              <span className="text-[9px] text-slate-500 font-mono">HTML/JS</span>
-            </div>
-
-            {/* Injected Script Runner */}
-            <div className="w-[300px] h-[250px] flex items-center justify-center overflow-hidden bg-slate-900/50">
-              <AdScriptRunner code={adSettings.banner300x250Html!} width={300} height={250} />
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className={`w-full max-w-[300px] mx-auto flex flex-col items-center justify-start ${className}`}>
-        {/* Priority 1: Live Adcash Medium Rectangle 300x250 Container */}
-        {hasExternalFill && (
-          <div className="w-full max-w-[300px] pb-1 px-1 flex items-center justify-between text-[10px] text-slate-400">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="font-bold text-amber-400 shrink-0">Quảng cáo:</span>
-              <span className="text-slate-300 font-medium truncate max-w-[190px]">{advertiserName}</span>
-            </div>
-          </div>
-        )}
-        <div
-          id={containerId}
-          ref={bannerWrapperRef}
-          data-zone-id={zoneId}
-          data-ad-format="300x250"
-          className={`w-full max-w-[300px] overflow-hidden ${hasExternalFill ? 'block' : 'h-0'}`}
-        />
-
-        {/* Priority 2: Pre-configured 300x250 Medium Rectangle Fallback when Adcash has no fill */}
-        {showFallbackBanner && (
-          <div className="relative w-full max-w-[300px] h-[250px] rounded-xl overflow-hidden bg-slate-900 border border-slate-800/90 hover:border-slate-700 transition-colors flex flex-col justify-between select-none shadow-lg group">
-            {/* Top Bar */}
-            <div className="px-2.5 py-1.5 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="font-bold text-amber-400 shrink-0">Quảng cáo:</span>
-                <span className="text-slate-200 font-medium truncate max-w-[190px]">{advertiserName}</span>
-              </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDismissed(true);
-                }}
-                className="p-0.5 text-slate-500 hover:text-white transition-colors"
-                title="Đóng quảng cáo"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-
-            {/* Clickable Card Body */}
-            <a
-              href={targetHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex flex-col justify-between overflow-hidden"
-            >
-              {/* Media preview */}
-              <div className="relative w-full h-[122px] bg-slate-950 overflow-hidden shrink-0">
-                {!thumbFailed ? (
-                  <img
-                    src={bannerImage}
-                    alt={sponsorTitle}
-                    referrerPolicy="no-referrer"
-                    onError={() => setThumbFailed(true)}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center">
-                    <Play className="w-8 h-8 text-white/60" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white group-hover:bg-red-600 transition-colors shadow">
-                    <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Details & CTA */}
-              <div className="p-2.5 flex-1 flex flex-col justify-between bg-slate-900">
-                <p className="text-xs font-bold text-slate-100 line-clamp-2 group-hover:text-amber-300 transition-colors leading-snug">
-                  {sponsorTitle}
-                </p>
-
-                <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-slate-800/80">
-                  <span className="text-[10px] text-slate-500 font-mono truncate max-w-[125px]">
-                    @MinhHieuOfficialvn
-                  </span>
-                  <span className="px-3 py-1.5 rounded-lg bg-white/10 group-hover:bg-red-600 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0">
-                    <span>Xem ngay</span>
-                    <ExternalLink className="w-3 h-3 shrink-0" />
-                  </span>
-                </div>
-              </div>
-            </a>
-          </div>
-        )}
-      </div>
+      </AdSlotErrorBoundary>
     );
   }
 
   // Format: 728x90 Leaderboard
   return (
+    <AdSlotErrorBoundary>
     <div className={`w-full flex flex-col items-center justify-center ${className}`}>
       {/* Priority 1: Live Adcash Leaderboard Container */}
       {hasExternalFill && (
@@ -811,6 +847,7 @@ export const AdcashBanner: React.FC<AdcashBannerProps> = ({
         </div>
       )}
     </div>
+    </AdSlotErrorBoundary>
   );
 };
 
@@ -937,12 +974,14 @@ export const AdcashVideoSlider: React.FC<AdcashVideoSliderProps> = ({
     adSettings.videoSliderHtml.trim()
   );
 
-  // If user enabled custom MultiTag slider, inject the script so it handles floating video presentation
+  // If user enabled custom MultiTag slider (alsq), inject inside AdSlotErrorBoundary
   if (hasCustomSlider) {
     return (
-      <div className="fixed bottom-3 right-3 z-40 pointer-events-auto">
-        <AdScriptRunner code={adSettings.videoSliderHtml!} />
-      </div>
+      <AdSlotErrorBoundary>
+        <div className="fixed bottom-3 right-3 z-40 pointer-events-auto">
+          <AdScriptRunner code={adSettings.videoSliderHtml!} />
+        </div>
+      </AdSlotErrorBoundary>
     );
   }
 
@@ -1027,12 +1066,11 @@ export const AdcashRectangle336x280: React.FC<{
 );
 
 /**
- * Convenience helper for Display 300x250 Medium Rectangle
- * Default Adcash Zone ID: 12358790
+ * Convenience helper for Display 300x250 Medium Rectangle (Standalone ylse)
  */
 export const AdcashRectangle300x250: React.FC<{
   zoneId?: string;
   className?: string;
-}> = ({ zoneId = ADCASH_RECTANGLE_300X250_ZONE_ID, className = '' }) => (
-  <AdcashBanner zoneId={zoneId} format="300x250" className={className} />
+}> = ({ className = '' }) => (
+  <StandaloneBanner300x250 className={className} />
 );

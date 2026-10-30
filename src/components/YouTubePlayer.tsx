@@ -50,7 +50,6 @@ import { WatermarkOverlay } from './WatermarkOverlay';
 import { AdSettingsModal } from './AdSettingsModal';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useVideoAdScheduler } from '../hooks/useVideoAdScheduler';
-import { AdcashBanner } from './AdcashBanner';
 
 declare global {
   interface Window {
@@ -1569,12 +1568,6 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
           >
             {isDescriptionExpanded ? 'Ẩn bớt' : '...thêm'}
           </button>
-        </div>
-
-        {/* Banner 336x280 & Định Dạng Mới 300x250 */}
-        <div className="py-2.5 flex flex-wrap items-center justify-center gap-4">
-          <AdcashBanner zoneId="12358782" format="336x280" />
-          <AdcashBanner zoneId="12358790" format="300x250" />
         </div>
 
         {/* ============================================================== */}

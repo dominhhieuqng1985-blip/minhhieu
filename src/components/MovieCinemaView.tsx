@@ -63,7 +63,7 @@ import {
   getMovieDetail,
 } from '../utils/movieApi';
 import { MovieVideoPlayer } from './MovieVideoPlayer';
-import { AdcashBanner } from './AdcashBanner';
+import { AdcashBanner, StandaloneBanner300x250 } from './AdcashBanner';
 
 interface MovieCinemaViewProps {
   onSendToTTS?: (text: string) => void;
@@ -1024,9 +1024,9 @@ export const MovieCinemaView: React.FC<MovieCinemaViewProps> = ({
                       })}
                     </div>
 
-                    {/* Sponsored Medium Rectangle 300x250 Adcash Zone 12358790 */}
+                    {/* Prioritized Standalone 300x250 Banner (ylse) */}
                     <div className="pt-3 border-t border-slate-800/80 flex justify-center">
-                      <AdcashBanner zoneId="12358790" format="300x250" />
+                      <StandaloneBanner300x250 />
                     </div>
                   </div>
                 )}
@@ -1943,6 +1943,11 @@ export const MovieCinemaView: React.FC<MovieCinemaViewProps> = ({
                   )}
                 </>
               )}
+
+              {/* Prioritized Standalone 300x250 Banner in Movie Catalog Footer */}
+              <div className="pt-4 border-t border-slate-800/70 flex justify-center">
+                <StandaloneBanner300x250 />
+              </div>
             </>
           )}
         </div>

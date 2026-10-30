@@ -744,6 +744,57 @@ export async function initializeNeonSchema(): Promise<{
          );`
     );
 
+    // Tự động đồng bộ & kích hoạt mã quảng cáo 300x250 (ylse), VAST 3.0 và MultiTag Video Slider (alsq) trên Neon PostgreSQL
+    // nếu trong DB đang lưu mã cũ bị lỗi (petdp / bYX-VAsLd / lpysay) hoặc chưa có cấu hình
+    const adRowRes = await client.query(
+      `SELECT setting_value FROM neon_app_settings WHERE setting_key = 'ad_settings' LIMIT 1;`
+    );
+    if (adRowRes.rows.length > 0 && adRowRes.rows[0].setting_value && typeof adRowRes.rows[0].setting_value === 'object') {
+      const curAd = { ...adRowRes.rows[0].setting_value };
+      const cur300 = typeof curAd.banner300x250Html === 'string' ? curAd.banner300x250Html : '';
+      const isLegacy300 =
+        !cur300.trim() ||
+        cur300.includes('bYX-VAsLd') ||
+        cur300.includes('petdp') ||
+        cur300.includes('lpysay') ||
+        cur300.includes('bOX/Vcs.dZGvlT0vYyWNcp');
+
+      let needsAdPatch = false;
+      const defaultYlse300Script = `<script>\n(function(ylse){\nvar d = document,\n    s = d.createElement('script'),\n    l = d.currentScript || d.scripts[d.scripts.length - 1];\ns.settings = ylse || {};\ns.src = "\\/\\/fond-appointment.com\\/bcXnVps_d.G\\/lT0rYrWPcO\\/SeTmy9\\/uqZ\\/Uol\\/kJPrTNcA1\\/NHjgQD3\\/MmDLk\\/tmNgz\\/U_2jN-D\\/cpxDMnwL";\ns.async = true;\ns.referrerPolicy = 'no-referrer-when-downgrade';\nl.parentNode.insertBefore(s, l);\n})({})\n</script>`;
+      const defaultVast30Url =
+        'https://troubled-entertainment.com/d/mOF.zdd/GlN/vDZuGNUc/deLmd9LucZ/UWlFkiPVTncc1dNxjAQf3UMWDgEGt/NlzrUN2sNoDjcvwBNVQE';
+      const defaultAlsqSliderScript = `<script>\n(function(alsq){\nvar d = document,\n    s = d.createElement('script'),\n    l = d.currentScript || d.scripts[d.scripts.length - 1];\ns.settings = alsq || {};\ns.src = "\\/\\/fond-appointment.com\\/bOXGV.sodGGQlo0\\/YwW\\/cb\\/WeOmH9sumZ\\/U\\/lKk\\/PzTRcx1INRj\\/Q\\/3VMWjJUNtANdzWUb2TNBDCc_ywOkQG";\ns.async = true;\ns.referrerPolicy = 'no-referrer-when-downgrade';\nl.parentNode.insertBefore(s, l);\n})({})\n</script>`;
+
+      if (isLegacy300) {
+        curAd.banner300x250Html = defaultYlse300Script;
+        curAd.enableBanner300x250 = true;
+        needsAdPatch = true;
+      }
+      if (!curAd.vastTagUrl || typeof curAd.vastTagUrl !== 'string' || !curAd.vastTagUrl.trim()) {
+        curAd.vastTagUrl = defaultVast30Url;
+        curAd.enableVastAds = true;
+        curAd.rotateVideoAds = true;
+        needsAdPatch = true;
+      }
+      if (!curAd.videoSliderHtml || typeof curAd.videoSliderHtml !== 'string' || !curAd.videoSliderHtml.trim()) {
+        curAd.videoSliderHtml = defaultAlsqSliderScript;
+        curAd.enableVideoSlider = true;
+        needsAdPatch = true;
+      }
+      if (typeof curAd.extraVastTagUrls !== 'string') {
+        curAd.extraVastTagUrls = '';
+        curAd.rotateVideoAds = true;
+        needsAdPatch = true;
+      }
+
+      if (needsAdPatch) {
+        await client.query(
+          `UPDATE neon_app_settings SET setting_value = $1::jsonb, updated_at = NOW() WHERE setting_key = 'ad_settings';`,
+          [JSON.stringify(curAd)]
+        );
+      }
+    }
+
     await client.query(
       `UPDATE neon_app_settings
        SET setting_value = jsonb_set(

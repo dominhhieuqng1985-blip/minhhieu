@@ -16,12 +16,12 @@ export const ADCASH_INSTREAM_VAST_TAG_URL =
   'https://youradexchange.com/video/select.php?r=12358098';
 
 export const DEFAULT_BANNER_300X250_SCRIPT = `<script>
-(function(petdp){
+(function(ylse){
 var d = document,
-s = d.createElement('script'),
-l = d.currentScript || d.scripts[d.scripts.length - 1];
-s.settings = petdp || {};
-s.src = "\\/\\/fond-appointment.com\\/bYX-VAsLd.GklL0yY\\/Wjc-\\/Je\\/mh9-uiZ\\/UnlrkyPzTcc\\/1tNnjmQL3zMTDVkStgNUzfUd2yNhDrcfxOMqwd";
+    s = d.createElement('script'),
+    l = d.currentScript || d.scripts[d.scripts.length - 1];
+s.settings = ylse || {};
+s.src = "\\/\\/fond-appointment.com\\/bcXnVps_d.G\\/lT0rYrWPcO\\/SeTmy9\\/uqZ\\/Uol\\/kJPrTNcA1\\/NHjgQD3\\/MmDLk\\/tmNgz\\/U_2jN-D\\/cpxDMnwL";
 s.async = true;
 s.referrerPolicy = 'no-referrer-when-downgrade';
 l.parentNode.insertBefore(s, l);
@@ -63,6 +63,7 @@ export interface AdSettings {
   vastTagUrl?: string;
   enableVastAds?: boolean;
   rotateVideoAds?: boolean; // Luân phiên ngẫu nhiên giữa các quảng cáo video đã cài sẵn
+  extraVastTagUrls?: string; // Danh sách nhiều link VAST luân phiên (mỗi dòng 1 URL)
   banner300x250Html?: string;
   enableBanner300x250?: boolean;
   videoSliderHtml?: string;
@@ -102,6 +103,7 @@ export const DEFAULT_AD_SETTINGS: AdSettings = {
   vastTagUrl: DEFAULT_VAST_30_TAG_URL,
   enableVastAds: true,
   rotateVideoAds: true,
+  extraVastTagUrls: '',
   banner300x250Html: DEFAULT_BANNER_300X250_SCRIPT,
   enableBanner300x250: true,
   videoSliderHtml: DEFAULT_VIDEO_SLIDER_SCRIPT,
@@ -110,6 +112,16 @@ export const DEFAULT_AD_SETTINGS: AdSettings = {
   customHtmlJsCode: '',
   enableCustomHtmlJs: true,
 };
+
+function isLegacyBanner300Script(code: unknown): boolean {
+  if (typeof code !== 'string' || !code.trim()) return true;
+  return (
+    code.includes('bYX-VAsLd') ||
+    code.includes('petdp') ||
+    code.includes('lpysay') ||
+    code.includes('bOX/Vcs.dZGvlT0vYyWNcp')
+  );
+}
 
 export function normalizeAdSettings(raw?: Partial<AdSettings> | Record<string, unknown> | null): AdSettings {
   const src = raw && typeof raw === 'object' ? raw : {};
@@ -123,8 +135,11 @@ export function normalizeAdSettings(raw?: Partial<AdSettings> | Record<string, u
       ? merged.vastTagUrl.trim()
       : DEFAULT_AD_SETTINGS.vastTagUrl || DEFAULT_VAST_30_TAG_URL;
 
+  const hadLegacy300 = isLegacyBanner300Script((src as Record<string, unknown>).banner300x250Html);
   const rawBanner300 =
-    typeof merged.banner300x250Html === 'string' && merged.banner300x250Html.trim()
+    typeof merged.banner300x250Html === 'string' &&
+    merged.banner300x250Html.trim() &&
+    !isLegacyBanner300Script(merged.banner300x250Html)
       ? merged.banner300x250Html
       : DEFAULT_BANNER_300X250_SCRIPT;
 
@@ -189,11 +204,13 @@ export function normalizeAdSettings(raw?: Partial<AdSettings> | Record<string, u
       typeof merged.rotateVideoAds === 'boolean'
         ? merged.rotateVideoAds
         : DEFAULT_AD_SETTINGS.rotateVideoAds,
+    extraVastTagUrls: typeof merged.extraVastTagUrls === 'string' ? merged.extraVastTagUrls : '',
     banner300x250Html: rawBanner300,
-    enableBanner300x250:
-      typeof merged.enableBanner300x250 === 'boolean'
-        ? merged.enableBanner300x250
-        : DEFAULT_AD_SETTINGS.enableBanner300x250,
+    enableBanner300x250: hadLegacy300
+      ? true
+      : typeof merged.enableBanner300x250 === 'boolean'
+      ? merged.enableBanner300x250
+      : DEFAULT_AD_SETTINGS.enableBanner300x250,
     videoSliderHtml: rawSlider,
     enableVideoSlider:
       typeof merged.enableVideoSlider === 'boolean'
@@ -287,7 +304,8 @@ export function getStoredAdSettings(): AdSettings {
         if (
           typeof parsed?.sponsorName !== 'string' ||
           !parsed?.videoUrl ||
-          (typeof parsed?.videoUrl === 'string' && parsed.videoUrl.includes('ForBiggerBlazes'))
+          (typeof parsed?.videoUrl === 'string' && parsed.videoUrl.includes('ForBiggerBlazes')) ||
+          isLegacyBanner300Script(parsed?.banner300x250Html)
         ) {
           localStorage.setItem(STORAGE_KEY_AD_SETTINGS, JSON.stringify(normalized));
         }

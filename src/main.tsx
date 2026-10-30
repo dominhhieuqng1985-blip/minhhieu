@@ -3,15 +3,26 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Suppress unhandled third-party script errors (e.g. ad blockers blocking acscdn.com or cross-origin scripts)
+// Suppress unhandled third-party script errors (e.g. ad blockers or cross-origin ad scripts)
 if (typeof window !== 'undefined') {
+  const isThirdPartyAdSource = (src?: string) => {
+    if (!src) return false;
+    return (
+      src.includes('acscdn') ||
+      src.includes('fond-appointment') ||
+      src.includes('troubled-entertainment') ||
+      src.includes('youradexchange') ||
+      src.includes('phoroglopsu')
+    );
+  };
+
   window.addEventListener(
     'error',
     (event) => {
       if (
         event.message === 'Script error.' ||
         !event.message ||
-        (event.filename && event.filename.includes('acscdn'))
+        isThirdPartyAdSource(event.filename)
       ) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -24,9 +35,18 @@ if (typeof window !== 'undefined') {
   window.addEventListener(
     'unhandledrejection',
     (event) => {
+      const reasonStr =
+        typeof event.reason === 'string'
+          ? event.reason
+          : typeof event.reason?.message === 'string'
+          ? event.reason.message
+          : '';
+      const stackStr = typeof event.reason?.stack === 'string' ? event.reason.stack : '';
       if (
-        event.reason?.message === 'Script error.' ||
-        (typeof event.reason === 'string' && event.reason.includes('Script error'))
+        reasonStr === 'Script error.' ||
+        reasonStr.includes('Script error') ||
+        isThirdPartyAdSource(reasonStr) ||
+        isThirdPartyAdSource(stackStr)
       ) {
         event.preventDefault();
         event.stopImmediatePropagation();

@@ -103,21 +103,50 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
       return;
     }
 
-    // Build VAST candidate tags strictly according to user priority:
+    // Build VAST candidate pool:
     // 1. Primary VAST 3.0 (troubled-entertainment)
     // 2. Secondary VAST Adcash (youradexchange 12358098)
-    // 3. Fallback Video Tài Trợ Kênh (chỉ khi các quảng cáo trên không phân phối)
+    // 3. Any extra VAST URLs configured in Admin Settings (one per line)
+    // 4. Custom VAST URL if customAdCodeType === 'vast'
     const primaryVast = settings.vastTagUrl?.trim() || DEFAULT_VAST_30_TAG_URL;
     const secondaryVast = ADCASH_INSTREAM_VAST_TAG_URL;
 
-    let candidates: string[] = [primaryVast, secondaryVast].filter(Boolean) as string[];
+    const extraList =
+      typeof settings.extraVastTagUrls === 'string'
+        ? settings.extraVastTagUrls
+            .split(/[\r\n]+/)
+            .map((u) => u.trim())
+            .filter((u) => u.startsWith('http://') || u.startsWith('https://'))
+        : [];
+
+    const customVastList =
+      settings.enableCustomHtmlJs !== false &&
+      settings.customAdCodeType === 'vast' &&
+      typeof settings.customHtmlJsCode === 'string'
+        ? settings.customHtmlJsCode
+            .split(/[\r\n]+/)
+            .map((u) => u.trim())
+            .filter((u) => u.startsWith('http://') || u.startsWith('https://'))
+        : [];
+
+    let candidates: string[] = [
+      primaryVast,
+      secondaryVast,
+      ...extraList,
+      ...customVastList,
+    ].filter(Boolean) as string[];
+
     // Remove duplicates
     candidates = Array.from(new Set(candidates));
 
-    // If rotation enabled between VAST networks
-    if (settings.rotateVideoAds !== false && candidates.length > 1 && Math.random() < 0.35) {
-      // Alternate between VAST 3.0 and Adcash VAST, keeping channel sponsor video strictly as fallback
-      candidates = [candidates[1], candidates[0]];
+    // Genuine Fisher-Yates random shuffle across all VAST tags when rotation is enabled
+    if (settings.rotateVideoAds !== false && candidates.length > 1) {
+      const shuffled = [...candidates];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      candidates = shuffled;
     }
 
     // Sequential attempt through VAST candidates
@@ -163,6 +192,10 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
     targetMediaTitle,
     settings.videoUrl,
     settings.vastTagUrl,
+    settings.extraVastTagUrls,
+    settings.customAdCodeType,
+    settings.customHtmlJsCode,
+    settings.enableCustomHtmlJs,
     settings.enableVastAds,
     settings.rotateVideoAds,
     settings.skipDelaySeconds,
