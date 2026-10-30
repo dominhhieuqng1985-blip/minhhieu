@@ -2117,12 +2117,35 @@ export async function saveStudyRecordToNeon(payload: StudyRecordPayload): Promis
 // =========================================================================
 const LOCAL_DOCUMENTS_FILE = path.resolve(__dirname, '../../data/documents.json');
 
+function formatNeonDocRow(row: any): any {
+  if (!row) return null;
+  const fileName = String(row.fileName || row.file_name || 'file.dat');
+  const fileType = String(row.fileType || row.file_type || 'other').toLowerCase();
+  return {
+    id: String(row.id || `doc-${Date.now()}`),
+    title: String(row.title || fileName || 'Tài liệu'),
+    fileName,
+    fileSize: String(row.fileSize || row.file_size || '1.0 MB'),
+    fileType,
+    fileUrl: String(row.fileUrl || row.file_url || ''),
+    fileData: row.fileData || row.file_data || undefined,
+    isUploaded: Boolean(row.isUploaded !== undefined ? row.isUploaded : row.is_uploaded),
+    requirePayment: Boolean(row.requirePayment !== undefined ? row.requirePayment : row.require_payment),
+    price: Number(row.price || 0),
+    currency: String(row.currency || 'USD'),
+    description: String(row.description || ''),
+    downloadCount: Number(row.downloadCount !== undefined ? row.downloadCount : (row.download_count || 0)),
+    createdAt: row.createdAt || row.created_at || new Date().toISOString(),
+    updatedAt: row.updatedAt || row.updated_at || new Date().toISOString(),
+  };
+}
+
 function readLocalDocumentsFallback(): any[] {
   try {
     if (fs.existsSync(LOCAL_DOCUMENTS_FILE)) {
       const raw = fs.readFileSync(LOCAL_DOCUMENTS_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) return parsed.map(formatNeonDocRow);
     }
   } catch {}
   return [];
@@ -2165,8 +2188,9 @@ export async function listDocumentsFromNeon(): Promise<any[]> {
     `);
 
     if (res.rows && res.rows.length > 0) {
-      writeLocalDocumentsFallback(res.rows);
-      return res.rows;
+      const formatted = res.rows.map(formatNeonDocRow);
+      writeLocalDocumentsFallback(formatted);
+      return formatted;
     }
   } catch (err) {
     console.warn('listDocumentsFromNeon fallback to disk:', err);
@@ -2202,7 +2226,7 @@ export async function upsertDocumentInNeon(doc: {
   const currency = String(doc.currency || 'USD');
   const description = String(doc.description || '');
 
-  const localItem = {
+  const localItem = formatNeonDocRow({
     id: cleanId,
     title,
     fileName,
@@ -2217,7 +2241,7 @@ export async function upsertDocumentInNeon(doc: {
     downloadCount: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  };
+  });
 
   // Sync to local fallback
   try {
@@ -2261,7 +2285,7 @@ export async function upsertDocumentInNeon(doc: {
           client
         );
 
-        return res.rows[0];
+        return formatNeonDocRow(res.rows[0]) || localItem;
       } finally {
         client.release();
       }

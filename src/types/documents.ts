@@ -148,7 +148,30 @@ export function getStoredDocuments(): DocumentItem[] {
     const raw = localStorage.getItem(STORAGE_KEY_DOCUMENTS);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((d: any) => {
+          const fileName = String(d?.fileName || d?.file_name || 'tai_lieu.dat');
+          const detectedType = detectFileType(fileName);
+          const rawType = d?.fileType || d?.file_type || detectedType;
+          return {
+            id: String(d?.id || `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`),
+            title: String(d?.title || fileName || 'Tài liệu'),
+            fileName,
+            fileSize: String(d?.fileSize || d?.file_size || '1.0 MB'),
+            fileType: String(rawType || 'other').toLowerCase(),
+            fileUrl: String(d?.fileUrl || d?.file_url || ''),
+            fileData: d?.fileData || d?.file_data || undefined,
+            isUploaded: Boolean(d?.isUploaded ?? d?.is_uploaded),
+            requirePayment: Boolean(d?.requirePayment ?? d?.require_payment),
+            price: Number(d?.price || 0),
+            currency: String(d?.currency || 'USD'),
+            description: String(d?.description || ''),
+            downloadCount: Number(d?.downloadCount ?? d?.download_count ?? 0),
+            createdAt: d?.createdAt || d?.created_at,
+            updatedAt: d?.updatedAt || d?.updated_at,
+          };
+        });
+      }
     }
   } catch {}
   return INITIAL_DEFAULT_DOCUMENTS;
@@ -183,11 +206,47 @@ export function markDocAsUnlocked(docId: string): void {
   } catch {}
 }
 
-export function detectFileType(fileNameOrExt: string): 'pdf' | 'zip' | 'doc' | 'excel' | 'other' {
-  const lower = fileNameOrExt.toLowerCase();
-  if (lower.endsWith('.pdf')) return 'pdf';
-  if (lower.endsWith('.zip') || lower.endsWith('.rar') || lower.endsWith('.7z') || lower.endsWith('.tar') || lower.endsWith('.gz')) return 'zip';
-  if (lower.endsWith('.doc') || lower.endsWith('.docx') || lower.endsWith('.txt') || lower.endsWith('.rtf') || lower.endsWith('.odt')) return 'doc';
-  if (lower.endsWith('.xls') || lower.endsWith('.xlsx') || lower.endsWith('.csv') || lower.endsWith('.ods')) return 'excel';
+export function detectFileType(fileNameOrExt?: string | null): 'pdf' | 'zip' | 'doc' | 'excel' | 'other' {
+  if (!fileNameOrExt || typeof fileNameOrExt !== 'string') return 'other';
+  const lower = fileNameOrExt.toLowerCase().trim();
+  if (lower === 'pdf' || lower.endsWith('.pdf')) return 'pdf';
+  if (
+    lower === 'zip' ||
+    lower === 'rar' ||
+    lower === '7z' ||
+    lower.endsWith('.zip') ||
+    lower.endsWith('.rar') ||
+    lower.endsWith('.7z') ||
+    lower.endsWith('.tar') ||
+    lower.endsWith('.gz') ||
+    lower.endsWith('.bz2')
+  ) {
+    return 'zip';
+  }
+  if (
+    lower === 'doc' ||
+    lower === 'docx' ||
+    lower === 'txt' ||
+    lower === 'rtf' ||
+    lower.endsWith('.doc') ||
+    lower.endsWith('.docx') ||
+    lower.endsWith('.txt') ||
+    lower.endsWith('.rtf') ||
+    lower.endsWith('.odt')
+  ) {
+    return 'doc';
+  }
+  if (
+    lower === 'excel' ||
+    lower === 'xls' ||
+    lower === 'xlsx' ||
+    lower === 'csv' ||
+    lower.endsWith('.xls') ||
+    lower.endsWith('.xlsx') ||
+    lower.endsWith('.csv') ||
+    lower.endsWith('.ods')
+  ) {
+    return 'excel';
+  }
   return 'other';
 }

@@ -91,6 +91,29 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
   const paypalCfg = propPayPal || getStoredPayPalSettings();
   const docCfg = propDocSettings || getStoredDocumentSettings();
 
+  const normalizeDocItem = (raw: any): DocumentItem => {
+    const fileName = String(raw?.fileName || raw?.file_name || 'tai_lieu.dat');
+    const detectedType = detectFileType(fileName);
+    const rawType = raw?.fileType || raw?.file_type || detectedType;
+    return {
+      id: String(raw?.id || `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`),
+      title: String(raw?.title || fileName || 'Tài liệu'),
+      fileName,
+      fileSize: String(raw?.fileSize || raw?.file_size || '1.0 MB'),
+      fileType: String(rawType || 'other').toLowerCase(),
+      fileUrl: String(raw?.fileUrl || raw?.file_url || ''),
+      fileData: raw?.fileData || raw?.file_data || undefined,
+      isUploaded: Boolean(raw?.isUploaded ?? raw?.is_uploaded),
+      requirePayment: Boolean(raw?.requirePayment ?? raw?.require_payment),
+      price: Number(raw?.price || 0),
+      currency: String(raw?.currency || 'USD'),
+      description: String(raw?.description || ''),
+      downloadCount: Number(raw?.downloadCount ?? raw?.download_count ?? 0),
+      createdAt: raw?.createdAt || raw?.created_at,
+      updatedAt: raw?.updatedAt || raw?.updated_at,
+    };
+  };
+
   // Load documents from server API
   const loadDocuments = async () => {
     setIsLoading(true);
@@ -99,14 +122,15 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data.documents) && data.documents.length > 0) {
-          setDocuments(data.documents);
-          saveStoredDocuments(data.documents);
+          const normalized = data.documents.map(normalizeDocItem);
+          setDocuments(normalized);
+          saveStoredDocuments(normalized);
           setIsLoading(false);
           return;
         }
       }
     } catch {}
-    setDocuments(getStoredDocuments());
+    setDocuments(getStoredDocuments().map(normalizeDocItem));
     setIsLoading(false);
   };
 
@@ -296,7 +320,7 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
 
       if (res.ok) {
         const savedData = await res.json();
-        const finalDoc = savedData.document || docItem;
+        const finalDoc = normalizeDocItem(savedData.document || docItem);
         setDocuments((prev) => [finalDoc, ...prev]);
         saveStoredDocuments([finalDoc, ...documents]);
         setActiveTab('browse');
@@ -316,8 +340,9 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
       }
     } catch {
       // Local fallback
-      setDocuments((prev) => [docItem, ...prev]);
-      saveStoredDocuments([docItem, ...documents]);
+      const finalDoc = normalizeDocItem(docItem);
+      setDocuments((prev) => [finalDoc, ...prev]);
+      saveStoredDocuments([finalDoc, ...documents]);
       setActiveTab('browse');
     } finally {
       setIsSubmitting(false);
@@ -343,23 +368,35 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
   };
 
   // Filtered documents
-  const filteredDocs = documents.filter((doc) => {
+  const filteredDocs = (documents || []).filter((doc) => {
+    if (!doc) return false;
+    const title = String(doc.title || '').toLowerCase();
+    const fileName = String(doc.fileName || (doc as any).file_name || '').toLowerCase();
+    const description = String(doc.description || '').toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
+
     const matchSearch =
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.description.toLowerCase().includes(searchQuery.toLowerCase());
+      !q || title.includes(q) || fileName.includes(q) || description.includes(q);
 
     if (!matchSearch) return false;
     if (selectedFilter === 'all') return true;
-    if (selectedFilter === 'pdf') return doc.fileType === 'pdf';
-    if (selectedFilter === 'zip') return doc.fileType === 'zip';
-    if (selectedFilter === 'doc') return doc.fileType === 'doc' || doc.fileType === 'docx';
-    if (selectedFilter === 'excel') return doc.fileType === 'excel' || doc.fileType === 'xls' || doc.fileType === 'xlsx';
+
+    const fType = String(
+      doc.fileType || (doc as any).file_type || detectFileType(fileName) || 'other'
+    ).toLowerCase();
+
+    if (selectedFilter === 'pdf') return fType === 'pdf';
+    if (selectedFilter === 'zip') return fType === 'zip' || fType === 'rar' || fType === '7z';
+    if (selectedFilter === 'doc') return fType === 'doc' || fType === 'docx' || fType === 'txt';
+    if (selectedFilter === 'excel') {
+      return fType === 'excel' || fType === 'xls' || fType === 'xlsx' || fType === 'csv';
+    }
     return true;
   });
 
-  const getFileBadge = (type: string) => {
-    const t = type.toLowerCase();
+  const getFileBadge = (type?: string | null, fileName?: string) => {
+    const rawType = type || (fileName ? detectFileType(fileName) : '') || 'other';
+    const t = String(rawType || 'other').toLowerCase().trim();
     if (t === 'pdf') {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
@@ -368,7 +405,14 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
         </span>
       );
     }
-    if (t === 'zip' || t === 'rar' || t === '7z') {
+    if (
+      t === 'zip' ||
+      t === 'rar' ||
+      t === '7z' ||
+      t === 'tar' ||
+      t === 'gz' ||
+      t === 'bz2'
+    ) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
           <FileArchive className="w-3 h-3 text-amber-400" />
@@ -376,7 +420,7 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
         </span>
       );
     }
-    if (t === 'doc' || t === 'docx') {
+    if (t === 'doc' || t === 'docx' || t === 'txt' || t === 'rtf' || t === 'odt') {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
           <FileText className="w-3 h-3 text-blue-400" />
@@ -384,7 +428,7 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
         </span>
       );
     }
-    if (t === 'excel' || t === 'xls' || t === 'xlsx' || t === 'csv') {
+    if (t === 'excel' || t === 'xls' || t === 'xlsx' || t === 'csv' || t === 'ods') {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
           <FileSpreadsheet className="w-3 h-3 text-emerald-400" />
@@ -395,7 +439,7 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
         <FileCode className="w-3 h-3 text-purple-400" />
-        <span>{t.toUpperCase()}</span>
+        <span>{(t || 'FILE').toUpperCase()}</span>
       </span>
     );
   };
@@ -541,7 +585,7 @@ export const DocumentLibraryModal: React.FC<DocumentLibraryModalProps> = ({
                     >
                       <div className="flex items-start gap-3 min-w-0 flex-1">
                         <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 shrink-0 text-slate-300">
-                          {getFileBadge(doc.fileType)}
+                          {getFileBadge(doc.fileType, doc.fileName)}
                         </div>
 
                         <div className="space-y-1 min-w-0 flex-1">
