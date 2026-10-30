@@ -29,6 +29,7 @@ import {
   LogOut,
   KeyRound,
   GraduationCap,
+  FolderDown,
 } from 'lucide-react';
 import { FilterOption } from '../types/movie';
 import { useAdminAuth } from '../context/AdminAuthContext';
@@ -42,6 +43,7 @@ interface SidebarLeftProps {
   activeSection: string;
   onNavigate: (section: string) => void;
   onOpenGlobalSearch?: () => void;
+  onOpenDocuments?: () => void;
   onSelectMovieCategory?: (categorySlug: string) => void;
   onSelectMovieGenre?: (genreSlug: string) => void;
   onSelectMovieTab?: (tab: string) => void;
@@ -93,6 +95,7 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
   activeSection,
   onNavigate,
   onOpenGlobalSearch,
+  onOpenDocuments,
   onSelectMovieGenre,
   onSelectMovieTab,
   categories = [],
@@ -470,6 +473,24 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
                     <GraduationCap className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     <span>Góc Học Tập Cấp 1–3</span>
                   </button>
+
+                  {onOpenDocuments && (
+                    <button
+                      onClick={() => {
+                        onOpenDocuments();
+                        onClose();
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-300 hover:text-white bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/30 transition-all"
+                    >
+                      <div className="flex items-center gap-2.5 truncate">
+                        <FolderDown className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                        <span className="truncate">Kho Tài Liệu (Tải File)</span>
+                      </div>
+                      <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-500/30 text-blue-200 shrink-0">
+                        PAYPAL
+                      </span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

@@ -1,5 +1,13 @@
 import { getAdminAuthHeaders } from '../utils/adminAuth';
 import { getApiBaseUrl, hasBackend, isStaticHost } from '../utils/api';
+import {
+  PayPalSettings,
+  DocumentSettings,
+  DEFAULT_PAYPAL_SETTINGS,
+  DEFAULT_DOCUMENT_SETTINGS,
+  saveStoredPayPalSettings,
+  saveStoredDocumentSettings,
+} from './documents';
 
 export const DEFAULT_VAST_30_TAG_URL =
   'https://troubled-entertainment.com/d/mOF.zdd/GlN/vDZuGNUc/deLmd9LucZ/UWlFkiPVTncc1dNxjAQf3UMWDgEGt/NlzrUN2sNoDjcvwBNVQE';
@@ -351,6 +359,8 @@ function buildSettingsApiEndpoints(subPath: string): string[] {
 export async function fetchRemoteAdSettings(): Promise<{
   adSettings: AdSettings;
   watermarkSettings: WatermarkSettings;
+  paypalSettings?: PayPalSettings;
+  documentSettings?: DocumentSettings;
 } | null> {
   if (typeof window === 'undefined') return null;
 
@@ -366,11 +376,17 @@ export async function fetchRemoteAdSettings(): Promise<{
         const text = await res.text();
         if (text && !text.trim().startsWith('<')) {
           const data = JSON.parse(text);
-          if (data && (data.adSettings || data.watermarkSettings)) {
+          if (data && (data.adSettings || data.watermarkSettings || data.paypalSettings || data.documentSettings)) {
             const finalAd = data.adSettings ? normalizeAdSettings(data.adSettings) : null;
             const finalWatermark = data.watermarkSettings
               ? { ...DEFAULT_WATERMARK_SETTINGS, ...data.watermarkSettings }
               : null;
+            const finalPaypal = data.paypalSettings
+              ? { ...DEFAULT_PAYPAL_SETTINGS, ...data.paypalSettings }
+              : undefined;
+            const finalDocs = data.documentSettings
+              ? { ...DEFAULT_DOCUMENT_SETTINGS, ...data.documentSettings }
+              : undefined;
 
             if (finalAd) {
               localStorage.setItem(STORAGE_KEY_AD_SETTINGS, JSON.stringify(finalAd));
@@ -378,16 +394,29 @@ export async function fetchRemoteAdSettings(): Promise<{
             if (finalWatermark) {
               localStorage.setItem(STORAGE_KEY_WATERMARK_SETTINGS, JSON.stringify(finalWatermark));
             }
+            if (finalPaypal) {
+              saveStoredPayPalSettings(finalPaypal);
+            }
+            if (finalDocs) {
+              saveStoredDocumentSettings(finalDocs);
+            }
 
             window.dispatchEvent(
               new CustomEvent(AD_SETTINGS_UPDATED_EVENT, {
-                detail: { adSettings: finalAd, watermarkSettings: finalWatermark },
+                detail: {
+                  adSettings: finalAd,
+                  watermarkSettings: finalWatermark,
+                  paypalSettings: finalPaypal,
+                  documentSettings: finalDocs,
+                },
               })
             );
 
             return {
               adSettings: finalAd || DEFAULT_AD_SETTINGS,
               watermarkSettings: finalWatermark || DEFAULT_WATERMARK_SETTINGS,
+              paypalSettings: finalPaypal,
+              documentSettings: finalDocs,
             };
           }
         }
@@ -432,15 +461,19 @@ export async function fetchRemoteAdSettings(): Promise<{
 }
 
 /**
- * Save ad and watermark settings to Neon PostgreSQL (Admin Only) so ANY device and F5 reload automatically loads it.
+ * Save ad, watermark, paypal and document settings to Neon PostgreSQL (Admin Only) so ANY device and F5 reload automatically loads it.
  */
 export async function saveRemoteAdSettings(
   adSettings: AdSettings,
-  watermarkSettings: WatermarkSettings
+  watermarkSettings: WatermarkSettings,
+  paypalSettings?: PayPalSettings,
+  documentSettings?: DocumentSettings
 ): Promise<{ success: boolean; message?: string }> {
   const normalizedAd = normalizeAdSettings(adSettings);
   saveStoredAdSettings(normalizedAd);
   saveStoredWatermarkSettings(watermarkSettings);
+  if (paypalSettings) saveStoredPayPalSettings(paypalSettings);
+  if (documentSettings) saveStoredDocumentSettings(documentSettings);
 
   const candidateEndpoints = buildSettingsApiEndpoints('settings/ads');
   const authHeaders = getAdminAuthHeaders();
@@ -465,7 +498,12 @@ export async function saveRemoteAdSettings(
           Accept: 'application/json',
           ...authHeaders,
         },
-        body: JSON.stringify({ adSettings: normalizedAd, watermarkSettings }),
+        body: JSON.stringify({
+          adSettings: normalizedAd,
+          watermarkSettings,
+          paypalSettings,
+          documentSettings,
+        }),
       });
       if (res.status === 401 || res.status === 403) {
         const errBody = await res.json().catch(() => ({}));

@@ -18,6 +18,7 @@ import {
   KeyRound,
   Settings,
   GraduationCap,
+  FolderDown,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
@@ -27,6 +28,7 @@ interface HeaderProps {
   onOpenConnectModal: () => void;
   onOpenSettings?: () => void;
   onOpenGlobalSearch?: () => void;
+  onOpenDocuments?: () => void;
   favoritesCount: number;
   onToggleLeftSidebar?: () => void;
   isLeftSidebarOpen?: boolean;
@@ -40,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenConnectModal,
   onOpenSettings,
   onOpenGlobalSearch,
+  onOpenDocuments,
   favoritesCount,
   onToggleLeftSidebar,
   isLeftSidebarOpen,
@@ -278,6 +281,20 @@ export const Header: React.FC<HeaderProps> = ({
             />
             <span>Bé Vui Học (Cấp 1–3)</span>
           </button>
+
+          {onOpenDocuments && (
+            <button
+              onClick={onOpenDocuments}
+              className="transition-all whitespace-nowrap py-1.5 px-3 rounded-xl flex items-center gap-1.5 text-blue-300 hover:text-white bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/30"
+              title="Kho tài liệu số, kịch bản, âm thanh & tải file (Hỗ trợ PayPal)"
+            >
+              <FolderDown className="w-3.5 h-3.5 text-blue-400" />
+              <span>Kho Tài Liệu</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-blue-500/30 text-blue-200 font-bold uppercase">
+                Tải Về
+              </span>
+            </button>
+          )}
 
           {onOpenGlobalSearch && (
             <button

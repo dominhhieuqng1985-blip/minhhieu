@@ -103,33 +103,21 @@ export const VideoAdOverlay: React.FC<VideoAdOverlayProps> = ({
       return;
     }
 
-    // Build VAST candidate tags
-    const userTag = settings.vastTagUrl?.trim();
-    let candidates: string[] = [
-      userTag || DEFAULT_VAST_30_TAG_URL,
-      DEFAULT_VAST_30_TAG_URL,
-      ADCASH_INSTREAM_VAST_TAG_URL,
-    ].filter(Boolean) as string[];
+    // Build VAST candidate tags strictly according to user priority:
+    // 1. Primary VAST 3.0 (troubled-entertainment)
+    // 2. Secondary VAST Adcash (youradexchange 12358098)
+    // 3. Fallback Video Tài Trợ Kênh (chỉ khi các quảng cáo trên không phân phối)
+    const primaryVast = settings.vastTagUrl?.trim() || DEFAULT_VAST_30_TAG_URL;
+    const secondaryVast = ADCASH_INSTREAM_VAST_TAG_URL;
 
+    let candidates: string[] = [primaryVast, secondaryVast].filter(Boolean) as string[];
     // Remove duplicates
     candidates = Array.from(new Set(candidates));
 
-    // Rotate randomly between installed video ad sources if enabled
-    if (settings.rotateVideoAds !== false) {
-      // Fisher-Yates random shuffle
-      for (let i = candidates.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-      }
-
-      // 25% chance in random rotation to give direct channel sponsor ad spotlight
-      if (Math.random() < 0.25 && settings.videoUrl) {
-        const defaultSkip = settings.skipDelaySeconds ?? 5;
-        setSecondsRemaining(defaultSkip);
-        setCanSkip(defaultSkip <= 0);
-        setAdMode('default');
-        return;
-      }
+    // If rotation enabled between VAST networks
+    if (settings.rotateVideoAds !== false && candidates.length > 1 && Math.random() < 0.35) {
+      // Alternate between VAST 3.0 and Adcash VAST, keeping channel sponsor video strictly as fallback
+      candidates = [candidates[1], candidates[0]];
     }
 
     // Sequential attempt through VAST candidates

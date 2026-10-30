@@ -19,6 +19,11 @@ import {
   ShieldCheck,
   Code,
   Sparkles,
+  CreditCard,
+  DollarSign,
+  FolderDown,
+  FileText,
+  PlusCircle,
 } from 'lucide-react';
 import {
   AdSettings,
@@ -36,6 +41,16 @@ import {
   generateShareableConfigUrl,
   decodeConfigFromBase64,
 } from '../types/adConfig';
+import {
+  PayPalSettings,
+  DocumentSettings,
+  DEFAULT_PAYPAL_SETTINGS,
+  DEFAULT_DOCUMENT_SETTINGS,
+  getStoredPayPalSettings,
+  saveStoredPayPalSettings,
+  getStoredDocumentSettings,
+  saveStoredDocumentSettings,
+} from '../types/documents';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
 interface AdSettingsModalProps {
@@ -60,7 +75,10 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
   const { isAdmin, openAdminModal } = useAdminAuth();
   const [localAd, setLocalAd] = useState<AdSettings>(() => normalizeAdSettings(adSettings));
   const [localWatermark, setLocalWatermark] = useState<WatermarkSettings>(watermarkSettings);
-  const [activeTab, setActiveTab] = useState<'rich_ads' | 'ad' | 'watermark' | 'sync'>('rich_ads');
+  const [localPayPal, setLocalPayPal] = useState<PayPalSettings>(getStoredPayPalSettings);
+  const [localDocSettings, setLocalDocSettings] = useState<DocumentSettings>(getStoredDocumentSettings);
+  const [newExtensionInput, setNewExtensionInput] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'rich_ads' | 'ad' | 'watermark' | 'paypal' | 'documents' | 'sync'>('rich_ads');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -72,6 +90,8 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
     if (isOpen) {
       setLocalAd(normalizeAdSettings(adSettings));
       setLocalWatermark(watermarkSettings);
+      setLocalPayPal(getStoredPayPalSettings());
+      setLocalDocSettings(getStoredDocumentSettings());
       setSaveError(null);
     }
   }, [isOpen, adSettings, watermarkSettings]);
@@ -85,10 +105,12 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
     onSaveWatermarkSettings(localWatermark);
     saveStoredAdSettings(localAd);
     saveStoredWatermarkSettings(localWatermark);
+    saveStoredPayPalSettings(localPayPal);
+    saveStoredDocumentSettings(localDocSettings);
 
     if (isAdmin) {
       try {
-        const res = await saveRemoteAdSettings(localAd, localWatermark);
+        const res = await saveRemoteAdSettings(localAd, localWatermark, localPayPal, localDocSettings);
         if (!res.success) {
           setIsSaving(false);
           setSaveError(res.message || 'Không thể lưu vào cơ sở dữ liệu Neon PostgreSQL.');
@@ -112,6 +134,8 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
   const handleResetDefaults = () => {
     setLocalAd(DEFAULT_AD_SETTINGS);
     setLocalWatermark(DEFAULT_WATERMARK_SETTINGS);
+    setLocalPayPal(DEFAULT_PAYPAL_SETTINGS);
+    setLocalDocSettings(DEFAULT_DOCUMENT_SETTINGS);
   };
 
   const handleCopyShareLink = () => {
@@ -234,6 +258,30 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab('paypal')}
+            className={`flex-1 min-w-[130px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+              activeTab === 'paypal'
+                ? 'bg-amber-500 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Cài Đặt PayPal</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`flex-1 min-w-[130px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+              activeTab === 'documents'
+                ? 'bg-amber-500 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <FolderDown className="w-4 h-4" />
+            <span>Định Dạng File &amp; Upload</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('sync')}
             className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
               activeTab === 'sync'
@@ -343,7 +391,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                   <div className="font-semibold text-slate-300">Nguồn quảng cáo video sẵn sàng luân phiên:</div>
                   <div className="font-mono text-[10px] text-amber-300 truncate">1. VAST 3.0: {DEFAULT_VAST_30_TAG_URL}</div>
                   <div className="font-mono text-[10px] text-slate-400 truncate">2. VAST Adcash: {ADCASH_INSTREAM_VAST_TAG_URL}</div>
-                  <div className="font-mono text-[10px] text-emerald-400 truncate">3. Video Tài Trợ Kênh: {localAd.videoUrl}</div>
+                  <div className="font-mono text-[10px] text-emerald-400 truncate">3. Video Tài Trợ Kênh: {localAd.videoUrl} (Chỉ ưu tiên khi các quảng cáo trên không phân phối)</div>
                 </div>
               </div>
 
@@ -805,6 +853,256 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                   onChange={(e) => setLocalWatermark({ ...localWatermark, opacity: parseFloat(e.target.value) })}
                   className="w-full accent-amber-500 cursor-pointer"
                 />
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'paypal' && (
+            <div className="space-y-4">
+              <div className="p-3.5 bg-gradient-to-r from-blue-500/10 via-slate-900 to-slate-900 border border-blue-500/30 rounded-2xl flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <CreditCard className="w-4 h-4 text-blue-400 shrink-0" />
+                  <div>
+                    <h5 className="font-bold text-white text-xs">Cấu Hình Cổng Thanh Toán PayPal</h5>
+                    <p className="text-[11px] text-slate-300">
+                      Tích hợp PayPal cho phép nhận thanh toán trực tiếp khi người dùng tải tài liệu số hoặc các tính năng mở rộng
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* PayPal Master Switch */}
+              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-emerald-400" />
+                    <div>
+                      <h4 className="font-bold text-white text-xs sm:text-sm">
+                        Kích Hoạt Cổng Thanh Toán PayPal
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Bật để kích hoạt các tính năng thanh toán mở rộng và thu phí tải tài liệu
+                      </p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={localPayPal.enabled}
+                      onChange={(e) => setLocalPayPal({ ...localPayPal, enabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                  </label>
+                </div>
+
+                {/* PayPal Client ID */}
+                <div className="space-y-1.5 pt-1">
+                  <label className="font-bold text-white text-xs">
+                    PayPal Client ID (Mã khách hàng PayPal):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="sb (mặc định thử nghiệm) hoặc Client ID từ developer.paypal.com"
+                    value={localPayPal.clientId}
+                    onChange={(e) => setLocalPayPal({ ...localPayPal, clientId: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-[11px] text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="text-[10px] text-slate-500">
+                    Nhập "sb" để sử dụng chế độ PayPal Sandbox Demo, hoặc dán Client ID từ tài khoản doanh nghiệp PayPal của bạn.
+                  </p>
+                </div>
+
+                {/* Environment Mode & Currency */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-white text-xs">Môi trường PayPal:</label>
+                    <select
+                      value={localPayPal.mode}
+                      onChange={(e) => setLocalPayPal({ ...localPayPal, mode: e.target.value as any })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="sandbox">Sandbox (Thử nghiệm &amp; Test)</option>
+                      <option value="live">Live (Nhận tiền thật)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-white text-xs">Đơn vị tiền tệ:</label>
+                    <select
+                      value={localPayPal.currency}
+                      onChange={(e) => setLocalPayPal({ ...localPayPal, currency: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="USD">USD ($)</option>
+                      <option value="EUR">EUR (€)</option>
+                      <option value="VND">VND (₫)</option>
+                      <option value="CAD">CAD ($)</option>
+                      <option value="AUD">AUD ($)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-white text-xs">Giá tải tài liệu mặc định:</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.1"
+                      value={localPayPal.defaultPrice}
+                      onChange={(e) => setLocalPayPal({ ...localPayPal, defaultPrice: parseFloat(e.target.value) || 1.99 })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Button Text */}
+                <div className="space-y-1.5 pt-1">
+                  <label className="font-bold text-white text-xs">
+                    Tiêu đề nút thanh toán PayPal:
+                  </label>
+                  <input
+                    type="text"
+                    value={localPayPal.buttonText}
+                    onChange={(e) => setLocalPayPal({ ...localPayPal, buttonText: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'documents' && (
+            <div className="space-y-4">
+              <div className="p-3.5 bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <FolderDown className="w-4 h-4 text-amber-400 shrink-0" />
+                  <div>
+                    <h5 className="font-bold text-white text-xs">Cài Đặt Quản Lý Tệp &amp; Định Dạng Cho Phép</h5>
+                    <p className="text-[11px] text-slate-300">
+                      Bật/tắt yêu cầu thanh toán khi tải tài liệu, mở rộng thêm các đuôi file cho phép upload lên dữ liệu
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Paywall Toggle for Documents */}
+              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h4 className="font-bold text-white text-xs sm:text-sm flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-amber-400" />
+                      <span>Yêu Cầu Thanh Toán PayPal Để Tải File Tài Liệu</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-400">
+                      {localDocSettings.enablePaywall
+                        ? 'ĐANG BẬT: Người xem cần thanh toán qua PayPal để mở khóa tải các file tài liệu số.'
+                        : 'ĐANG TẮT: Người xem có thể tải toàn bộ tài liệu miễn phí và bình thường.'}
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={localDocSettings.enablePaywall}
+                      onChange={(e) => setLocalDocSettings({ ...localDocSettings, enablePaywall: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Allowed Extensions Manager */}
+              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3.5">
+                <div className="space-y-1">
+                  <h4 className="font-bold text-white text-xs sm:text-sm flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-400" />
+                    <span>Các Loại Định Dạng Tệp Cho Phép Upload Lên Data</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    Danh sách các đuôi file hợp lệ được phép tải lên hệ thống (zip, pdf, doc, docx, xls, xlsx, v.v.):
+                  </p>
+                </div>
+
+                {/* Chips list */}
+                <div className="flex flex-wrap gap-1.5 p-3 bg-slate-900 rounded-xl border border-slate-800">
+                  {localDocSettings.allowedExtensions.map((ext) => (
+                    <span
+                      key={ext}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-800 text-amber-300 border border-slate-700"
+                    >
+                      <span>.{ext}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocalDocSettings({
+                            ...localDocSettings,
+                            allowedExtensions: localDocSettings.allowedExtensions.filter((x) => x !== ext),
+                          });
+                        }}
+                        className="text-slate-400 hover:text-rose-400 font-bold ml-1"
+                        title={`Xóa định dạng .${ext}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+
+                {/* Add extension field */}
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    placeholder="Nhập đuôi mở rộng mới (vd: pptx, mp3, mp4, json)..."
+                    value={newExtensionInput}
+                    onChange={(e) => setNewExtensionInput(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newExtensionInput.trim() && !localDocSettings.allowedExtensions.includes(newExtensionInput.trim())) {
+                          setLocalDocSettings({
+                            ...localDocSettings,
+                            allowedExtensions: [...localDocSettings.allowedExtensions, newExtensionInput.trim()],
+                          });
+                          setNewExtensionInput('');
+                        }
+                      }
+                    }}
+                    className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newExtensionInput.trim() && !localDocSettings.allowedExtensions.includes(newExtensionInput.trim())) {
+                        setLocalDocSettings({
+                          ...localDocSettings,
+                          allowedExtensions: [...localDocSettings.allowedExtensions, newExtensionInput.trim()],
+                        });
+                        setNewExtensionInput('');
+                      }
+                    }}
+                    disabled={!newExtensionInput.trim()}
+                    className="py-2 px-3.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1 transition-all"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Thêm Định Dạng</span>
+                  </button>
+                </div>
+
+                {/* Max File Size */}
+                <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-3">
+                  <div>
+                    <label className="font-bold text-white text-xs">Giới hạn kích thước file tối đa (MB):</label>
+                    <p className="text-[10px] text-slate-500">Mặc định 50MB cho các file PDF, Word, Excel, ZIP</p>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={localDocSettings.maxFileSizeMb}
+                    onChange={(e) => setLocalDocSettings({ ...localDocSettings, maxFileSizeMb: parseInt(e.target.value) || 50 })}
+                    className="w-24 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white font-mono text-center focus:outline-none focus:border-amber-500"
+                  />
+                </div>
               </div>
             </div>
           )}

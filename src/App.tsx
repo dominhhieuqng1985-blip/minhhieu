@@ -53,6 +53,7 @@ import { AddVideoModal } from './components/AddVideoModal';
 import { GithubSyncModal } from './components/GithubSyncModal';
 import { ChannelSettingsModal } from './components/ChannelSettingsModal';
 import { AdSettingsModal } from './components/AdSettingsModal';
+import { DocumentLibraryModal } from './components/DocumentLibraryModal';
 import { VidKrakenDownloader } from './components/VidKrakenDownloader';
 import { NeonDatabaseModal } from './components/NeonDatabaseModal';
 import { GlobalYouTubeSearchModal } from './components/GlobalYouTubeSearchModal';
@@ -223,102 +224,154 @@ function AppContent() {
   const [isChannelSettingsModalOpen, setIsChannelSettingsModalOpen] = useState<boolean>(false);
   const [isAdSettingsModalOpen, setIsAdSettingsModalOpen] = useState<boolean>(false);
   const [isNeonModalOpen, setIsNeonModalOpen] = useState<boolean>(false);
+  const [isDocumentLibraryOpen, setIsDocumentLibraryOpen] = useState<boolean>(false);
   const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
   const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>(getStoredWatermarkSettings);
 
-  // Cross-device settings & video library hydration from Neon PostgreSQL
+  // Data Preloading State (Full data preloaded before revealing web UI to prevent load delay)
+  const [isPreloadingData, setIsPreloadingData] = useState<boolean>(true);
+  const [preloadProgress, setPreloadProgress] = useState<number>(15);
+  const [preloadStage, setPreloadStage] = useState<string>('Đang khởi tạo hệ thống...');
+
+  // Cross-device settings, document library & video library hydration from Neon PostgreSQL
   useEffect(() => {
+    let isCancelled = false;
     checkUrlConfigParam();
-    fetchRemoteAdSettings().then((remote) => {
-      if (remote?.adSettings) setAdSettings(remote.adSettings);
-      if (remote?.watermarkSettings) setWatermarkSettings(remote.watermarkSettings);
-    });
 
-    fetchPublicSystemSettingsFromDb().then((dbData) => {
-      if (!dbData) return;
+    const preloadAll = async () => {
+      try {
+        setPreloadProgress(30);
+        setPreloadStage('Đang kết nối Neon PostgreSQL & máy chủ...');
 
-      const s = dbData.settings || {};
-      if (s.ad_settings) {
-        const normalized = normalizeAdSettings(s.ad_settings);
-        setAdSettings(normalized);
-        saveStoredAdSettings(normalized);
-      }
-      if (s.watermark_settings) {
-        const mergedWm = { ...DEFAULT_WATERMARK_SETTINGS, ...s.watermark_settings };
-        setWatermarkSettings(mergedWm);
-        saveStoredWatermarkSettings(mergedWm);
-      }
-      if (s.channel_profile && typeof s.channel_profile === 'object' && s.channel_profile.name) {
-        neonChannelProfileLockedRef.current = true;
-        const upgraded = saveStoredChannelProfile(s.channel_profile);
-        setChannelInfo((prev) => ({ ...prev, ...upgraded }));
-      }
-      if (s.playback_preferences && typeof s.playback_preferences.autoplayNext === 'boolean') {
-        setIsAutoplayNext(s.playback_preferences.autoplayNext);
-        try {
-          localStorage.setItem('minhhieu_autoplay_next', String(s.playback_preferences.autoplayNext));
-        } catch {}
-      }
+        // Step 1: Preload Remote Ad Settings, System DB Settings, and Documents concurrently
+        const results = await Promise.allSettled([
+          fetchRemoteAdSettings().then((remote) => {
+            if (remote?.adSettings) setAdSettings(remote.adSettings);
+            if (remote?.watermarkSettings) setWatermarkSettings(remote.watermarkSettings);
+            return remote;
+          }),
+          fetchPublicSystemSettingsFromDb().then((dbData) => {
+            if (!dbData) return null;
 
-      // Sync deleted video blacklist from Neon PostgreSQL
-      const remoteDeleted = Array.isArray(dbData.deletedVideoIds) ? dbData.deletedVideoIds : [];
-      if (remoteDeleted.length > 0) {
-        try {
-          const localDelRaw = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
-          const localDel: string[] = localDelRaw ? JSON.parse(localDelRaw) : [];
-          const mergedDel = Array.from(new Set([...localDel, ...remoteDeleted]));
-          localStorage.setItem(STORAGE_KEY_DELETED_VIDEOS, JSON.stringify(mergedDel));
-          const delSet = new Set(mergedDel);
-          setChannelVideos((prev) => prev.filter((v) => !delSet.has(v.youtubeId) && !delSet.has(v.id)));
-          setChannelPodcasts((prev) => prev.filter((v) => !delSet.has(v.youtubeId) && !delSet.has(v.id)));
-          setActiveQueue((prev) => prev.filter((v) => !delSet.has(v.youtubeId) && !delSet.has(v.id)));
-        } catch {}
-      }
+            const s = dbData.settings || {};
+            if (s.ad_settings) {
+              const normalized = normalizeAdSettings(s.ad_settings);
+              setAdSettings(normalized);
+              saveStoredAdSettings(normalized);
+            }
+            if (s.watermark_settings) {
+              const mergedWm = { ...DEFAULT_WATERMARK_SETTINGS, ...s.watermark_settings };
+              setWatermarkSettings(mergedWm);
+              saveStoredWatermarkSettings(mergedWm);
+            }
+            if (s.channel_profile && typeof s.channel_profile === 'object' && s.channel_profile.name) {
+              neonChannelProfileLockedRef.current = true;
+              const upgraded = saveStoredChannelProfile(s.channel_profile);
+              setChannelInfo((prev) => ({ ...prev, ...upgraded }));
+            }
+            if (s.playback_preferences && typeof s.playback_preferences.autoplayNext === 'boolean') {
+              setIsAutoplayNext(s.playback_preferences.autoplayNext);
+              try {
+                localStorage.setItem('minhhieu_autoplay_next', String(s.playback_preferences.autoplayNext));
+              } catch {}
+            }
 
-      // Sync custom Admin-added videos from Neon PostgreSQL
-      const remoteCustom = Array.isArray(dbData.customVideos) ? dbData.customVideos : [];
-      if (remoteCustom.length > 0) {
-        const delSet = getBlacklistedDeletedIds();
-        const validRemote: PodcastEpisode[] = remoteCustom
-          .filter((v: any) => v && v.youtubeId && !delSet.has(v.youtubeId))
-          .map((v: any) => ({
-            id: String(v.id || `pg-${v.youtubeId}`),
-            youtubeId: String(v.youtubeId),
-            title: String(v.title || 'Video'),
-            channel: String(v.channel || 'Minh Hiếu TuBe'),
-            category: (v.category || 'phat-trien-ban-than') as PodcastEpisode['category'],
-            duration: String(v.duration || '03:00'),
-            durationSeconds: v.isShort ? 60 : 210,
-            thumbnail: String(v.thumbnail || `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`),
-            description: String(v.description || ''),
-            publishedDate: String(v.publishedDate || 'Đồng bộ PostgreSQL'),
-            isShort: Boolean(v.isShort),
-            seriesTitle: v.seriesTitle || undefined,
-            tiktokDirectUrl: v.tiktokDirectUrl || undefined,
-            sourcePlatform: v.sourcePlatform || undefined,
-          }));
+            // Sync deleted video blacklist from Neon PostgreSQL
+            const remoteDeleted = Array.isArray(dbData.deletedVideoIds) ? dbData.deletedVideoIds : [];
+            if (remoteDeleted.length > 0) {
+              try {
+                const localDelRaw = localStorage.getItem(STORAGE_KEY_DELETED_VIDEOS);
+                const localDel: string[] = localDelRaw ? JSON.parse(localDelRaw) : [];
+                const mergedDel = Array.from(new Set([...localDel, ...remoteDeleted]));
+                localStorage.setItem(STORAGE_KEY_DELETED_VIDEOS, JSON.stringify(mergedDel));
+                const delSet = new Set(mergedDel);
+                setChannelVideos((prev) => prev.filter((v) => !delSet.has(v.youtubeId) && !delSet.has(v.id)));
+                setChannelPodcasts((prev) => prev.filter((v) => !delSet.has(v.youtubeId) && !delSet.has(v.id)));
+                setActiveQueue((prev) => prev.filter((v) => !delSet.has(v.youtubeId) && !delSet.has(v.id)));
+              } catch {}
+            }
 
-        if (validRemote.length > 0) {
-          try {
-            const localSavedRaw = localStorage.getItem('casttube_user_saved_videos');
-            const localSaved: PodcastEpisode[] = localSavedRaw ? JSON.parse(localSavedRaw) : [];
-            const seenIds = new Set<string>();
-            const mergedSaved = [...validRemote, ...localSaved].filter((item) => {
-              if (!item?.youtubeId || seenIds.has(item.youtubeId) || delSet.has(item.youtubeId)) return false;
-              seenIds.add(item.youtubeId);
-              return true;
-            });
-            localStorage.setItem('casttube_user_saved_videos', JSON.stringify(mergedSaved.slice(0, 60)));
-          } catch {}
+            // Sync custom Admin-added videos from Neon PostgreSQL
+            const remoteCustom = Array.isArray(dbData.customVideos) ? dbData.customVideos : [];
+            if (remoteCustom.length > 0) {
+              const delSet = getBlacklistedDeletedIds();
+              const validRemote: PodcastEpisode[] = remoteCustom
+                .filter((v: any) => v && v.youtubeId && !delSet.has(v.youtubeId))
+                .map((v: any) => ({
+                  id: String(v.id || `pg-${v.youtubeId}`),
+                  youtubeId: String(v.youtubeId),
+                  title: String(v.title || 'Video'),
+                  channel: String(v.channel || 'Minh Hiếu TuBe'),
+                  category: (v.category || 'phat-trien-ban-than') as PodcastEpisode['category'],
+                  duration: String(v.duration || '03:00'),
+                  durationSeconds: v.isShort ? 60 : 210,
+                  thumbnail: String(v.thumbnail || `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`),
+                  description: String(v.description || ''),
+                  publishedDate: String(v.publishedDate || 'Đồng bộ PostgreSQL'),
+                  isShort: Boolean(v.isShort),
+                  seriesTitle: v.seriesTitle || undefined,
+                  tiktokDirectUrl: v.tiktokDirectUrl || undefined,
+                  sourcePlatform: v.sourcePlatform || undefined,
+                }));
 
-          setChannelVideos((prev) => {
-            const existing = new Set(prev.map((p) => p.youtubeId));
-            const brandNew = validRemote.filter((rv) => !existing.has(rv.youtubeId));
-            return brandNew.length > 0 ? [...brandNew, ...prev] : prev;
-          });
+              if (validRemote.length > 0) {
+                try {
+                  const localSavedRaw = localStorage.getItem('casttube_user_saved_videos');
+                  const localSaved: PodcastEpisode[] = localSavedRaw ? JSON.parse(localSavedRaw) : [];
+                  const seenIds = new Set<string>();
+                  const mergedSaved = [...validRemote, ...localSaved].filter((item) => {
+                    if (!item?.youtubeId || seenIds.has(item.youtubeId) || delSet.has(item.youtubeId)) return false;
+                    seenIds.add(item.youtubeId);
+                    return true;
+                  });
+                  localStorage.setItem('casttube_user_saved_videos', JSON.stringify(mergedSaved.slice(0, 60)));
+                } catch {}
+
+                setChannelVideos((prev) => {
+                  const existing = new Set(prev.map((p) => p.youtubeId));
+                  const brandNew = validRemote.filter((rv) => !existing.has(rv.youtubeId));
+                  return brandNew.length > 0 ? [...brandNew, ...prev] : prev;
+                });
+              }
+            }
+            return dbData;
+          }),
+          fetch('/api/documents').then((res) => (res.ok ? res.json() : null)).catch(() => null),
+        ]);
+
+        if (isCancelled) return;
+        setPreloadProgress(80);
+        setPreloadStage('Đang hoàn thiện danh sách phát & tài liệu...');
+
+        // Smooth aesthetic pause for layout stability
+        await new Promise((r) => setTimeout(r, 220));
+        if (isCancelled) return;
+
+        setPreloadProgress(100);
+        setPreloadStage('Hệ thống đã sẵn sàng!');
+        await new Promise((r) => setTimeout(r, 180));
+      } catch (err) {
+        console.warn('Preload notice:', err);
+      } finally {
+        if (!isCancelled) {
+          setIsPreloadingData(false);
         }
       }
-    });
+    };
+
+    preloadAll();
+
+    // Safety fallback timeout to ensure UI is never blocked indefinitely
+    const failsafe = setTimeout(() => {
+      if (!isCancelled) {
+        setIsPreloadingData(false);
+      }
+    }, 3200);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(failsafe);
+    };
   }, []);
 
   // Hydrate Admin-only private settings (API keys, storage preferences, custom voices, channel profile) on F5 or Admin login
@@ -1441,6 +1494,80 @@ function AppContent() {
         </div>
       )}
 
+      {/* Full-Screen Data Preloader Overlay (Loads all data completely before revealing web interface) */}
+      {isPreloadingData && (
+        <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-6 select-none transition-all duration-300">
+          <div className="relative flex flex-col items-center max-w-md w-full text-center">
+            {/* Glowing Channel Avatar / Brand */}
+            <div className="relative mb-6">
+              <div className="absolute -inset-4 bg-gradient-to-r from-amber-500 via-rose-500 to-amber-400 rounded-full blur-xl opacity-40 animate-pulse" />
+              <img
+                src={channelInfo.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                alt={channelInfo.name}
+                className="relative w-24 h-24 rounded-full border-4 border-amber-400/80 shadow-2xl object-cover ring-4 ring-slate-900"
+              />
+              <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full shadow-lg border border-slate-900 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-ping" />
+                ONLINE
+              </div>
+            </div>
+
+            {/* Channel Title & Handle */}
+            <h1 className="text-2xl font-black text-white tracking-tight mb-1 flex items-center justify-center gap-2">
+              <span>{channelInfo.name}</span>
+            </h1>
+            <p className="text-xs text-amber-400 font-medium mb-6">
+              {channelInfo.handle} • Đang nạp toàn bộ dữ liệu hệ thống
+            </p>
+
+            {/* Progress Bar Container */}
+            <div className="w-full bg-slate-900 rounded-full h-3 p-0.5 border border-slate-800 shadow-inner mb-3 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-500 via-rose-500 to-amber-400 rounded-full transition-all duration-300 ease-out shadow-lg"
+                style={{ width: `${preloadProgress}%` }}
+              />
+            </div>
+
+            {/* Status & Percentage */}
+            <div className="flex items-center justify-between w-full text-xs text-slate-400 font-medium px-1 mb-6">
+              <span className="flex items-center gap-2">
+                <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                <span className="truncate max-w-[240px] text-left">{preloadStage}</span>
+              </span>
+              <span className="text-amber-400 font-bold tabular-nums">{preloadProgress}%</span>
+            </div>
+
+            {/* System Status Chips */}
+            <div className="grid grid-cols-2 gap-2 w-full text-[11px] text-slate-400 mb-6">
+              <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800/80 px-3 py-2 rounded-xl text-left">
+                <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                <span className="truncate">Cơ sở dữ liệu Neon</span>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800/80 px-3 py-2 rounded-xl text-left">
+                <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
+                <span className="truncate">Cấu hình VAST & Ads</span>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800/80 px-3 py-2 rounded-xl text-left">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                <span className="truncate">Kho tài liệu & PayPal</span>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800/80 px-3 py-2 rounded-xl text-left">
+                <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" />
+                <span className="truncate">Toàn bộ Video YouTube</span>
+              </div>
+            </div>
+
+            {/* Manual Skip option */}
+            <button
+              onClick={() => setIsPreloadingData(false)}
+              className="text-xs text-slate-500 hover:text-slate-300 transition-colors underline underline-offset-4"
+            >
+              Vào ứng dụng ngay →
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header with 3-Column Controls */}
       <Header
         activeSection={activeNav}
@@ -1457,6 +1584,7 @@ function AppContent() {
         }
         onOpenSettings={() => setIsChannelSettingsModalOpen(true)}
         onOpenGlobalSearch={() => setIsGlobalSearchModalOpen(true)}
+        onOpenDocuments={() => setIsDocumentLibraryOpen(true)}
         favoritesCount={favorites.length}
         onToggleLeftSidebar={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
         isLeftSidebarOpen={isLeftSidebarOpen}
@@ -1506,6 +1634,7 @@ function AppContent() {
           favoritesCount={favorites.length}
           historyCount={channelVideos.length}
           onOpenGlobalSearch={() => setIsGlobalSearchModalOpen(true)}
+          onOpenDocuments={() => setIsDocumentLibraryOpen(true)}
         />
 
         {/* Column 2: Center Main Content Workspace */}
@@ -2414,6 +2543,13 @@ function AppContent() {
           setWatermarkSettings(newWm);
           saveStoredWatermarkSettings(newWm);
         }}
+      />
+
+      {/* Kho Tài Liệu & Thanh Toán PayPal Download Manager */}
+      <DocumentLibraryModal
+        isOpen={isDocumentLibraryOpen}
+        onClose={() => setIsDocumentLibraryOpen(false)}
+        onShowToast={showToast}
       />
 
       {/* Floating Toggle Button for Right Sidebar when collapsed */}

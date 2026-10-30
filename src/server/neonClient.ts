@@ -296,6 +296,7 @@ export const ALL_MANAGED_TABLES = [
   'neon_app_users',
   'neon_study_records',
   'neon_tiktok_history',
+  'neon_documents',
 ];
 
 export const BROWSABLE_NEON_TABLES = [
@@ -306,6 +307,7 @@ export const BROWSABLE_NEON_TABLES = [
   'neon_study_records',
   'neon_app_users',
   'neon_tiktok_history',
+  'neon_documents',
 ];
 
 export async function initializeNeonSchema(): Promise<{
@@ -459,6 +461,27 @@ export async function initializeNeonSchema(): Promise<{
       );
     `);
 
+    // 9. Bảng neon_documents: Quản lý tệp tài liệu (PDF, Word, Excel, ZIP) & Thanh toán PayPal
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS neon_documents (
+        id VARCHAR(100) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        file_name VARCHAR(255) NOT NULL,
+        file_size VARCHAR(50) NOT NULL,
+        file_type VARCHAR(50) NOT NULL,
+        file_url TEXT NOT NULL,
+        file_data TEXT,
+        is_uploaded BOOLEAN DEFAULT FALSE,
+        require_payment BOOLEAN DEFAULT FALSE,
+        price NUMERIC(10, 2) DEFAULT 0,
+        currency VARCHAR(10) DEFAULT 'USD',
+        description TEXT,
+        download_count INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     // Indexes tối ưu hiệu năng truy vấn
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON neon_admin_sessions(expires_at);
@@ -467,6 +490,7 @@ export async function initializeNeonSchema(): Promise<{
       CREATE INDEX IF NOT EXISTS idx_study_created_at ON neon_study_records(created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_study_subject ON neon_study_records(subject);
       CREATE INDEX IF NOT EXISTS idx_tiktok_created_at ON neon_tiktok_history(downloaded_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_documents_created_at ON neon_documents(created_at DESC);
     `);
 
     // Tự động khởi tạo tài khoản Super Admin gốc nếu bảng neon_admin_accounts đang trống
@@ -557,6 +581,31 @@ export async function initializeNeonSchema(): Promise<{
         desc: 'Cấu hình lưu trữ và đồng bộ tự động trên Admin Data (Neon PostgreSQL)',
       },
       {
+        key: 'paypal_settings',
+        val: {
+          enabled: false,
+          clientId: 'sb',
+          mode: 'sandbox',
+          currency: 'USD',
+          defaultPrice: 1.99,
+          buttonText: 'Thanh toán qua PayPal để tải file',
+        },
+        cat: 'payment',
+        pub: true,
+        desc: 'Cấu hình cổng thanh toán PayPal tải tài liệu số',
+      },
+      {
+        key: 'document_settings',
+        val: {
+          enablePaywall: false,
+          allowedExtensions: ['zip', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'rar', '7z', 'txt', 'csv'],
+          maxFileSizeMb: 50,
+        },
+        cat: 'documents',
+        pub: true,
+        desc: 'Cấu hình quản lý tài liệu và các định dạng tệp cho phép upload lên hệ thống',
+      },
+      {
         key: 'security_policy',
         val: {
           strictAdminOnlySettings: true,
@@ -578,6 +627,69 @@ export async function initializeNeonSchema(): Promise<{
          ON CONFLICT (setting_key) DO NOTHING;`,
         [item.key, JSON.stringify(item.val), item.cat, item.pub, item.desc]
       );
+    }
+
+    // Tự động gieo mầm tài liệu mặc định nếu bảng neon_documents chưa có dữ liệu
+    const docCountRes = await client.query(`SELECT count(*)::int AS cnt FROM neon_documents;`);
+    if ((docCountRes.rows[0]?.cnt || 0) === 0) {
+      const sampleDocs = [
+        {
+          id: 'doc-pdf-01',
+          title: 'Kịch Bản Phim & Tuyển Tập Lời Thoại Xuyên Không (Bản Chuẩn PDF)',
+          file_name: 'kich_ban_xuyen_khong_dai_duong.pdf',
+          file_size: '2.4 MB',
+          file_type: 'pdf',
+          file_url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+          require_payment: false,
+          price: 0,
+          currency: 'USD',
+          description: 'Kịch bản trích đoạn tập 1 đến tập 64 kênh Minh Hiếu Official VN định dạng PDF chuẩn Unicode có phân cảnh chi tiết.',
+        },
+        {
+          id: 'doc-zip-02',
+          title: 'Gói Audio Hiệu Ứng Âm Thanh & Nhạc Nền Podcast (Full Trọn Bộ ZIP)',
+          file_name: 'am_thanh_hieu_ung_podcast.zip',
+          file_size: '18.6 MB',
+          file_type: 'zip',
+          file_url: 'https://github.com/git-for-windows/git/releases/download/v2.44.0.windows.1/Git-2.44.0-64-bit.tar.bz2',
+          require_payment: true,
+          price: 1.99,
+          currency: 'USD',
+          description: 'Tuyển tập 120 âm thanh hiệu ứng kịch tính, tiếng chuông chùa, nhạc dân ca miền Tây chất lượng cao 320kbps.',
+        },
+        {
+          id: 'doc-word-03',
+          title: 'Mẫu Kịch Bản Podcast Chuẩn Đài Phát Thanh (.docx)',
+          file_name: 'mau_kich_ban_podcast_chuyen_nghiep.docx',
+          file_size: '640 KB',
+          file_type: 'doc',
+          file_url: 'https://calibre-ebook.com/dist/src',
+          require_payment: false,
+          price: 0,
+          currency: 'USD',
+          description: 'Tài liệu Word soạn thảo kịch bản podcast có bảng phân vai, timeline giây và ghi chú âm lượng.',
+        },
+        {
+          id: 'doc-excel-04',
+          title: 'Bảng Kế Hoạch & Thống Kê Chỉ Số Lượt Xem Video Kênh (.xlsx)',
+          file_name: 'bang_ke_hoach_phat_song.xlsx',
+          file_size: '480 KB',
+          file_type: 'excel',
+          file_url: 'https://calibre-ebook.com/dist/src',
+          require_payment: false,
+          price: 0,
+          currency: 'USD',
+          description: 'Bảng tính Excel tự động tính tỷ lệ giữ chân khán giả, doanh thu ước tính và lịch đăng tải video/podcast.',
+        },
+      ];
+      for (const d of sampleDocs) {
+        await client.query(
+          `INSERT INTO neon_documents (id, title, file_name, file_size, file_type, file_url, require_payment, price, currency, description)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           ON CONFLICT (id) DO NOTHING;`,
+          [d.id, d.title, d.file_name, d.file_size, d.file_type, d.file_url, d.require_payment, d.price, d.currency, d.description]
+        );
+      }
     }
 
     // Tự động chuẩn hóa tên kênh thành "Minh Hiếu Official VN" và "@MinhHieuOfficialvn" nếu bản ghi cũ còn tên cũ
@@ -1999,3 +2111,237 @@ export async function saveStudyRecordToNeon(payload: StudyRecordPayload): Promis
     return null;
   }
 }
+
+// =========================================================================
+// QUẢN LÝ TỆP TÀI LIỆU (PDF, WORD, EXCEL, ZIP) & THANH TOÁN PAYPAL
+// =========================================================================
+const LOCAL_DOCUMENTS_FILE = path.resolve(__dirname, '../../data/documents.json');
+
+function readLocalDocumentsFallback(): any[] {
+  try {
+    if (fs.existsSync(LOCAL_DOCUMENTS_FILE)) {
+      const raw = fs.readFileSync(LOCAL_DOCUMENTS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+function writeLocalDocumentsFallback(docs: any[]): void {
+  try {
+    const dir = path.dirname(LOCAL_DOCUMENTS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(LOCAL_DOCUMENTS_FILE, JSON.stringify(docs, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('writeLocalDocumentsFallback error:', err);
+  }
+}
+
+export async function listDocumentsFromNeon(): Promise<any[]> {
+  try {
+    await ensureNeonBootstrapped();
+    const pool = getPool();
+    if (!pool) return readLocalDocumentsFallback();
+
+    const res = await pool.query(`
+      SELECT
+        id,
+        title,
+        file_name AS "fileName",
+        file_size AS "fileSize",
+        file_type AS "fileType",
+        file_url AS "fileUrl",
+        is_uploaded AS "isUploaded",
+        require_payment AS "requirePayment",
+        price,
+        currency,
+        description,
+        download_count AS "downloadCount",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+      FROM neon_documents
+      ORDER BY created_at DESC;
+    `);
+
+    if (res.rows && res.rows.length > 0) {
+      writeLocalDocumentsFallback(res.rows);
+      return res.rows;
+    }
+  } catch (err) {
+    console.warn('listDocumentsFromNeon fallback to disk:', err);
+  }
+  return readLocalDocumentsFallback();
+}
+
+export async function upsertDocumentInNeon(doc: {
+  id: string;
+  title: string;
+  fileName: string;
+  fileSize: string;
+  fileType: string;
+  fileUrl: string;
+  fileData?: string;
+  isUploaded?: boolean;
+  requirePayment?: boolean;
+  price?: number;
+  currency?: string;
+  description?: string;
+  actorUsername?: string;
+}): Promise<any> {
+  const cleanId = String(doc.id || `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
+  const title = String(doc.title || 'Tài liệu');
+  const fileName = String(doc.fileName || 'file.dat');
+  const fileSize = String(doc.fileSize || '1 MB');
+  const fileType = String(doc.fileType || 'other').toLowerCase();
+  const fileUrl = String(doc.fileUrl || '');
+  const fileData = doc.fileData || null;
+  const isUploaded = Boolean(doc.isUploaded);
+  const requirePayment = Boolean(doc.requirePayment);
+  const price = Number(doc.price || 0);
+  const currency = String(doc.currency || 'USD');
+  const description = String(doc.description || '');
+
+  const localItem = {
+    id: cleanId,
+    title,
+    fileName,
+    fileSize,
+    fileType,
+    fileUrl,
+    isUploaded,
+    requirePayment,
+    price,
+    currency,
+    description,
+    downloadCount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Sync to local fallback
+  try {
+    const localList = readLocalDocumentsFallback().filter((x) => x.id !== cleanId);
+    localList.unshift(localItem);
+    writeLocalDocumentsFallback(localList);
+  } catch {}
+
+  try {
+    await ensureNeonBootstrapped();
+    const pool = getPool();
+    if (pool) {
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          `INSERT INTO neon_documents (
+            id, title, file_name, file_size, file_type, file_url, file_data, is_uploaded, require_payment, price, currency, description, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+          ON CONFLICT (id) DO UPDATE SET
+            title = EXCLUDED.title,
+            file_name = EXCLUDED.file_name,
+            file_size = EXCLUDED.file_size,
+            file_type = EXCLUDED.file_type,
+            file_url = EXCLUDED.file_url,
+            file_data = COALESCE(EXCLUDED.file_data, neon_documents.file_data),
+            is_uploaded = EXCLUDED.is_uploaded,
+            require_payment = EXCLUDED.require_payment,
+            price = EXCLUDED.price,
+            currency = EXCLUDED.currency,
+            description = EXCLUDED.description,
+            updated_at = NOW()
+          RETURNING *;`,
+          [cleanId, title, fileName, fileSize, fileType, fileUrl, fileData, isUploaded, requirePayment, price, currency, description]
+        );
+
+        await recordAdminAuditLog(
+          doc.actorUsername || 'admin',
+          'UPSERT_DOCUMENT',
+          cleanId,
+          { title, fileName, fileType, requirePayment, price },
+          client
+        );
+
+        return res.rows[0];
+      } finally {
+        client.release();
+      }
+    }
+  } catch (err) {
+    console.warn('upsertDocumentInNeon error, retained in local fallback:', err);
+  }
+  return localItem;
+}
+
+export async function deleteDocumentInNeon(id: string, actorUsername = 'admin'): Promise<boolean> {
+  const cleanId = String(id || '').trim();
+  if (!cleanId) return false;
+
+  // Delete from local fallback
+  try {
+    const localList = readLocalDocumentsFallback().filter((x) => x.id !== cleanId);
+    writeLocalDocumentsFallback(localList);
+  } catch {}
+
+  try {
+    await ensureNeonBootstrapped();
+    const pool = getPool();
+    if (pool) {
+      const client = await pool.connect();
+      try {
+        const res = await client.query(`DELETE FROM neon_documents WHERE id = $1 RETURNING id;`, [cleanId]);
+        await recordAdminAuditLog(actorUsername, 'DELETE_DOCUMENT', cleanId, {}, client);
+        return (res.rowCount || 0) > 0;
+      } finally {
+        client.release();
+      }
+    }
+  } catch (err) {
+    console.warn('deleteDocumentInNeon error:', err);
+  }
+  return true;
+}
+
+export async function incrementDocumentDownloadCount(id: string): Promise<number> {
+  const cleanId = String(id || '').trim();
+  if (!cleanId) return 0;
+
+  try {
+    const localList = readLocalDocumentsFallback();
+    const found = localList.find((x) => x.id === cleanId);
+    if (found) {
+      found.downloadCount = (found.downloadCount || 0) + 1;
+      writeLocalDocumentsFallback(localList);
+    }
+  } catch {}
+
+  try {
+    await ensureNeonBootstrapped();
+    const pool = getPool();
+    if (pool) {
+      const res = await pool.query(
+        `UPDATE neon_documents SET download_count = download_count + 1 WHERE id = $1 RETURNING download_count;`,
+        [cleanId]
+      );
+      return res.rows[0]?.download_count || 1;
+    }
+  } catch {}
+  return 1;
+}
+
+export async function getDocumentById(id: string): Promise<any | null> {
+  const cleanId = String(id || '').trim();
+  if (!cleanId) return null;
+
+  try {
+    await ensureNeonBootstrapped();
+    const pool = getPool();
+    if (pool) {
+      const res = await pool.query(`SELECT * FROM neon_documents WHERE id = $1 LIMIT 1;`, [cleanId]);
+      if (res.rows && res.rows[0]) return res.rows[0];
+    }
+  } catch {}
+
+  const localList = readLocalDocumentsFallback();
+  return localList.find((x) => x.id === cleanId) || null;
+}
+

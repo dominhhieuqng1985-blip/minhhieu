@@ -28,6 +28,11 @@ import {
   deleteNeonTableRow,
   executeNeonCustomSql,
   saveStudyRecordToNeon,
+  listDocumentsFromNeon,
+  upsertDocumentInNeon,
+  deleteDocumentInNeon,
+  incrementDocumentDownloadCount,
+  getDocumentById,
   AdminPrincipal,
 } from './src/server/neonClient';
 import { solveProblemLocally } from './src/utils/smartBoardSolver';
@@ -2712,12 +2717,14 @@ app.get(['/api/settings/ads', '/minhhieu/api/settings/ads'], async (_req, res) =
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     const neonPublic = await getPublicAppSettingsFromNeon();
-    if (neonPublic && (neonPublic.settings.ad_settings || neonPublic.settings.watermark_settings)) {
+    if (neonPublic && neonPublic.settings) {
       return res.json({
         success: true,
         source: 'neon_postgresql',
         adSettings: neonPublic.settings.ad_settings || null,
         watermarkSettings: neonPublic.settings.watermark_settings || null,
+        paypalSettings: neonPublic.settings.paypal_settings || null,
+        documentSettings: neonPublic.settings.document_settings || null,
       });
     }
   } catch (err: any) {
@@ -2733,18 +2740,20 @@ app.get(['/api/settings/ads', '/minhhieu/api/settings/ads'], async (_req, res) =
   } catch (err: any) {
     console.warn('Error reading ad-settings.json:', err.message);
   }
-  return res.json({ success: true, adSettings: null, watermarkSettings: null });
+  return res.json({ success: true, adSettings: null, watermarkSettings: null, paypalSettings: null, documentSettings: null });
 });
 
 app.post(['/api/settings/ads', '/minhhieu/api/settings/ads'], requireAdminAuth, async (req, res) => {
   try {
     const adminUser = (req as any).adminUser as AdminPrincipal;
-    const { adSettings, watermarkSettings } = req.body || {};
+    const { adSettings, watermarkSettings, paypalSettings, documentSettings } = req.body || {};
     const payload = {
       updatedAt: new Date().toISOString(),
       updatedBy: adminUser?.username || 'admin',
       adSettings: adSettings || null,
       watermarkSettings: watermarkSettings || null,
+      paypalSettings: paypalSettings || null,
+      documentSettings: documentSettings || null,
     };
 
     // 1. Lưu trực tiếp vào cơ sở dữ liệu Neon PostgreSQL
@@ -2769,6 +2778,26 @@ app.post(['/api/settings/ads', '/minhhieu/api/settings/ads'], requireAdminAuth, 
           updatedBy: adminUser?.username || 'admin',
         });
       }
+      if (paypalSettings) {
+        await upsertAppSettingInNeon({
+          key: 'paypal_settings',
+          value: paypalSettings,
+          category: 'payment',
+          isPublic: true,
+          description: 'Cấu hình tích hợp PayPal để tải file tài liệu số',
+          updatedBy: adminUser?.username || 'admin',
+        });
+      }
+      if (documentSettings) {
+        await upsertAppSettingInNeon({
+          key: 'document_settings',
+          value: documentSettings,
+          category: 'documents',
+          isPublic: true,
+          description: 'Cấu hình mở rộng loại file cho phép upload và giới hạn dung lượng',
+          updatedBy: adminUser?.username || 'admin',
+        });
+      }
     }
 
     // 2. Đồng bộ dự phòng vào ad-settings.json
@@ -2784,12 +2813,139 @@ app.post(['/api/settings/ads', '/minhhieu/api/settings/ads'], requireAdminAuth, 
 
     return res.json({
       success: true,
-      message: 'Đã lưu cài đặt quảng cáo & logo trực tiếp vào Neon PostgreSQL cho mọi thiết bị!',
+      message: 'Đã lưu cài đặt quảng cáo, PayPal & tài liệu trực tiếp vào Neon PostgreSQL cho mọi thiết bị!',
       ...payload,
     });
   } catch (err: any) {
     console.error('Error saving ad settings:', err);
     return res.status(500).json({ success: false, error: err.message || 'Lỗi lưu cấu hình quảng cáo' });
+  }
+});
+
+// =========================================================================
+// DOCUMENT LIBRARY & PAYPAL PAYMENT DOWNLOAD API
+// =========================================================================
+app.get(['/api/documents', '/minhhieu/api/documents'], async (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  try {
+    const docs = await listDocumentsFromNeon();
+    return res.json({ success: true, documents: docs });
+  } catch (err: any) {
+    console.error('Error fetching documents:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Lỗi đọc danh sách tài liệu' });
+  }
+});
+
+app.post(['/api/documents', '/minhhieu/api/documents'], requireAdminAuth, async (req, res) => {
+  try {
+    const adminUser = (req as any).adminUser as AdminPrincipal;
+    const docData = req.body || {};
+    if (!docData.title || !docData.fileName) {
+      return res.status(400).json({ success: false, error: 'Thiếu tên tài liệu hoặc tên file.' });
+    }
+
+    const saved = await upsertDocumentInNeon({
+      ...docData,
+      actorUsername: adminUser.username,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Đã lưu tài liệu thành công vào hệ thống dữ liệu Neon!',
+      document: saved,
+    });
+  } catch (err: any) {
+    console.error('Error creating document:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Lỗi lưu tài liệu' });
+  }
+});
+
+app.delete(['/api/documents/:id', '/minhhieu/api/documents/:id'], requireAdminAuth, async (req, res) => {
+  try {
+    const adminUser = (req as any).adminUser as AdminPrincipal;
+    const { id } = req.params;
+    const deleted = await deleteDocumentInNeon(id, adminUser.username);
+    return res.json({ success: deleted });
+  } catch (err: any) {
+    console.error('Error deleting document:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Lỗi xóa tài liệu' });
+  }
+});
+
+app.post(['/api/documents/:id/download-token', '/minhhieu/api/documents/:id/download-token'], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { paymentId, orderId } = req.body || {};
+    const doc = await getDocumentById(id);
+    if (!doc) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy tài liệu yêu cầu.' });
+    }
+
+    // Check if system has payment enabled
+    const neonPublic = await getPublicAppSettingsFromNeon();
+    const docSettings = neonPublic?.settings?.document_settings;
+    const paypalSettings = neonPublic?.settings?.paypal_settings;
+    const isPaywallActive = Boolean(docSettings?.enablePaywall || (paypalSettings?.enabled && doc.require_payment));
+
+    if (isPaywallActive && doc.require_payment) {
+      if (!paymentId && !orderId) {
+        return res.status(402).json({
+          success: false,
+          requirePayment: true,
+          price: doc.price || 1.99,
+          currency: doc.currency || 'USD',
+          error: 'Tài liệu này yêu cầu thanh toán qua PayPal trước khi tải.',
+        });
+      }
+    }
+
+    await incrementDocumentDownloadCount(id);
+
+    return res.json({
+      success: true,
+      downloadUrl: `/api/documents/${encodeURIComponent(id)}/download`,
+      directUrl: doc.file_url || doc.fileUrl,
+      fileName: doc.file_name || doc.fileName,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || 'Lỗi tạo token tải file' });
+  }
+});
+
+app.get(['/api/documents/:id/download', '/minhhieu/api/documents/:id/download'], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const doc = await getDocumentById(id);
+    if (!doc) {
+      return res.status(404).send('Không tìm thấy tài liệu yêu cầu');
+    }
+
+    await incrementDocumentDownloadCount(id);
+    const fileName = doc.file_name || doc.fileName || 'tai_lieu.dat';
+    const cleanFileName = fileName.replace(/[/\\?%*:|"<>]/g, '_');
+    const targetUrl = doc.file_url || doc.fileUrl;
+
+    // If external URL, redirect or stream
+    if (targetUrl && (targetUrl.startsWith('http://') || targetUrl.startsWith('https://'))) {
+      return res.redirect(targetUrl);
+    }
+
+    // If base64 file data stored
+    if (doc.file_data) {
+      const base64Data = doc.file_data.replace(/^data:[^;]+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${encodeURIComponent(cleanFileName)}"`
+      );
+      res.setHeader('Content-Length', buffer.length);
+      return res.end(buffer);
+    }
+
+    return res.status(404).send('Không có dữ liệu file tải về');
+  } catch (err: any) {
+    return res.status(500).send(err.message || 'Lỗi tải tài liệu');
   }
 });
 
