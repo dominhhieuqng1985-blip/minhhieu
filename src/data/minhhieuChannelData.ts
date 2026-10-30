@@ -144,7 +144,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
-    "duration": "6:08",
+    "duration": "06:08",
     "durationSeconds": 368,
     "thumbnail": "https://i.ytimg.com/vi/OpDtPFMhvPw/hqdefault.jpg",
     "description": "Người qua bến mới - Kênh Minh Hiếu Official VN.",
