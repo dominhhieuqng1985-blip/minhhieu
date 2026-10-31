@@ -69,7 +69,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
-    "duration": "5:03",
+    "duration": "05:03",
     "durationSeconds": 303,
     "thumbnail": "https://i.ytimg.com/vi/6ITpsytCz4g/hqdefault.jpg",
     "description": "Mai anh về thăm lại bến xưa - Kênh Minh Hiếu Official VN.",
@@ -84,7 +84,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
-    "duration": "5:03",
+    "duration": "05:03",
     "durationSeconds": 303,
     "thumbnail": "https://i.ytimg.com/vi/03FG4Z40Su4/hqdefault.jpg",
     "description": "Con nước chở tình đi - Kênh Minh Hiếu Official VN.",
@@ -270,7 +270,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thức Tỉnh Hệ Thống Taxi Lịch Sử, Anh Chở Tần Thủy Hoàng Về Hiện Đại Khiến Cả Nước Chấn Động - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "2 lượt xem",
+    "views": "3 lượt xem",
     "id": "mh-v14"
   },
   {
