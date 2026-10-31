@@ -2537,6 +2537,100 @@ app.post(
 );
 
 // =========================================================================
+// HILLTOPADS PUBLISHER API PROXY & AD REVENUE ENGINE
+// Key: XOxIVWkMqKGQUcaHf3CGzhCYAizN2oSnzrgcYPBzho9JvQUqoYY1cTqFToARZvfe
+// =========================================================================
+const DEFAULT_HILLTOPADS_API_KEY =
+  'XOxIVWkMqKGQUcaHf3CGzhCYAizN2oSnzrgcYPBzho9JvQUqoYY1cTqFToARZvfe';
+
+async function getEffectiveHilltopAdsKey(reqKey?: string): Promise<string> {
+  if (reqKey && typeof reqKey === 'string' && reqKey.trim()) {
+    return reqKey.trim();
+  }
+  if (process.env.HILLTOPADS_API_KEY && process.env.HILLTOPADS_API_KEY.trim()) {
+    return process.env.HILLTOPADS_API_KEY.trim();
+  }
+  try {
+    const dbResult = await queryNeonTable('app_settings', 1, 10, 'hilltopads_api_key');
+    if (dbResult?.rows && Array.isArray(dbResult.rows) && dbResult.rows.length > 0) {
+      const found = dbResult.rows.find(
+        (r: any) => r.key === 'hilltopads_api_key' || r.setting_key === 'hilltopads_api_key'
+      );
+      if (found && found.value) {
+        return String(found.value).trim();
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return DEFAULT_HILLTOPADS_API_KEY;
+}
+
+// 1. GET /api/hilltopads/balance
+app.get(['/api/hilltopads/balance', '/minhhieu/api/hilltopads/balance'], async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  try {
+    const key = await getEffectiveHilltopAdsKey(req.query.key as string);
+    const targetUrl = `https://api.hilltopads.com/publisher/balance?key=${encodeURIComponent(key)}`;
+    const response = await fetch(targetUrl);
+    const data = await response.json();
+    return res.status(response.status).json(data);
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err?.message || 'Lỗi kết nối HilltopAds API' });
+  }
+});
+
+// 2. GET /api/hilltopads/inventory
+app.get(['/api/hilltopads/inventory', '/minhhieu/api/hilltopads/inventory'], async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  try {
+    const key = await getEffectiveHilltopAdsKey(req.query.key as string);
+    const targetUrl = `https://api.hilltopads.com/publisher/inventory?key=${encodeURIComponent(key)}`;
+    const response = await fetch(targetUrl);
+    const data = await response.json();
+    return res.status(response.status).json(data);
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err?.message || 'Lỗi danh mục HilltopAds' });
+  }
+});
+
+// 3. GET /api/hilltopads/stats
+app.get(['/api/hilltopads/stats', '/minhhieu/api/hilltopads/stats'], async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  try {
+    const key = await getEffectiveHilltopAdsKey(req.query.key as string);
+    const url = new URL('https://api.hilltopads.com/publisher/listStats');
+    url.searchParams.set('key', key);
+    for (const [k, v] of Object.entries(req.query)) {
+      if (k !== 'key' && v) {
+        url.searchParams.set(k, String(v));
+      }
+    }
+    const response = await fetch(url.toString());
+    const data = await response.json();
+    return res.status(response.status).json(data);
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err?.message || 'Lỗi lấy thống kê HilltopAds' });
+  }
+});
+
+// 4. GET /api/hilltopads/anti-adblock
+app.get(['/api/hilltopads/anti-adblock', '/minhhieu/api/hilltopads/anti-adblock'], async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  try {
+    const key = await getEffectiveHilltopAdsKey(req.query.key as string);
+    const zoneId = req.query.zoneId || '7564709-7564713';
+    const includeTags = req.query['Include tags'] || req.query.includeTags || '1';
+    const targetUrl = `https://api.hilltopads.com/publisher/antiAdBlock?key=${encodeURIComponent(key)}&zoneId=${encodeURIComponent(String(zoneId))}&Include+tags=${encodeURIComponent(String(includeTags))}`;
+    const response = await fetch(targetUrl);
+    const data = await response.json();
+    return res.status(response.status).json(data);
+  } catch (err: any) {
+    return res.status(500).json({ status: 'error', message: err?.message || 'Lỗi tạo mã Anti-AdBlock' });
+  }
+});
+
+// =========================================================================
 // MOVIE CINEMA API PROXY (VSMOV.COM)
 // =========================================================================
 const VSMOV_BASE_URL = 'https://vsmov.com/api';

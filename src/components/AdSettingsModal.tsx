@@ -54,6 +54,7 @@ import {
 } from '../types/documents';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { StandaloneBanner300x250, MobileBanner300x100 } from './AdcashBanner';
+import { HilltopAdsDashboard } from './HilltopAdsDashboard';
 
 interface AdSettingsModalProps {
   isOpen: boolean;
@@ -80,7 +81,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
   const [localPayPal, setLocalPayPal] = useState<PayPalSettings>(getStoredPayPalSettings);
   const [localDocSettings, setLocalDocSettings] = useState<DocumentSettings>(getStoredDocumentSettings);
   const [newExtensionInput, setNewExtensionInput] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'rich_ads' | 'ad' | 'watermark' | 'paypal' | 'documents' | 'sync'>('rich_ads');
+  const [activeTab, setActiveTab] = useState<'rich_ads' | 'hilltopads' | 'ad' | 'watermark' | 'paypal' | 'documents' | 'sync'>('rich_ads');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -200,7 +201,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-xl sm:max-w-3xl lg:max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-950">
           <div className="flex items-center gap-2.5">
@@ -212,7 +213,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                 <span>Cài Đặt Quảng Cáo &amp; Logo Video</span>
               </h3>
               <p className="text-xs text-slate-400">
-                Tùy chỉnh video quảng cáo, watermark và đồng bộ đa thiết bị
+                Tùy chỉnh video quảng cáo, watermark, API HilltopAds và đồng bộ đa thiết bị
               </p>
             </div>
           </div>
@@ -237,6 +238,18 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
           >
             <Sparkles className="w-4 h-4" />
             <span>VAST 3.0 &amp; HTML/JS</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('hilltopads')}
+            className={`flex-1 min-w-[155px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+              activeTab === 'hilltopads'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md font-extrabold'
+                : 'text-emerald-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <DollarSign className="w-4 h-4" />
+            <span>HilltopAds &amp; Số Dư</span>
           </button>
 
           <button
@@ -1324,6 +1337,44 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'hilltopads' && (
+            <div className="space-y-4">
+              <HilltopAdsDashboard
+                onApplyAdCode={(zoneType, code) => {
+                  if (zoneType === '300x250') {
+                    setLocalAd((prev) => ({
+                      ...prev,
+                      banner300x250Html: code,
+                      enableBanner300x250: true,
+                    }));
+                    setImportStatus('Đã áp dụng mã Anti-AdBlock vào vị trí Banner 300x250! Hãy bấm "Lưu Cho Mọi Máy".');
+                    setTimeout(() => setImportStatus(null), 4000);
+                  } else if (zoneType === 'videoSlider') {
+                    setLocalAd((prev) => ({
+                      ...prev,
+                      videoSliderHtml: code,
+                      enableVideoSlider: true,
+                    }));
+                    setImportStatus('Đã áp dụng mã Anti-AdBlock vào vị trí Video Slider! Hãy bấm "Lưu Cho Mọi Máy".');
+                    setTimeout(() => setImportStatus(null), 4000);
+                  } else if (zoneType === '300x100') {
+                    setLocalAd((prev) => ({
+                      ...prev,
+                      banner300x100MobileHtml: code,
+                      enableBanner300x100Mobile: true,
+                    }));
+                    setImportStatus('Đã áp dụng mã Anti-AdBlock vào vị trí Banner Mobile 300x100! Hãy bấm "Lưu Cho Mọi Máy".');
+                    setTimeout(() => setImportStatus(null), 4000);
+                  }
+                }}
+                onShowToast={(msg) => {
+                  setImportStatus(msg);
+                  setTimeout(() => setImportStatus(null), 3500);
+                }}
+              />
             </div>
           )}
         </div>

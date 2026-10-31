@@ -942,9 +942,9 @@ export const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
 
               <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h4 className="font-bold text-white">Cài Đặt Quảng Cáo &amp; Logo Kênh</h4>
+                  <h4 className="font-bold text-white">Cài Đặt Quảng Cáo, Logo &amp; API HilltopAds</h4>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Tùy chỉnh VAST video, banner 728x90, 160x600, Video Slider và lưu trực tiếp lên Neon PostgreSQL
+                    Quản lý số dư &amp; thống kê HilltopAds, mã Anti-AdBlock, VAST video, banner và đồng bộ Neon PostgreSQL
                   </p>
                 </div>
                 <button
