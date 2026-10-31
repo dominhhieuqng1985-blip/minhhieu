@@ -26,10 +26,18 @@ import {
   Youtube,
   ChevronDown,
   ChevronUp,
+  Key,
+  ExternalLink,
 } from 'lucide-react';
 import { SubjectId, SUBJECTS_META } from '../data/kidsCurriculumData';
 import { DEFAULT_VIDEOS, DEFAULT_PODCASTS } from '../data/minhhieuChannelData';
-import { resolveApiEndpoint, getOptionalAiHeaders } from '../utils/api';
+import { resolveApiEndpoint, getOptionalAiHeaders, hasBackend, isStaticHost } from '../utils/api';
+import {
+  getClientGeminiKey,
+  setClientGeminiKey,
+  hasClientGeminiKey,
+  solveHomeworkWithGeminiClient,
+} from '../utils/geminiClient';
 import {
   searchExternalYouTube,
   searchLocalCatalogWithScores,
@@ -187,6 +195,11 @@ export const SmartClassroomBoard: React.FC<SmartClassroomBoardProps> = ({
   const [copiedBoard, setCopiedBoard] = useState<boolean>(false);
   const [isZoomImageModalOpen, setIsZoomImageModalOpen] = useState<boolean>(false);
   const [showFullProblemText, setShowFullProblemText] = useState<boolean>(false);
+
+  // Gemini Vision Client State for GitHub Pages & Direct API Mode
+  const [hasClientKey, setHasClientKey] = useState<boolean>(() => hasClientGeminiKey());
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState<boolean>(false);
+  const [geminiKeyInput, setGeminiKeyInput] = useState<string>(() => getClientGeminiKey());
 
   // Voice Interaction State (Homework Mic)
   const [isListeningMic, setIsListeningMic] = useState<boolean>(false);
@@ -679,71 +692,114 @@ export const SmartClassroomBoard: React.FC<SmartClassroomBoardProps> = ({
       createdAt: Date.now(),
     });
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), 28000);
+    let solvedLesson: ChalkboardLesson | null = null;
+    const clientKey = getClientGeminiKey();
 
-      const endpoint = resolveApiEndpoint('kids-learning/solve-homework');
-      const resp = await fetch(endpoint, {
-        method: 'POST',
-        headers: getOptionalAiHeaders(),
-        signal: controller.signal,
-        body: JSON.stringify({
+    // Priority 1: Direct Gemini Client Call (Fastest, zero-backend, works 100% on GitHub Pages!)
+    if (clientKey) {
+      try {
+        const clientSolved = await solveHomeworkWithGeminiClient({
           imageBase64: selectedImageBase64 || undefined,
           mimeType: 'image/jpeg',
-          grade,
-          subject,
           prompt: questionText,
+          grade,
+          subject: String(subject),
           studentName,
-        }),
-      });
-      window.clearTimeout(timeoutId);
+          apiKey: clientKey,
+        });
 
-      const contentType = resp.headers.get('content-type') || '';
-      if (!resp.ok || contentType.includes('text/html')) {
-        throw new Error(`HTTP ${resp.status}`);
+        solvedLesson = {
+          id: `lesson-client-${Date.now()}`,
+          boardTitle: clientSolved.boardTitle,
+          subject: clientSolved.subject || subject,
+          grade,
+          extractedText: clientSolved.extractedText,
+          fullOriginalProblem: questionText.length > 450 ? questionText : undefined,
+          coreConcept: clientSolved.coreConcept,
+          steps: clientSolved.steps,
+          finalAnswer: clientSolved.finalAnswer,
+          teacherAdvice: clientSolved.teacherAdvice,
+          spokenExplanation: clientSolved.spokenExplanation,
+          englishPhrase: clientSolved.englishPhrase,
+          phoneticIpa: clientSolved.phoneticIpa,
+          englishExamples: clientSolved.englishExamples,
+          imagePreviewUrl: selectedImagePreview || undefined,
+          createdAt: Date.now(),
+        };
+      } catch (err: any) {
+        console.warn('Direct Gemini Client attempt notice:', err?.message);
+      }
+    }
+
+    // Priority 2: Server API endpoint (Express backend / Render proxy)
+    if (!solvedLesson && hasBackend()) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 20000);
+
+        const endpoint = resolveApiEndpoint('kids-learning/solve-homework');
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: getOptionalAiHeaders(),
+          signal: controller.signal,
+          body: JSON.stringify({
+            imageBase64: selectedImageBase64 || undefined,
+            mimeType: 'image/jpeg',
+            grade,
+            subject,
+            prompt: questionText,
+            studentName,
+          }),
+        });
+        window.clearTimeout(timeoutId);
+
+        const contentType = resp.headers.get('content-type') || '';
+        if (resp.ok && !contentType.includes('text/html')) {
+          const data = await resp.json();
+          solvedLesson = {
+            id: `lesson-${Date.now()}`,
+            boardTitle: data.boardTitle || `Bài Giải Chi Tiết • Lớp ${grade}`,
+            subject: data.subject || subject,
+            grade,
+            extractedText:
+              data.extractedText ||
+              (questionText.length > 450 ? `${questionText.slice(0, 450)}...` : questionText) ||
+              'Đề bài từ ảnh tài liệu',
+            fullOriginalProblem: questionText.length > 450 ? questionText : undefined,
+            coreConcept: data.coreConcept || '',
+            steps: Array.isArray(data.steps) ? data.steps : [],
+            finalAnswer: data.finalAnswer || '',
+            teacherAdvice: data.teacherAdvice || '',
+            spokenExplanation: data.spokenExplanation || '',
+            englishPhrase: data.englishPhrase || undefined,
+            phoneticIpa: data.phoneticIpa || undefined,
+            englishExamples: data.englishExamples || undefined,
+            imagePreviewUrl: selectedImagePreview || undefined,
+            createdAt: Date.now(),
+          };
+        }
+      } catch (err: any) {
+        console.warn('Server endpoint notice:', err?.message);
+      }
+    }
+
+    // Priority 3: Resilient Offline / GitHub Pages local analyzer
+    if (!solvedLesson) {
+      if (selectedImageBase64 && !clientKey) {
+        // Helpful prompt for student/teacher to activate Gemini key on GitHub Pages
+        setIsApiKeyModalOpen(true);
+        onShowToast('🔑 Nhập Gemini API Key để AI tự động quét ảnh và giải chi tiết trên GitHub Pages!');
       }
 
-      const data = await resp.json();
-      const newLesson: ChalkboardLesson = {
-        id: `lesson-${Date.now()}`,
-        boardTitle: data.boardTitle || `Bài Giải Chi Tiết • Lớp ${grade}`,
-        subject: data.subject || subject,
-        grade,
-        extractedText:
-          data.extractedText ||
-          (questionText.length > 450 ? `${questionText.slice(0, 450)}...` : questionText) ||
-          'Đề bài từ ảnh tài liệu',
-        fullOriginalProblem: questionText.length > 450 ? questionText : undefined,
-        coreConcept: data.coreConcept || '',
-        steps: Array.isArray(data.steps) ? data.steps : [],
-        finalAnswer: data.finalAnswer || '',
-        teacherAdvice: data.teacherAdvice || '',
-        spokenExplanation: data.spokenExplanation || '',
-        englishPhrase: data.englishPhrase || undefined,
-        phoneticIpa: data.phoneticIpa || undefined,
-        englishExamples: data.englishExamples || undefined,
-        imagePreviewUrl: selectedImagePreview || undefined,
-        createdAt: Date.now(),
-      };
-
-      // Render onto chalkboard IMMEDIATELY before starting any TTS synthesis
-      setLesson(newLesson);
-      setIsSolving(false);
-      setInputText('');
-      if (onEarnReward) onEarnReward(20, 1);
-
-      scheduleBoardVoiceExplanation(newLesson);
-    } catch {
-      // Resilient Offline / GitHub Pages Cold-Start Fallback using local analyzer
       const fallbackSolved = solveProblemLocally({
         prompt: questionText,
         grade,
         subject: String(subject),
         studentName,
+        hasImage: !!selectedImageBase64,
       });
 
-      const fallbackLesson: ChalkboardLesson = {
+      solvedLesson = {
         id: `lesson-local-${Date.now()}`,
         boardTitle: fallbackSolved.boardTitle,
         subject: fallbackSolved.subject || subject,
@@ -761,16 +817,14 @@ export const SmartClassroomBoard: React.FC<SmartClassroomBoardProps> = ({
         imagePreviewUrl: selectedImagePreview || undefined,
         createdAt: Date.now(),
       };
-
-      setLesson(fallbackLesson);
-      setIsSolving(false);
-      if (fallbackSolved.isExactDeterministic) {
-        setInputText('');
-        scheduleBoardVoiceExplanation(fallbackLesson);
-      } else {
-        onShowToast('Máy chủ AI đang khởi động kết nối — vui lòng bấm Giải lại sau vài giây cho câu hỏi tự luận dài!');
-      }
     }
+
+    // Render onto chalkboard IMMEDIATELY
+    setLesson(solvedLesson);
+    setIsSolving(false);
+    setInputText('');
+    if (onEarnReward) onEarnReward(20, 1);
+    scheduleBoardVoiceExplanation(solvedLesson);
   };
 
   // Recite chalkboard steps manually
@@ -972,6 +1026,20 @@ export const SmartClassroomBoard: React.FC<SmartClassroomBoardProps> = ({
             <Check className={`w-3.5 h-3.5 ${autoReadBoard ? 'text-emerald-400' : 'opacity-40'}`} />
             <span>Thầy Tự Giảng</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setIsApiKeyModalOpen(true)}
+            className={`px-3 py-1.5 rounded-xl border font-bold flex items-center gap-1.5 transition-all ${
+              hasClientKey
+                ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
+                : 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+            }`}
+            title="Cài đặt khóa Gemini API Key để giải ảnh bài tập trực tiếp trên GitHub Pages"
+          >
+            <Key className="w-3.5 h-3.5" />
+            <span>{hasClientKey ? 'Gemini AI: Sẵn sàng' : 'Cài Key Gemini'}</span>
+          </button>
         </div>
       </div>
 
@@ -1065,6 +1133,19 @@ export const SmartClassroomBoard: React.FC<SmartClassroomBoardProps> = ({
                     <span>Xem phóng to</span>
                   </div>
                 </div>
+
+                {!hasClientKey && !hasBackend() && (
+                  <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-[11px] flex items-center justify-between gap-1.5">
+                    <span>💡 Trên GitHub Pages cần Key Gemini để đọc ảnh tự động.</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsApiKeyModalOpen(true)}
+                      className="px-2 py-0.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-[10px] shrink-0"
+                    >
+                      Cài Key
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1815,6 +1896,92 @@ export const SmartClassroomBoard: React.FC<SmartClassroomBoardProps> = ({
               alt="Ảnh phóng to"
               className="max-h-[75vh] w-auto object-contain rounded-2xl border border-slate-800"
             />
+          </div>
+        </div>
+      )}
+
+      {/* Gemini API Key Modal for GitHub Pages Static Vision Solving */}
+      {isApiKeyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2 text-white font-bold text-sm">
+                <Key className="w-5 h-5 text-amber-400" />
+                <span>Cài Đặt Gemini API Key (Giải Ảnh Trên GitHub Pages)</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsApiKeyModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Khi đồng bộ lên GitHub Pages (máy chủ tĩnh), ứng dụng sử dụng Gemini API trực tiếp từ trình duyệt để đọc chữ và giải bài tập từ ảnh chụp. Key được lưu an toàn trong trình duyệt của bạn.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-200 block">
+                Google Gemini API Key:
+              </label>
+              <input
+                type="password"
+                placeholder="AIzaSy..."
+                value={geminiKeyInput}
+                onChange={(e) => setGeminiKeyInput(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+              />
+              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                <span>Miễn phí 100% từ Google</span>
+                <a
+                  href="https://aistudio.google.com/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-400 hover:underline flex items-center gap-1"
+                >
+                  <span>Lấy key tại Google AI Studio</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              {hasClientKey && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClientGeminiKey('');
+                    setGeminiKeyInput('');
+                    setHasClientKey(false);
+                    onShowToast('Đã xóa Gemini API Key khỏi trình duyệt');
+                  }}
+                  className="px-3 py-2 rounded-xl border border-rose-500/40 text-rose-300 hover:bg-rose-500/10 text-xs font-bold transition-all"
+                >
+                  Xóa Key
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (geminiKeyInput.trim()) {
+                    setClientGeminiKey(geminiKeyInput.trim());
+                    setHasClientKey(true);
+                    setIsApiKeyModalOpen(false);
+                    onShowToast('Đã lưu Gemini API Key! Sẵn sàng giải ảnh bài tập trên GitHub Pages.');
+                    if (selectedImageBase64) {
+                      handleSolveHomework();
+                    }
+                  } else {
+                    onShowToast('Vui lòng dán mã Gemini API Key hợp lệ');
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-black text-xs shadow-lg transition-all"
+              >
+                Lưu &amp; Kích Hoạt
+              </button>
+            </div>
           </div>
         </div>
       )}

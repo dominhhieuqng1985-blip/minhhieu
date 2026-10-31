@@ -23,7 +23,7 @@ import { MovieDetail, EpisodeData, EpisodeServer, MovieItem } from '../types/mov
 import { CurrentlyPlayingSidebar } from './CurrentlyPlayingSidebar';
 import { AIPodcastCompanion } from './AIPodcastCompanion';
 import { TimecodedNotesPanel } from './TimecodedNotesPanel';
-import { StandaloneBanner300x250 } from './AdcashBanner';
+import { StandaloneBanner300x250, MobileBanner300x100 } from './AdcashBanner';
 
 export interface ActiveMovieState {
   movie: MovieDetail;
@@ -337,8 +337,13 @@ export const CompanionRightSidebar: React.FC<CompanionRightSidebarProps> = ({
         )}
 
         {!hideAds && (
-          <div className="pt-3 border-t border-slate-800/80 flex justify-center">
-            <StandaloneBanner300x250 />
+          <div className="pt-3 border-t border-slate-800/80 flex flex-col items-center">
+            <div className="hidden sm:block">
+              <StandaloneBanner300x250 />
+            </div>
+            <div className="block sm:hidden">
+              <MobileBanner300x100 />
+            </div>
           </div>
         )}
       </div>

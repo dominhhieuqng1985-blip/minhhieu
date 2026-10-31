@@ -33,6 +33,7 @@ import {
   DEFAULT_VAST_30_TAG_URL,
   ADCASH_INSTREAM_VAST_TAG_URL,
   DEFAULT_BANNER_300X250_SCRIPT,
+  DEFAULT_BANNER_300X100_MOBILE_SCRIPT,
   DEFAULT_VIDEO_SLIDER_SCRIPT,
   normalizeAdSettings,
   saveStoredAdSettings,
@@ -52,7 +53,7 @@ import {
   saveStoredDocumentSettings,
 } from '../types/documents';
 import { useAdminAuth } from '../context/AdminAuthContext';
-import { StandaloneBanner300x250 } from './AdcashBanner';
+import { StandaloneBanner300x250, MobileBanner300x100 } from './AdcashBanner';
 
 interface AdSettingsModalProps {
   isOpen: boolean;
@@ -87,6 +88,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
   const [importJsonText, setImportJsonText] = useState<string>('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [preview300x250, setPreview300x250] = useState<boolean>(false);
+  const [preview300x100Mobile, setPreview300x100Mobile] = useState<boolean>(false);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -96,6 +98,7 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
       setLocalDocSettings(getStoredDocumentSettings());
       setSaveError(null);
       setPreview300x250(false);
+      setPreview300x100Mobile(false);
     }
   }, [isOpen, adSettings, watermarkSettings]);
 
@@ -482,6 +485,79 @@ export const AdSettingsModal: React.FC<AdSettingsModalProps> = ({
                       <StandaloneBanner300x250
                         forceShow={true}
                         previewCode={localAd.banner300x250Html || DEFAULT_BANNER_300X250_SCRIPT}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 3. Banner Di Động 300x100 MultiTag (ozrqy — Mobile Only) */}
+              <div className="p-4 bg-slate-950 rounded-2xl border border-sky-500/30 space-y-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Code className="w-4 h-4 text-sky-400 shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-white text-xs sm:text-sm flex items-center gap-1.5">
+                        <span>Quảng Cáo Banner Di Động 300×100 (ozrqy — Mobile MultiTag)</span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                          Mobile
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Định dạng biểu ngữ 300×100 tối ưu cho điện thoại di động và màn hình dọc, hiển thị ở các vị trí phù hợp
+                      </p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={localAd.enableBanner300x100Mobile !== false}
+                      onChange={(e) => setLocalAd({ ...localAd, enableBanner300x100Mobile: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
+                  </label>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <label className="font-bold text-white text-xs">
+                      Mã Nhúng HTML / JavaScript 300×100 Mobile (ozrqy):
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreview300x100Mobile((prev) => !prev)}
+                        className="px-2.5 py-1 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-300 text-[10px] font-bold flex items-center gap-1 transition-colors"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        <span>{preview300x100Mobile ? 'Đóng xem trước' : 'Xem trước 300×100'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLocalAd({ ...localAd, banner300x100MobileHtml: DEFAULT_BANNER_300X100_MOBILE_SCRIPT })}
+                        className="text-[10px] text-sky-400 hover:underline font-mono"
+                      >
+                        Khôi phục mã gốc
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    rows={4}
+                    placeholder="<script>...</script>"
+                    value={localAd.banner300x100MobileHtml || ''}
+                    onChange={(e) => setLocalAd({ ...localAd, banner300x100MobileHtml: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-100 font-mono focus:outline-none focus:border-sky-500 resize-y"
+                  />
+
+                  {preview300x100Mobile && (
+                    <div className="pt-2 pb-1 px-3 bg-slate-900/90 border border-slate-800 rounded-2xl flex flex-col items-center gap-2">
+                      <span className="text-[10px] text-sky-400 font-semibold">
+                        Khung chạy thử biểu ngữ di động 300×100:
+                      </span>
+                      <MobileBanner300x100
+                        forceShow={true}
+                        previewCode={localAd.banner300x100MobileHtml || DEFAULT_BANNER_300X100_MOBILE_SCRIPT}
                       />
                     </div>
                   )}

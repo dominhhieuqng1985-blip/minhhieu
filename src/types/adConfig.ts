@@ -41,6 +41,19 @@ l.parentNode.insertBefore(s, l);
 })({})
 </script>`;
 
+export const DEFAULT_BANNER_300X100_MOBILE_SCRIPT = `<script>
+(function(ozrqy){
+var d = document,
+    s = d.createElement('script'),
+    l = d.currentScript || d.scripts[d.scripts.length - 1];
+s.settings = ozrqy || {};
+s.src = "\\/\\/fond-appointment.com\\/b_X\\/VXs.doGilc0CY\\/W_cW\\/NeKmF9bu\\/ZVUzlfkTP\\/TKct1wOVDWE_xVNKDBEothNozhUG4nMCTlE\\/0ENjQd";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})
+</script>`;
+
 export interface AdSettings {
   enabled: boolean;
   videoUrl: string;
@@ -66,6 +79,8 @@ export interface AdSettings {
   extraVastTagUrls?: string; // Danh sách nhiều link VAST luân phiên (mỗi dòng 1 URL)
   banner300x250Html?: string;
   enableBanner300x250?: boolean;
+  banner300x100MobileHtml?: string;
+  enableBanner300x100Mobile?: boolean;
   videoSliderHtml?: string;
   enableVideoSlider?: boolean;
   customAdCodeType?: 'vast' | 'html' | 'js';
@@ -106,6 +121,8 @@ export const DEFAULT_AD_SETTINGS: AdSettings = {
   extraVastTagUrls: '',
   banner300x250Html: DEFAULT_BANNER_300X250_SCRIPT,
   enableBanner300x250: true,
+  banner300x100MobileHtml: DEFAULT_BANNER_300X100_MOBILE_SCRIPT,
+  enableBanner300x100Mobile: true,
   videoSliderHtml: DEFAULT_VIDEO_SLIDER_SCRIPT,
   enableVideoSlider: true,
   customAdCodeType: 'vast',
@@ -211,6 +228,14 @@ export function normalizeAdSettings(raw?: Partial<AdSettings> | Record<string, u
       : typeof merged.enableBanner300x250 === 'boolean'
       ? merged.enableBanner300x250
       : DEFAULT_AD_SETTINGS.enableBanner300x250,
+    banner300x100MobileHtml:
+      typeof merged.banner300x100MobileHtml === 'string' && merged.banner300x100MobileHtml.trim()
+        ? merged.banner300x100MobileHtml
+        : DEFAULT_BANNER_300X100_MOBILE_SCRIPT,
+    enableBanner300x100Mobile:
+      typeof merged.enableBanner300x100Mobile === 'boolean'
+        ? merged.enableBanner300x100Mobile
+        : DEFAULT_AD_SETTINGS.enableBanner300x100Mobile,
     videoSliderHtml: rawSlider,
     enableVideoSlider:
       typeof merged.enableVideoSlider === 'boolean'

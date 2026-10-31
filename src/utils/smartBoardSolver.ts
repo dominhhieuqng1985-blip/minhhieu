@@ -1189,11 +1189,44 @@ export function solveProblemLocally(params: {
   grade: number;
   subject: string;
   studentName?: string;
+  hasImage?: boolean;
 }): SolvedBoardResult {
-  const { prompt, grade, subject, studentName = 'em' } = params;
+  const { prompt, grade, subject, studentName = 'em', hasImage = false } = params;
   const cleanPrompt = (prompt || '').trim();
 
   if (!cleanPrompt) {
+    if (hasImage) {
+      return {
+        boardTitle: `Nhận Diện Ảnh Bài Tập Lớp ${grade} • Hướng Dẫn Giải`,
+        subject,
+        extractedText: 'Hình ảnh đề bài đã được tải lên bảng thành công (đang chờ phân tích hoặc kết nối AI).',
+        coreConcept: 'Đọc kỹ dữ kiện từ tài liệu ảnh và phân tích từng bước giải',
+        steps: [
+          {
+            stepNumber: 1,
+            title: 'Bước 1: Tiếp nhận hình ảnh tài liệu bài tập',
+            content: 'Thầy đã nhận được ảnh đề bài của em trên bảng học thông minh.',
+          },
+          {
+            stepNumber: 2,
+            title: 'Bước 2: Giải tự động bằng Gemini Vision trên GitHub Pages',
+            content:
+              'Để hệ thống tự động đọc chữ và giải chi tiết từng bước từ ảnh khi chạy trên GitHub Pages, em hãy bấm nút 🔑 "Cài Key Gemini" trên thanh công cụ và dán mã API Key miễn phí (từ Google AI Studio).',
+          },
+          {
+            stepNumber: 3,
+            title: 'Bước 3: Hoặc gõ nhanh đề bài vào ô bên dưới',
+            content:
+              'Em cũng có thể gõ nhanh phép tính (ví dụ: 125 + 45, tìm x: 2x = 20) hoặc câu trắc nghiệm (A, B, C, D) vào ô câu hỏi, Thầy sẽ tính và vẽ bảng giải ngay trong 0.01 giây!',
+          },
+        ],
+        finalAnswer: 'Đã sẵn sàng giải bài: Hãy nhập Key Gemini để quét ảnh tự động, hoặc gõ nhanh câu hỏi vào ô bên dưới nhé!',
+        teacherAdvice: 'Nhập Gemini API Key một lần duy nhất là có thể dùng mãi mãi trên mọi thiết bị!',
+        spokenExplanation: `Chào ${studentName}! Thầy đã nhận ảnh đề bài của em rồi. Em hãy bấm nút cài đặt Key Gemini hoặc gõ nhanh câu hỏi để thầy giải chi tiết ngay nhé!`,
+        isExactDeterministic: false,
+      };
+    }
+
     return {
       boardTitle: `Bảng Xanh Lớp ${grade} • Phân Tích Đề Bài`,
       subject,

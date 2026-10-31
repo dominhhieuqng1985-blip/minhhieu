@@ -4,6 +4,7 @@ import {
   AdSettings,
   WatermarkSettings,
   DEFAULT_BANNER_300X250_SCRIPT,
+  DEFAULT_BANNER_300X100_MOBILE_SCRIPT,
   getStoredAdSettings,
   getStoredWatermarkSettings,
   normalizeAdSettings,
@@ -219,6 +220,135 @@ export const StandaloneBanner300x250: React.FC<{
           </div>
           <div className="w-[300px] min-h-[250px] flex items-center justify-center overflow-hidden bg-slate-900/40">
             <AdScriptRunner code={activeCode} width={300} height={250} />
+          </div>
+        </div>
+      </div>
+    </AdSlotErrorBoundary>
+  );
+});
+
+/**
+ * Standalone Mobile 300x100 MultiTag Ad Slot (ozrqy / fond-appointment.com)
+ * Specially optimized and positioned for mobile viewports.
+ * Seamless, responsive and safely isolated with AdSlotErrorBoundary.
+ */
+export const MobileBanner300x100: React.FC<{
+  className?: string;
+  forceShow?: boolean;
+  previewCode?: string;
+  showDismiss?: boolean;
+}> = React.memo(({ className = '', forceShow = false, previewCode, showDismiss = false }) => {
+  const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
+  const [isDismissed, setIsDismissed] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleUpdate = (e: Event) => {
+      const customEv = e as CustomEvent;
+      if (customEv.detail?.adSettings) {
+        setAdSettings(normalizeAdSettings(customEv.detail.adSettings));
+      } else {
+        setAdSettings(getStoredAdSettings());
+      }
+    };
+    window.addEventListener(AD_SETTINGS_UPDATED_EVENT, handleUpdate);
+    return () => window.removeEventListener(AD_SETTINGS_UPDATED_EVENT, handleUpdate);
+  }, []);
+
+  if (isDismissed && !forceShow) return null;
+
+  const activeCode =
+    typeof previewCode === 'string' && previewCode.trim()
+      ? previewCode
+      : adSettings.banner300x100MobileHtml && adSettings.banner300x100MobileHtml.trim()
+      ? adSettings.banner300x100MobileHtml
+      : DEFAULT_BANNER_300X100_MOBILE_SCRIPT;
+
+  if (!forceShow && (!adSettings.enabled || adSettings.enableBanner300x100Mobile === false || !activeCode.trim())) {
+    return null;
+  }
+
+  return (
+    <AdSlotErrorBoundary>
+      <div className={`w-full max-w-[320px] mx-auto flex flex-col items-center justify-center my-2 ${className}`}>
+        <div className="w-[300px] min-h-[100px] rounded-xl overflow-hidden bg-slate-950/90 border border-slate-800/80 shadow-lg flex flex-col items-center justify-center select-none relative">
+          <div className="w-full px-2.5 py-0.5 bg-slate-950/95 border-b border-slate-800/70 flex items-center justify-between text-[10px] text-slate-400">
+            <span className="font-semibold text-amber-400/90 flex items-center gap-1">
+              <span>Quảng cáo · Mobile 300×100</span>
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] text-slate-500 font-mono">Sponsored</span>
+              {showDismiss && (
+                <button
+                  type="button"
+                  onClick={() => setIsDismissed(true)}
+                  className="p-0.5 text-slate-500 hover:text-white transition-colors"
+                  title="Đóng quảng cáo"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="w-[300px] min-h-[100px] flex items-center justify-center overflow-hidden bg-slate-900/50">
+            <AdScriptRunner code={activeCode} width={300} height={100} />
+          </div>
+        </div>
+      </div>
+    </AdSlotErrorBoundary>
+  );
+});
+
+/**
+ * Sticky Bottom Mobile Ad Banner (300x100)
+ * Floats comfortably at the bottom on mobile devices with an easy dismiss button.
+ */
+export const MobileStickyBottomBanner: React.FC<{
+  className?: string;
+}> = React.memo(({ className = '' }) => {
+  const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
+  const [isDismissed, setIsDismissed] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleUpdate = (e: Event) => {
+      const customEv = e as CustomEvent;
+      if (customEv.detail?.adSettings) {
+        setAdSettings(normalizeAdSettings(customEv.detail.adSettings));
+      } else {
+        setAdSettings(getStoredAdSettings());
+      }
+    };
+    window.addEventListener(AD_SETTINGS_UPDATED_EVENT, handleUpdate);
+    return () => window.removeEventListener(AD_SETTINGS_UPDATED_EVENT, handleUpdate);
+  }, []);
+
+  if (isDismissed) return null;
+
+  const activeCode =
+    adSettings.banner300x100MobileHtml && adSettings.banner300x100MobileHtml.trim()
+      ? adSettings.banner300x100MobileHtml
+      : DEFAULT_BANNER_300X100_MOBILE_SCRIPT;
+
+  if (!adSettings.enabled || adSettings.enableBanner300x100Mobile === false || !activeCode.trim()) {
+    return null;
+  }
+
+  return (
+    <AdSlotErrorBoundary>
+      <div className={`md:hidden fixed bottom-2 inset-x-0 z-40 px-2 flex justify-center pointer-events-none ${className}`}>
+        <div className="pointer-events-auto bg-slate-950/95 border border-amber-500/30 rounded-xl shadow-2xl p-1.5 flex flex-col items-center relative backdrop-blur-md">
+          <div className="w-full flex items-center justify-between pb-1 px-1 text-[9px] text-slate-400">
+            <span className="text-amber-400 font-semibold">Tài trợ · 300×100</span>
+            <button
+              type="button"
+              onClick={() => setIsDismissed(true)}
+              className="p-0.5 text-slate-400 hover:text-white rounded"
+              title="Đóng quảng cáo"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="w-[300px] min-h-[100px] overflow-hidden flex items-center justify-center">
+            <AdScriptRunner code={activeCode} width={300} height={100} />
           </div>
         </div>
       </div>
@@ -1074,3 +1204,14 @@ export const AdcashRectangle300x250: React.FC<{
 }> = ({ className = '' }) => (
   <StandaloneBanner300x250 className={className} />
 );
+
+/**
+ * Convenience helper for Display 300x100 Mobile Banner (Standalone ozrqy)
+ */
+export const AdcashMobileBanner300x100: React.FC<{
+  className?: string;
+  showDismiss?: boolean;
+}> = ({ className = '', showDismiss = false }) => (
+  <MobileBanner300x100 className={className} showDismiss={showDismiss} />
+);
+

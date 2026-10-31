@@ -72,6 +72,8 @@ import {
   AdcashBanner,
   AdcashVideoSlider,
   StandaloneBanner300x250,
+  MobileBanner300x100,
+  MobileStickyBottomBanner,
   CustomHtmlJsAdSlot,
   AdSlotErrorBoundary,
 } from './components/AdcashBanner';
@@ -1641,9 +1643,16 @@ function AppContent() {
 
         {/* Column 2: Center Main Content Workspace */}
         <div className="flex-1 min-w-0 p-3 sm:p-5 lg:p-6 space-y-6">
-          {/* Adcash Display Banner 728x90 (Zone 12358102) - Strictly hidden in Kids Learning */}
+          {/* Adcash Display Banner: 728x90 on Desktop/Tablet, MultiTag 300x100 on Mobile - Strictly hidden in Kids Learning */}
           {activeNav !== 'kids-learning' && (
-            <AdcashBanner zoneId="12358102" format="728x90" />
+            <>
+              <div className="hidden md:block">
+                <AdcashBanner zoneId="12358102" format="728x90" />
+              </div>
+              <div className="block md:hidden">
+                <MobileBanner300x100 />
+              </div>
+            </>
           )}
 
           {activeNav === 'tiktok' ? (
@@ -2053,9 +2062,14 @@ function AppContent() {
                   />
                 )}
 
-                {/* Standalone 300x250 Banner (ylse) in Player Companion Column - Separated outside YouTubePlayer */}
+                {/* Standalone Banners in Player Companion Column */}
                 <div className="pt-4 flex flex-col items-center gap-3">
-                  <StandaloneBanner300x250 />
+                  <div className="hidden sm:block">
+                    <StandaloneBanner300x250 />
+                  </div>
+                  <div className="block sm:hidden">
+                    <MobileBanner300x100 />
+                  </div>
                   <CustomHtmlJsAdSlot />
                 </div>
               </div>
@@ -2577,6 +2591,8 @@ function AppContent() {
       )}
       {/* Adcash Video Slider (Zone 12358158) - Strictly hidden in Kids Learning */}
       {activeNav !== 'kids-learning' && <AdcashVideoSlider zoneId="12358158" />}
+      {/* Mobile Sticky Bottom Banner (300x100) - Strictly hidden in Kids Learning */}
+      {activeNav !== 'kids-learning' && <MobileStickyBottomBanner />}
     </div>
   );
 }

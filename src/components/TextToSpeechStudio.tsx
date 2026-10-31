@@ -57,7 +57,7 @@ import {
 import { hasBackend, isStaticHost, getCustomBackendUrl } from '../utils/api';
 import { VoiceManagerModal } from './VoiceManagerModal';
 import { EverAiProxyModal } from './EverAiProxyModal';
-import { StandaloneBanner300x250 } from './AdcashBanner';
+import { StandaloneBanner300x250, MobileBanner300x100 } from './AdcashBanner';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import {
   ADMIN_SETTINGS_SYNCED_EVENT,
@@ -1182,9 +1182,14 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
             </div>
           )}
 
-          {/* Prioritized Standalone 300x250 Banner (ylse) in TTS Sidebar Column */}
-          <div className="pt-1 flex justify-center">
-            <StandaloneBanner300x250 />
+          {/* Prioritized Standalone Banners in TTS Sidebar Column */}
+          <div className="pt-1 flex flex-col items-center">
+            <div className="hidden sm:block">
+              <StandaloneBanner300x250 />
+            </div>
+            <div className="block sm:hidden">
+              <MobileBanner300x100 />
+            </div>
           </div>
         </div>
       </div>

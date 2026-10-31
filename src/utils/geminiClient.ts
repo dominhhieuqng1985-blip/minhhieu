@@ -115,6 +115,154 @@ export async function callGeminiDirectClient(options: {
   return text;
 }
 
+export interface ClientHomeworkSolution {
+  boardTitle: string;
+  subject: string;
+  extractedText: string;
+  coreConcept: string;
+  steps: {
+    stepNumber: number;
+    title: string;
+    content: string;
+    formula?: string;
+  }[];
+  finalAnswer: string;
+  teacherAdvice: string;
+  spokenExplanation: string;
+  englishPhrase?: string;
+  phoneticIpa?: string;
+  englishExamples?: { en: string; ipa?: string; vi: string }[];
+}
+
+/**
+ * Direct Client-Side Multimodal Vision & Homework Solver for GitHub Pages
+ * Runs 100% in browser with no backend server required!
+ */
+export async function solveHomeworkWithGeminiClient(options: {
+  imageBase64?: string;
+  mimeType?: string;
+  prompt?: string;
+  grade: number;
+  subject: string;
+  studentName?: string;
+  apiKey?: string;
+}): Promise<ClientHomeworkSolution> {
+  const key = options.apiKey || getClientGeminiKey();
+  if (!key) {
+    throw new Error('Chưa cấu hình Gemini API Key cho máy khách GitHub Pages.');
+  }
+
+  const {
+    imageBase64,
+    mimeType = 'image/jpeg',
+    prompt = '',
+    grade = 3,
+    subject = 'toan',
+    studentName = 'em',
+  } = options;
+
+  let cleanBase64 = '';
+  if (imageBase64) {
+    cleanBase64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+  }
+
+  const promptText = (prompt || '').trim();
+  const isLongProblem = promptText.length > 500;
+
+  const instructions = `Bạn là Thầy giáo giỏi chuyên môn, chuẩn xác và tận tâm trong lớp học trực quan "Thầy Giáo & Tấm Bảng Thông Minh" cho học sinh Lớp ${grade} Việt Nam (Môn: ${subject}).
+Học sinh tên là: "${studentName}".
+${cleanBase64 ? 'ĐẶC BIỆT: Hãy đọc kỹ toàn bộ chữ viết, phương trình, hình vẽ và câu hỏi trong hình ảnh tài liệu đính kèm.' : ''}
+${promptText ? `CÂU HỎI / GHI CHÚ BỔ SUNG CỦA HỌC SINH:\n"""\n${promptText}\n"""` : ''}
+
+QUY TẮC BẮT BUỘC:
+1. KHÔNG TRẢ LỜI CHUNG CHUNG: Tính toán cụ thể từng con số và đưa ra KẾT QUẢ CHÍNH XÁC CUỐI CÙNG.
+2. VỚI PHÉP TÍNH & BÀI TOÁN: Phân tích phép tính cụ thể và ghi rõ đáp số cuối cùng (ví dụ: "Kết quả cuối cùng: 2 (1 + 1 = 2)").
+3. VỚI CÂU HỎI TRẮC NGHIỆM: Trong "finalAnswer" BẮT BUỘC ghi rõ chữ cái của đáp án đúng (ví dụ: "Chọn đáp án C (...nội dung...)").
+4. ĐỊNH DẠNG JSON TRẢ VỀ: Bắt buộc trả về đúng cấu trúc JSON sau (không bọc trong thẻ markdown khác):
+{
+  "boardTitle": "Tiêu đề dạng bài (Ví dụ: Toán Lớp 4: Tìm Hai Số Khi Biết Tổng Và Hiệu)",
+  "subject": "${subject}",
+  "extractedText": "Nội dung đề bài đọc được từ ảnh hoặc câu hỏi học sinh",
+  "coreConcept": "Công thức hoặc định lý trọng tâm áp dụng",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "title": "Bước 1: ...",
+      "content": "Lời giải chi tiết...",
+      "formula": "Phép tính hoặc công thức (nếu có)"
+    }
+  ],
+  "finalAnswer": "Kết luận đáp số cuối cùng...",
+  "teacherAdvice": "Lời khuyên của Thầy cho học sinh...",
+  "spokenExplanation": "Lời giảng tự nhiên ngắn gọn bằng tiếng Việt đọc to cho học sinh nghe..."
+}`;
+
+  const parts: any[] = [];
+  if (cleanBase64) {
+    parts.push({
+      inlineData: {
+        mimeType,
+        data: cleanBase64,
+      },
+    });
+  }
+  parts.push({ text: instructions });
+
+  const modelsToTry = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+  let lastError: Error | null = null;
+
+  for (const model of modelsToTry) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
+        key
+      )}`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: {
+            temperature: 0.15,
+            maxOutputTokens: 8192,
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson?.error?.message || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) throw new Error('Không nhận được nội dung từ Gemini.');
+
+      const cleanJson = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+      const parsed = JSON.parse(cleanJson);
+
+      return {
+        boardTitle: parsed.boardTitle || `Bài Giải Chi Tiết • Lớp ${grade}`,
+        subject: parsed.subject || subject,
+        extractedText: parsed.extractedText || promptText || 'Đề bài từ ảnh tài liệu',
+        coreConcept: parsed.coreConcept || '',
+        steps: Array.isArray(parsed.steps) ? parsed.steps : [],
+        finalAnswer: parsed.finalAnswer || '',
+        teacherAdvice: parsed.teacherAdvice || '',
+        spokenExplanation: parsed.spokenExplanation || '',
+        englishPhrase: parsed.englishPhrase,
+        phoneticIpa: parsed.phoneticIpa,
+        englishExamples: parsed.englishExamples,
+      };
+    } catch (err: any) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('Không thể giải bài qua Gemini Vision Client.');
+}
+
 /**
  * High-Fidelity Client-Side Smart Offline AI Generator
  * Produces deep, tailored Vietnamese analysis for any episode when deployed on static GitHub Pages without an API key.
