@@ -193,8 +193,9 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "durationSeconds": 328,
     "thumbnail": "https://i.ytimg.com/vi/v9_PxCgnDuc/hqdefault.jpg",
     "description": "Mùa lúa chín không anh - Kênh Minh Hiếu Official VN.",
-    "publishedDate": "Mới cập nhật",
+    "publishedDate": "Video chính thức",
     "isShort": false,
+    "views": "10 lượt xem",
     "id": "mh-v9"
   },
   {
@@ -214,14 +215,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "hUBBxFRsKW4",
-    "title": "Chuyến đò không đợi",
+    "title": "Chuyến đò không đ��i",
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "05:04",
     "durationSeconds": 304,
     "thumbnail": "https://i.ytimg.com/vi/hUBBxFRsKW4/hqdefault.jpg",
-    "description": "Chuyến đò không đợi - Kênh Minh Hiếu Official VN.",
+    "description": "Chuyến đò không đ��i - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "6 lượt xem",
@@ -314,7 +315,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Cổ Đại Dùng Kiến Thức Hiện Đại Chế Tạo Thần Khí, Khiến Cả Hoàng Tộc Phải Quỳ Phục - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "8 lượt xem",
+    "views": "9 lượt xem",
     "id": "mh-v17"
   },
   {
