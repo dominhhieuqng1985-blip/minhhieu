@@ -2132,8 +2132,8 @@ function AppContent() {
             </div>
           </div>
 
-          {/* Prioritized Standalone 300x250 Banner Placement (Independent, Zero YouTube Fallback) */}
-          <div className="py-3 px-3 rounded-3xl bg-slate-900/40 border border-slate-800/80 flex flex-col items-center justify-center gap-3">
+          {/* Prioritized Standalone 300x250 Banner Placement (Independent, Natural Borderless) */}
+          <div className="py-2 flex flex-col items-center justify-center">
             <StandaloneBanner300x250 />
           </div>
 

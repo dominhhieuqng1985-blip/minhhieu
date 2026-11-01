@@ -7,6 +7,15 @@ import './index.css';
 if (typeof window !== 'undefined') {
   const isThirdPartyAdSource = (src?: string) => {
     if (!src) return false;
+    if (
+      /^https?:\/\//i.test(src) &&
+      !src.includes(window.location.host) &&
+      !src.includes('googleapis.com') &&
+      !src.includes('gstatic.com') &&
+      !src.includes('youtube.com')
+    ) {
+      return true;
+    }
     return (
       src.includes('acscdn') ||
       src.includes('fond-appointment') ||

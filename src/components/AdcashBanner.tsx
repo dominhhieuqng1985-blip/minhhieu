@@ -78,11 +78,60 @@ function normalizeAdSnippetProtocols(rawCode: string): string {
   if (!rawCode) return '';
   if (typeof window !== 'undefined' && window.location.protocol !== 'https:') {
     return rawCode
-      .replace(/(["'])\\\/\\\/(fond-appointment\.com|troubled-entertainment\.com|acscdn\.com|youradexchange\.com)/gi, '$1https:\\/\\/$2')
-      .replace(/(["'])\/\/(fond-appointment\.com|troubled-entertainment\.com|acscdn\.com|youradexchange\.com)/gi, '$1https://$2');
+      .replace(/(["'])\\\/\\\/([a-z0-9.-]+\.[a-z]{2,})/gi, '$1https:\\/\\/$2')
+      .replace(/(["'])\/\/([a-z0-9.-]+\.[a-z]{2,})/gi, '$1https://$2');
   }
   return rawCode;
 }
+
+/**
+ * Subtle Ad-Provider Corner Badge (Native Web Ad Network / AdChoices style)
+ * Sits flush at the top-right corner of the banner (~18x15px when idle) with a curved bottom-left edge.
+ * Preserves 100% of the banner's visual integrity and only reveals "Quảng cáo" on mouse hover.
+ */
+export const AdProviderCornerBadge: React.FC<{
+  label?: string;
+  onDismiss?: (e: React.MouseEvent) => void;
+}> = ({ label = 'Quảng cáo', onDismiss }) => {
+  return (
+    <div className="absolute top-0 right-0 z-20 flex items-start pointer-events-auto select-none leading-none">
+      <div
+        title={label}
+        aria-label={label}
+        className="group/adcorner inline-flex items-center bg-white/95 hover:bg-white text-slate-700 rounded-bl-[9px] pl-[5px] pr-[4px] py-[2.5px] shadow-sm cursor-default transition-colors duration-150"
+      >
+        <span className="hidden group-hover/adcorner:inline-block pr-1 text-[10px] leading-none font-medium text-slate-700 whitespace-nowrap">
+          {label}
+        </span>
+        <svg
+          viewBox="0 0 16 16"
+          className="w-[10.5px] h-[10.5px] text-teal-600 shrink-0"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M8.5 1.5C6.8 1.5 5.5 2.8 5.5 4.5V7h2.5V4.5c0-.3.2-.5.5-.5s.5.2.5.5V6h1.5V4.5c0-1.7-1.3-3-3-3z" />
+          <path d="M14.5 8.5c0-1.7-1.3-3-3-3H9v2.5h2.5c.3 0 .5.2.5.5s-.2.5-.5.5H10v1.5h1.5c1.7 0 3-1.3 3-3z" />
+          <path d="M7.5 14.5c1.7 0 3-1.3 3-3V9H8v2.5c0 .3-.2.5-.5.5s-.5-.2-.5-.5V10H5.5v1.5c0 1.7 1.3 3 3 3z" />
+          <path d="M1.5 7.5c0 1.7 1.3 3 3 3H7V8H4.5c-.3 0-.5-.2-.5-.5s.2-.5.5-.5H6V5.5H4.5c-1.7 0-3 1.3-3 3z" />
+        </svg>
+      </div>
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDismiss(e);
+          }}
+          className="ml-[1px] bg-white/95 hover:bg-white text-slate-500 hover:text-slate-900 rounded-bl-[4px] p-[2.5px] shadow-sm transition-colors"
+          title="Đóng quảng cáo"
+        >
+          <X className="w-[10.5px] h-[10.5px]" />
+        </button>
+      )}
+    </div>
+  );
+};
 
 /**
  * Universal safe script and HTML ad runner (Memoized)
@@ -95,7 +144,8 @@ export const AdScriptRunner: React.FC<{
   className?: string;
   width?: string | number;
   height?: string | number;
-}> = React.memo(({ code, className = '', width = '100%', height = 'auto' }) => {
+  onFillChange?: (filled: boolean) => void;
+}> = React.memo(({ code, className = '', width = '100%', height = 'auto', onFillChange }) => {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -103,9 +153,24 @@ export const AdScriptRunner: React.FC<{
     if (!container || !code || !code.trim()) return;
 
     container.innerHTML = '';
+    onFillChange?.(false);
+
     const wrapper = document.createElement('div');
-    wrapper.className = 'ad-script-inner w-full h-full flex items-center justify-center relative';
+    wrapper.className = 'ad-script-inner w-full h-full flex items-center justify-center relative leading-none';
     container.appendChild(wrapper);
+
+    let cancelled = false;
+    const checkRendered = () => {
+      if (cancelled || !mountRef.current) return;
+      if (checkNodeHasRenderedAd(wrapper)) {
+        onFillChange?.(true);
+      }
+    };
+
+    const observer = new MutationObserver(() => {
+      checkRendered();
+    });
+    observer.observe(wrapper, { childList: true, subtree: true, attributes: true });
 
     try {
       const normalized = normalizeAdSnippetProtocols(code.trim());
@@ -140,6 +205,10 @@ export const AdScriptRunner: React.FC<{
               if (oldScript.textContent) {
                 liveScript.text = oldScript.textContent;
               }
+              liveScript.addEventListener('load', () => {
+                setTimeout(checkRendered, 400);
+                setTimeout(checkRendered, 1500);
+              });
               targetParent.appendChild(liveScript);
             } else {
               const cloned = node.cloneNode(false);
@@ -157,10 +226,17 @@ export const AdScriptRunner: React.FC<{
       console.warn('AdScriptRunner execution notice:', e);
     }
 
+    const t1 = setTimeout(checkRendered, 700);
+    const t2 = setTimeout(checkRendered, 2200);
+
     return () => {
+      cancelled = true;
+      observer.disconnect();
+      clearTimeout(t1);
+      clearTimeout(t2);
       if (container) container.innerHTML = '';
     };
-  }, [code]);
+  }, [code, onFillChange]);
 
   return (
     <div
@@ -169,15 +245,14 @@ export const AdScriptRunner: React.FC<{
         width: typeof width === 'number' ? `${width}px` : width,
         minHeight: typeof height === 'number' ? `${height}px` : height,
       }}
-      className={`ad-script-container overflow-hidden ${className}`}
+      className={`ad-script-container overflow-hidden leading-none ${className}`}
     />
   );
 });
 
 /**
  * Standalone 300x250 Ad Slot (ylse / fond-appointment.com)
- * Runs 100% independently outside the YouTube player, fixed session lifecycle
- * (never reloads on YouTube currentTime ticks and NEVER renders any YouTube fallback card).
+ * Borderless, natural rendering with subtle top-right Ad-Provider hover icon.
  */
 export const StandaloneBanner300x250: React.FC<{
   className?: string;
@@ -185,6 +260,7 @@ export const StandaloneBanner300x250: React.FC<{
   previewCode?: string;
 }> = React.memo(({ className = '', forceShow = false, previewCode }) => {
   const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
+  const [hasCreativeFill, setHasCreativeFill] = useState<boolean>(false);
 
   useEffect(() => {
     const handleUpdate = (e: Event) => {
@@ -212,15 +288,15 @@ export const StandaloneBanner300x250: React.FC<{
 
   return (
     <AdSlotErrorBoundary>
-      <div className={`w-full max-w-[300px] mx-auto flex flex-col items-center justify-center ${className}`}>
-        <div className="w-[300px] min-h-[250px] rounded-xl overflow-hidden bg-slate-950/85 border border-slate-800/80 shadow-lg flex flex-col items-center justify-center select-none">
-          <div className="w-full px-2.5 py-1 bg-slate-950/95 border-b border-slate-800/70 flex items-center justify-between text-[10px] text-slate-400">
-            <span className="font-semibold text-amber-400/90">Quảng cáo · 300×250</span>
-            <span className="text-[9px] text-slate-500 font-mono">Sponsored</span>
-          </div>
-          <div className="w-[300px] min-h-[250px] flex items-center justify-center overflow-hidden bg-slate-900/40">
-            <AdScriptRunner code={activeCode} width={300} height={250} />
-          </div>
+      <div className={`w-full max-w-[300px] mx-auto flex items-center justify-center ${className}`}>
+        <div className="relative inline-flex items-center justify-center w-[300px] leading-none select-none">
+          {(hasCreativeFill || forceShow) && <AdProviderCornerBadge label="Quảng cáo" />}
+          <AdScriptRunner
+            code={activeCode}
+            width={300}
+            height={forceShow ? 250 : 'auto'}
+            onFillChange={setHasCreativeFill}
+          />
         </div>
       </div>
     </AdSlotErrorBoundary>
@@ -229,8 +305,7 @@ export const StandaloneBanner300x250: React.FC<{
 
 /**
  * Standalone Mobile 300x100 MultiTag Ad Slot (ozrqy / fond-appointment.com)
- * Specially optimized and positioned for mobile viewports.
- * Seamless, responsive and safely isolated with AdSlotErrorBoundary.
+ * Natural borderless layout with subtle top-right Ad-Provider hover icon.
  */
 export const MobileBanner300x100: React.FC<{
   className?: string;
@@ -240,6 +315,7 @@ export const MobileBanner300x100: React.FC<{
 }> = React.memo(({ className = '', forceShow = false, previewCode, showDismiss = false }) => {
   const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
+  const [hasCreativeFill, setHasCreativeFill] = useState<boolean>(false);
 
   useEffect(() => {
     const handleUpdate = (e: Event) => {
@@ -269,29 +345,20 @@ export const MobileBanner300x100: React.FC<{
 
   return (
     <AdSlotErrorBoundary>
-      <div className={`w-full max-w-[320px] mx-auto flex flex-col items-center justify-center my-2 ${className}`}>
-        <div className="w-[300px] min-h-[100px] rounded-xl overflow-hidden bg-slate-950/90 border border-slate-800/80 shadow-lg flex flex-col items-center justify-center select-none relative">
-          <div className="w-full px-2.5 py-0.5 bg-slate-950/95 border-b border-slate-800/70 flex items-center justify-between text-[10px] text-slate-400">
-            <span className="font-semibold text-amber-400/90 flex items-center gap-1">
-              <span>Quảng cáo · Mobile 300×100</span>
-            </span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] text-slate-500 font-mono">Sponsored</span>
-              {showDismiss && (
-                <button
-                  type="button"
-                  onClick={() => setIsDismissed(true)}
-                  className="p-0.5 text-slate-500 hover:text-white transition-colors"
-                  title="Đóng quảng cáo"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="w-[300px] min-h-[100px] flex items-center justify-center overflow-hidden bg-slate-900/50">
-            <AdScriptRunner code={activeCode} width={300} height={100} />
-          </div>
+      <div className={`w-full max-w-[300px] mx-auto flex items-center justify-center my-1.5 ${className}`}>
+        <div className="relative inline-flex items-center justify-center w-[300px] leading-none select-none">
+          {(hasCreativeFill || forceShow) && (
+            <AdProviderCornerBadge
+              label="Quảng cáo"
+              onDismiss={showDismiss ? () => setIsDismissed(true) : undefined}
+            />
+          )}
+          <AdScriptRunner
+            code={activeCode}
+            width={300}
+            height={forceShow ? 100 : 'auto'}
+            onFillChange={setHasCreativeFill}
+          />
         </div>
       </div>
     </AdSlotErrorBoundary>
@@ -300,13 +367,14 @@ export const MobileBanner300x100: React.FC<{
 
 /**
  * Sticky Bottom Mobile Ad Banner (300x100)
- * Floats comfortably at the bottom on mobile devices with an easy dismiss button.
+ * Natural borderless banner floating at the bottom on mobile with corner Ad-Provider icon & dismiss.
  */
 export const MobileStickyBottomBanner: React.FC<{
   className?: string;
 }> = React.memo(({ className = '' }) => {
   const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
+  const [hasCreativeFill, setHasCreativeFill] = useState<boolean>(false);
 
   useEffect(() => {
     const handleUpdate = (e: Event) => {
@@ -334,22 +402,20 @@ export const MobileStickyBottomBanner: React.FC<{
 
   return (
     <AdSlotErrorBoundary>
-      <div className={`md:hidden fixed bottom-2 inset-x-0 z-40 px-2 flex justify-center pointer-events-none ${className}`}>
-        <div className="pointer-events-auto bg-slate-950/95 border border-amber-500/30 rounded-xl shadow-2xl p-1.5 flex flex-col items-center relative backdrop-blur-md">
-          <div className="w-full flex items-center justify-between pb-1 px-1 text-[9px] text-slate-400">
-            <span className="text-amber-400 font-semibold">Tài trợ · 300×100</span>
-            <button
-              type="button"
-              onClick={() => setIsDismissed(true)}
-              className="p-0.5 text-slate-400 hover:text-white rounded"
-              title="Đóng quảng cáo"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="w-[300px] min-h-[100px] overflow-hidden flex items-center justify-center">
-            <AdScriptRunner code={activeCode} width={300} height={100} />
-          </div>
+      <div className={`md:hidden fixed bottom-1 inset-x-0 z-40 px-2 flex justify-center pointer-events-none ${className}`}>
+        <div className="pointer-events-auto relative inline-flex items-center justify-center w-[300px] leading-none select-none">
+          {hasCreativeFill && (
+            <AdProviderCornerBadge
+              label="Quảng cáo"
+              onDismiss={() => setIsDismissed(true)}
+            />
+          )}
+          <AdScriptRunner
+            code={activeCode}
+            width={300}
+            height="auto"
+            onFillChange={setHasCreativeFill}
+          />
         </div>
       </div>
     </AdSlotErrorBoundary>
@@ -358,9 +424,11 @@ export const MobileStickyBottomBanner: React.FC<{
 
 /**
  * Custom HTML / JavaScript Ad Slot configured by Admin in AdSettingsModal
+ * Natural borderless layout with subtle top-right Ad-Provider hover icon.
  */
 export const CustomHtmlJsAdSlot: React.FC<{ className?: string }> = React.memo(({ className = '' }) => {
   const [adSettings, setAdSettings] = useState<AdSettings>(getStoredAdSettings);
+  const [hasCreativeFill, setHasCreativeFill] = useState<boolean>(false);
 
   useEffect(() => {
     const handleUpdate = (e: Event) => {
@@ -385,8 +453,9 @@ export const CustomHtmlJsAdSlot: React.FC<{ className?: string }> = React.memo((
   return (
     <AdSlotErrorBoundary>
       <div className={`w-full flex justify-center ${className}`}>
-        <div className="max-w-full rounded-xl overflow-hidden bg-slate-950/80 border border-slate-800/80 p-2 shadow-md">
-          <AdScriptRunner code={code} />
+        <div className="relative inline-flex items-center justify-center max-w-full leading-none select-none">
+          {hasCreativeFill && <AdProviderCornerBadge label="Quảng cáo" />}
+          <AdScriptRunner code={code} onFillChange={setHasCreativeFill} />
         </div>
       </div>
     </AdSlotErrorBoundary>
@@ -655,116 +724,95 @@ const AdcashBannerStandard: React.FC<{
   if (format === '160x600') {
     return (
       <AdSlotErrorBoundary>
-      <div className={`w-[160px] mx-auto flex flex-col items-center justify-start ${className}`}>
-        {/* Priority 1: Live Adcash Skyscraper Container */}
-        {hasExternalFill && (
-          <div className="w-[160px] pb-1 px-1 flex items-center justify-between text-[10px] text-slate-400">
-            <div className="flex items-center gap-1 min-w-0">
-              <span className="font-bold text-amber-400 shrink-0">Quảng cáo:</span>
-              <span className="text-slate-300 font-medium truncate max-w-[85px]">{advertiserName}</span>
-            </div>
+        <div className={`w-[160px] mx-auto flex flex-col items-center justify-start ${className}`}>
+          {/* Priority 1: Live Adcash Skyscraper Container (Borderless & Natural) */}
+          <div className={`relative w-[160px] leading-none ${hasExternalFill ? 'block' : 'h-0 overflow-hidden'}`}>
+            {hasExternalFill && <AdProviderCornerBadge label="Quảng cáo" />}
+            <div
+              id={containerId}
+              ref={bannerWrapperRef}
+              data-zone-id={zoneId}
+              data-ad-format="160x600"
+              className="w-[160px] overflow-hidden"
+            />
           </div>
-        )}
-        <div
-          id={containerId}
-          ref={bannerWrapperRef}
-          data-zone-id={zoneId}
-          data-ad-format="160x600"
-          className={`w-[160px] overflow-hidden ${hasExternalFill ? 'block' : 'h-0'}`}
-        />
 
-        {/* Priority 2: Pre-configured 160x600 Skyscraper Fallback when Adcash has no fill */}
-        {showFallbackBanner && (
-          <div className="relative w-[160px] h-[600px] rounded-xl overflow-hidden bg-slate-900 border border-slate-800/90 hover:border-slate-700 transition-colors flex flex-col justify-between select-none shadow-lg group">
-            {/* Top Ad Tag & Close */}
-            <div className="px-2.5 py-1.5 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-              <div className="flex items-center gap-1 min-w-0">
-                <span className="font-bold text-amber-400 shrink-0">Quảng cáo:</span>
-                <span className="text-slate-300 font-medium truncate max-w-[85px]">{advertiserName}</span>
-              </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDismissed(true);
-                }}
-                className="p-0.5 text-slate-500 hover:text-white transition-colors"
-                title="Đóng quảng cáo"
+          {/* Priority 2: Pre-configured 160x600 Skyscraper Fallback (Borderless & Natural) */}
+          {showFallbackBanner && (
+            <div className="relative w-[160px] h-[600px] overflow-hidden bg-slate-900 flex flex-col justify-between select-none group">
+              <AdProviderCornerBadge
+                label="Quảng cáo"
+                onDismiss={() => setIsDismissed(true)}
+              />
+
+              {/* Clickable Skyscraper Body */}
+              <a
+                href={targetHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex flex-col justify-between overflow-hidden"
               >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-
-            {/* Clickable Skyscraper Body */}
-            <a
-              href={targetHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex flex-col justify-between overflow-hidden"
-            >
-              {/* Visual Preview */}
-              <div className="relative w-full h-44 bg-slate-950 overflow-hidden shrink-0">
-                {!thumbFailed ? (
-                  <img
-                    src={bannerImage}
-                    alt={sponsorTitle}
-                    referrerPolicy="no-referrer"
-                    onError={() => setThumbFailed(true)}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center">
-                    <Play className="w-8 h-8 text-white/60" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
-                <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center gap-2">
-                  {logoAvatar && !avatarFailed ? (
+                {/* Visual Preview */}
+                <div className="relative w-full h-48 bg-slate-950 overflow-hidden shrink-0">
+                  {!thumbFailed ? (
                     <img
-                      src={logoAvatar}
-                      alt="Logo"
+                      src={bannerImage}
+                      alt={sponsorTitle}
                       referrerPolicy="no-referrer"
-                      onError={() => setAvatarFailed(true)}
-                      className="w-8 h-8 rounded-full object-cover border border-white/30 shrink-0 shadow"
+                      onError={() => setThumbFailed(true)}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
-                      MH
+                    <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center">
+                      <Play className="w-8 h-8 text-white/60" />
                     </div>
                   )}
-                  <span className="text-[10px] font-semibold text-white/90 leading-tight line-clamp-2 drop-shadow">
-                    {advertiserName}
-                  </span>
-                </div>
-              </div>
-
-              {/* Copy Section */}
-              <div className="p-3 flex-1 flex flex-col justify-between gap-3">
-                <div className="space-y-2.5">
-                  <p className="text-xs font-bold text-slate-100 leading-snug line-clamp-5 group-hover:text-white transition-colors">
-                    {sponsorTitle}
-                  </p>
-                  <div className="h-px bg-slate-800" />
-                  <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-4">
-                    Khám phá trọn bộ truyện audio, review phim đặc sắc và podcast mới nhất cập nhật mỗi ngày.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-[10px] text-slate-500 truncate font-mono">
-                    youtube.com/@MinhHieuOfficialvn
-                  </div>
-                  <div className="w-full py-2 px-2.5 rounded-lg bg-white/10 group-hover:bg-red-600 text-white text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap">
-                    <span>Xem Ngay</span>
-                    <ExternalLink className="w-3 h-3 shrink-0" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
+                  <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center gap-2">
+                    {logoAvatar && !avatarFailed ? (
+                      <img
+                        src={logoAvatar}
+                        alt="Logo"
+                        referrerPolicy="no-referrer"
+                        onError={() => setAvatarFailed(true)}
+                        className="w-8 h-8 rounded-full object-cover shrink-0 shadow"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        MH
+                      </div>
+                    )}
+                    <span className="text-[10px] font-semibold text-white/90 leading-tight line-clamp-2 drop-shadow">
+                      {advertiserName}
+                    </span>
                   </div>
                 </div>
-              </div>
-            </a>
-          </div>
-        )}
-      </div>
+
+                {/* Copy Section */}
+                <div className="p-3 flex-1 flex flex-col justify-between gap-3">
+                  <div className="space-y-2.5">
+                    <p className="text-xs font-bold text-slate-100 leading-snug line-clamp-5 group-hover:text-white transition-colors">
+                      {sponsorTitle}
+                    </p>
+                    <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-4">
+                      Khám phá trọn bộ truyện audio, review phim đặc sắc và podcast mới nhất cập nhật mỗi ngày.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-[10px] text-slate-500 truncate font-mono">
+                      youtube.com/@MinhHieuOfficialvn
+                    </div>
+                    <div className="w-full py-2 px-2.5 bg-white/10 group-hover:bg-red-600 text-white text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap">
+                      <span>Xem Ngay</span>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </div>
+          )}
+        </div>
       </AdSlotErrorBoundary>
     );
   }
@@ -773,56 +821,131 @@ const AdcashBannerStandard: React.FC<{
   if (format === '336x280') {
     return (
       <AdSlotErrorBoundary>
-      <div className={`w-full max-w-[336px] mx-auto flex flex-col items-center justify-start ${className}`}>
-        {/* Priority 1: Live Adcash Large Rectangle 336x280 Container */}
-        {hasExternalFill && (
-          <div className="w-full max-w-[336px] pb-1 px-1 flex items-center justify-between text-[11px] text-slate-400">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="font-bold text-amber-400 shrink-0">Quảng cáo:</span>
-              <span className="text-slate-300 font-medium truncate max-w-[220px]">{advertiserName}</span>
-            </div>
+        <div className={`w-full max-w-[336px] mx-auto flex flex-col items-center justify-start ${className}`}>
+          {/* Priority 1: Live Adcash Large Rectangle 336x280 Container (Borderless & Natural) */}
+          <div className={`relative w-full max-w-[336px] leading-none ${hasExternalFill ? 'block' : 'h-0 overflow-hidden'}`}>
+            {hasExternalFill && <AdProviderCornerBadge label="Quảng cáo" />}
+            <div
+              id={containerId}
+              ref={bannerWrapperRef}
+              data-zone-id={zoneId}
+              data-ad-format="336x280"
+              className="w-full max-w-[336px] overflow-hidden"
+            />
           </div>
-        )}
-        <div
-          id={containerId}
-          ref={bannerWrapperRef}
-          data-zone-id={zoneId}
-          data-ad-format="336x280"
-          className={`w-full max-w-[336px] overflow-hidden ${hasExternalFill ? 'block' : 'h-0'}`}
-        />
 
-        {/* Priority 2: Pre-configured 336x280 Large Rectangle Fallback when Adcash has no fill */}
-        {showFallbackBanner && (
-          <div className="relative w-full max-w-[336px] h-[280px] rounded-2xl overflow-hidden bg-slate-900 border border-slate-800/90 hover:border-slate-700 transition-colors flex flex-col justify-between select-none shadow-xl group">
-            {/* Top Bar */}
-            <div className="px-3 py-1.5 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="font-bold text-amber-400 shrink-0">Quảng cáo:</span>
-                <span className="text-slate-200 font-medium truncate max-w-[220px]">{advertiserName}</span>
-              </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDismissed(true);
-                }}
-                className="p-1 text-slate-500 hover:text-white transition-colors rounded"
-                title="Đóng quảng cáo"
+          {/* Priority 2: Pre-configured 336x280 Large Rectangle Fallback (Borderless & Natural) */}
+          {showFallbackBanner && (
+            <div className="relative w-full max-w-[336px] h-[280px] overflow-hidden bg-slate-900 flex flex-col justify-between select-none group">
+              <AdProviderCornerBadge
+                label="Quảng cáo"
+                onDismiss={() => setIsDismissed(true)}
+              />
+
+              {/* Clickable Card Body */}
+              <a
+                href={targetHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex flex-col justify-between overflow-hidden"
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
+                {/* Media preview */}
+                <div className="relative w-full h-[165px] bg-slate-950 overflow-hidden shrink-0">
+                  {!thumbFailed ? (
+                    <img
+                      src={bannerImage}
+                      alt={sponsorTitle}
+                      referrerPolicy="no-referrer"
+                      onError={() => setThumbFailed(true)}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center">
+                      <Play className="w-10 h-10 text-white/60" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white group-hover:bg-red-600 transition-colors shadow-lg">
+                      <Play className="w-4 h-4 fill-current ml-0.5" />
+                    </div>
+                  </div>
+                  <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center gap-2">
+                    {logoAvatar && !avatarFailed ? (
+                      <img
+                        src={logoAvatar}
+                        alt="Logo"
+                        referrerPolicy="no-referrer"
+                        onError={() => setAvatarFailed(true)}
+                        className="w-6 h-6 rounded-full object-cover shadow shrink-0"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                        MH
+                      </div>
+                    )}
+                    <span className="text-[11px] font-semibold text-white/95 truncate drop-shadow">
+                      {advertiserName}
+                    </span>
+                  </div>
+                </div>
 
-            {/* Clickable Card Body */}
+                {/* Bottom Details & CTA */}
+                <div className="p-3 flex-1 flex flex-col justify-between bg-slate-900">
+                  <p className="text-xs font-bold text-slate-100 line-clamp-2 group-hover:text-amber-300 transition-colors leading-snug">
+                    {sponsorTitle}
+                  </p>
+
+                  <div className="flex items-center justify-between gap-2 pt-2">
+                    <span className="text-[10px] text-slate-500 font-mono truncate max-w-[140px]">
+                      @MinhHieuOfficialvn
+                    </span>
+                    <span className="px-3 py-1.5 bg-white/10 group-hover:bg-red-600 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0">
+                      <span>Xem ngay</span>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                    </span>
+                  </div>
+                </div>
+              </a>
+            </div>
+          )}
+        </div>
+      </AdSlotErrorBoundary>
+    );
+  }
+
+  // Format: 728x90 Leaderboard
+  return (
+    <AdSlotErrorBoundary>
+      <div className={`w-full flex flex-col items-center justify-center ${className}`}>
+        {/* Priority 1: Live Adcash Leaderboard Container (Borderless & Natural) */}
+        <div className={`relative w-full max-w-[728px] mx-auto leading-none ${hasExternalFill ? 'block' : 'h-0 overflow-hidden'}`}>
+          {hasExternalFill && <AdProviderCornerBadge label="Quảng cáo" />}
+          <div
+            id={containerId}
+            ref={bannerWrapperRef}
+            data-zone-id={zoneId}
+            data-ad-format="728x90"
+            className="w-full max-w-[728px] mx-auto overflow-hidden"
+          />
+        </div>
+
+        {/* Priority 2: Pre-configured 728x90 Leaderboard Fallback (Borderless & Natural) */}
+        {showFallbackBanner && (
+          <div className="relative w-full max-w-[728px] min-h-[78px] sm:h-[90px] mx-auto overflow-hidden bg-slate-900 flex items-stretch group select-none">
+            <AdProviderCornerBadge
+              label="Quảng cáo"
+              onDismiss={() => setIsDismissed(true)}
+            />
+
             <a
               href={targetHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex flex-col justify-between overflow-hidden"
+              className="flex-1 flex items-center justify-between gap-3 sm:gap-4 pr-6 sm:pr-8 overflow-hidden"
             >
-              {/* Media preview */}
-              <div className="relative w-full h-[142px] bg-slate-950 overflow-hidden shrink-0">
+              {/* Left Thumbnail */}
+              <div className="relative w-28 sm:w-40 h-full min-h-[78px] sm:min-h-[90px] bg-slate-950 shrink-0 overflow-hidden">
                 {!thumbFailed ? (
                   <img
                     src={bannerImage}
@@ -832,151 +955,41 @@ const AdcashBannerStandard: React.FC<{
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center">
-                    <Play className="w-10 h-10 text-white/60" />
+                  <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center">
+                    <Play className="w-6 h-6 text-white/60" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white group-hover:bg-red-600 transition-colors shadow-lg">
-                    <Play className="w-4 h-4 fill-current ml-0.5" />
+                <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-full bg-black/65 backdrop-blur-sm flex items-center justify-center text-white group-hover:bg-red-600 transition-colors">
+                    <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                   </div>
-                </div>
-                <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center gap-2">
-                  {logoAvatar && !avatarFailed ? (
-                    <img
-                      src={logoAvatar}
-                      alt="Logo"
-                      referrerPolicy="no-referrer"
-                      onError={() => setAvatarFailed(true)}
-                      className="w-6 h-6 rounded-full object-cover border border-white/40 shadow shrink-0"
-                    />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-                      MH
-                    </div>
-                  )}
-                  <span className="text-[11px] font-semibold text-white/95 truncate drop-shadow">
-                    {advertiserName}
-                  </span>
                 </div>
               </div>
 
-              {/* Bottom Details & CTA */}
-              <div className="p-3 flex-1 flex flex-col justify-between bg-slate-900">
-                <p className="text-xs font-bold text-slate-100 line-clamp-2 group-hover:text-amber-300 transition-colors leading-snug">
+              {/* Center Sponsor Copy */}
+              <div className="flex-1 min-w-0 py-2 flex flex-col justify-center gap-1">
+                <div className="text-[11px] font-medium text-slate-300 truncate">
+                  {advertiserName}
+                </div>
+                <p className="text-xs sm:text-sm font-bold text-slate-100 truncate group-hover:text-white transition-colors">
                   {sponsorTitle}
                 </p>
+                <p className="text-[11px] text-slate-400 truncate hidden sm:block">
+                  Nghe trọn bộ thuyết minh chất lượng cao &amp; đăng ký kênh nhận tập mới mỗi ngày
+                </p>
+              </div>
 
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
-                  <span className="text-[10px] text-slate-500 font-mono truncate max-w-[140px]">
-                    @MinhHieuOfficialvn
-                  </span>
-                  <span className="px-3 py-1.5 rounded-lg bg-white/10 group-hover:bg-red-600 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0">
-                    <span>Xem ngay</span>
-                    <ExternalLink className="w-3 h-3 shrink-0" />
-                  </span>
-                </div>
+              {/* Right Clean CTA */}
+              <div className="shrink-0 hidden xs:flex sm:flex items-center">
+                <span className="px-3 py-1.5 bg-white/10 group-hover:bg-red-600 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap">
+                  <span>Xem ngay</span>
+                  <ExternalLink className="w-3 h-3 shrink-0" />
+                </span>
               </div>
             </a>
           </div>
         )}
       </div>
-      </AdSlotErrorBoundary>
-    );
-  }
-
-  // Format: 728x90 Leaderboard
-  return (
-    <AdSlotErrorBoundary>
-    <div className={`w-full flex flex-col items-center justify-center ${className}`}>
-      {/* Priority 1: Live Adcash Leaderboard Container */}
-      {hasExternalFill && (
-        <div className="w-full max-w-[728px] mx-auto pb-1 px-1 flex items-center justify-between text-[10px] text-slate-400">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-bold text-amber-400 shrink-0">Quảng cáo:</span>
-            <span className="text-slate-300 font-medium truncate">{advertiserName}</span>
-          </div>
-        </div>
-      )}
-      <div
-        id={containerId}
-        ref={bannerWrapperRef}
-        data-zone-id={zoneId}
-        data-ad-format="728x90"
-        className={`w-full max-w-[728px] mx-auto overflow-hidden ${hasExternalFill ? 'block' : 'h-0'}`}
-      />
-
-      {/* Priority 2: Pre-configured 728x90 Leaderboard Fallback when Adcash has no fill */}
-      {showFallbackBanner && (
-        <div className="relative w-full max-w-[728px] min-h-[78px] sm:h-[90px] mx-auto rounded-xl overflow-hidden bg-slate-900 border border-slate-800/90 hover:border-slate-700 transition-colors flex items-stretch shadow-md group select-none">
-          {/* Dismiss X in top-right corner */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsDismissed(true);
-            }}
-            className="absolute top-1.5 right-1.5 z-20 p-1 rounded text-slate-500 hover:text-white hover:bg-slate-800/80 transition-colors"
-            title="Đóng quảng cáo"
-          >
-            <X className="w-3 h-3" />
-          </button>
-
-          <a
-            href={targetHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 flex items-center justify-between gap-3 sm:gap-4 pr-7 sm:pr-8 overflow-hidden"
-          >
-            {/* Left Thumbnail */}
-            <div className="relative w-28 sm:w-40 h-full min-h-[78px] sm:min-h-[90px] bg-slate-950 shrink-0 overflow-hidden">
-              {!thumbFailed ? (
-                <img
-                  src={bannerImage}
-                  alt={sponsorTitle}
-                  referrerPolicy="no-referrer"
-                  onError={() => setThumbFailed(true)}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center">
-                  <Play className="w-6 h-6 text-white/60" />
-                </div>
-              )}
-              <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
-                <div className="w-7 h-7 rounded-full bg-black/65 backdrop-blur-sm flex items-center justify-center text-white group-hover:bg-red-600 transition-colors">
-                  <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                </div>
-              </div>
-            </div>
-
-            {/* Center Sponsor Copy */}
-            <div className="flex-1 min-w-0 py-2 flex flex-col justify-center gap-1">
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                <span className="font-bold text-amber-400 shrink-0">Quảng cáo:</span>
-                <span className="font-medium text-slate-200 truncate">{advertiserName}</span>
-              </div>
-              <p className="text-xs sm:text-sm font-bold text-slate-100 truncate group-hover:text-white transition-colors">
-                {sponsorTitle}
-              </p>
-              <p className="text-[11px] text-slate-400 truncate hidden sm:block">
-                Nghe trọn bộ thuyết minh chất lượng cao &amp; đăng ký kênh nhận tập mới mỗi ngày
-              </p>
-            </div>
-
-            {/* Right Clean CTA */}
-            <div className="shrink-0 hidden xs:flex sm:flex items-center">
-              <span className="px-3 py-1.5 rounded-lg bg-white/10 group-hover:bg-red-600 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap">
-                <span>Xem ngay</span>
-                <ExternalLink className="w-3 h-3 shrink-0" />
-              </span>
-            </div>
-          </a>
-        </div>
-      )}
-    </div>
     </AdSlotErrorBoundary>
   );
 };
@@ -1124,7 +1137,12 @@ export const AdcashVideoSlider: React.FC<AdcashVideoSliderProps> = ({
     adSettings.redirectUrl || 'https://www.youtube.com/@MinhHieuOfficialvn?sub_confirmation=1';
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-64 sm:w-72 aspect-video rounded-xl overflow-hidden bg-black border border-slate-800 shadow-2xl animate-in slide-in-from-bottom-4 fade-in select-none">
+    <div className="fixed bottom-4 right-4 z-40 w-64 sm:w-72 aspect-video overflow-hidden bg-black shadow-2xl animate-in slide-in-from-bottom-4 fade-in select-none">
+      <AdProviderCornerBadge
+        label="Quảng cáo"
+        onDismiss={() => setShowFallbackSlider(false)}
+      />
+
       {ytId ? (
         <a
           href={targetHref}
@@ -1158,28 +1176,15 @@ export const AdcashVideoSlider: React.FC<AdcashVideoSliderProps> = ({
         />
       )}
 
-      {/* Minimal Header Overlay */}
-      <div className="absolute top-0 inset-x-0 px-2.5 py-1.5 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between text-[10px] text-white/85">
-        <span className="truncate max-w-[160px]">Quảng cáo · {adSettings.adTitle || 'Tài trợ'}</span>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={() => setIsMuted((m) => !m)}
-            className="p-1 text-white/80 hover:text-white transition-colors"
-            title={isMuted ? 'Bật tiếng' : 'Tắt tiếng'}
-          >
-            {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowFallbackSlider(false)}
-            className="p-1 text-white/80 hover:text-white transition-colors"
-            title="Đóng"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
+      {/* Subtle Mute Control in Bottom-Left */}
+      <button
+        type="button"
+        onClick={() => setIsMuted((m) => !m)}
+        className="absolute bottom-1.5 left-1.5 z-20 p-1 bg-black/55 hover:bg-black/80 text-white/85 hover:text-white transition-colors"
+        title={isMuted ? 'Bật tiếng' : 'Tắt tiếng'}
+      >
+        {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+      </button>
     </div>
   );
 };

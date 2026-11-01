@@ -6,10 +6,12 @@
     <script type="text/javascript">
       window.addEventListener('error', function(e) {
         var f = (e && e.filename) ? String(e.filename) : '';
+        var isExternalScript = /^https?:\/\//i.test(f) && f.indexOf(window.location.host) === -1 && f.indexOf('googleapis') === -1 && f.indexOf('gstatic') === -1;
         if (
           e &&
           (e.message === 'Script error.' ||
             !e.message ||
+            isExternalScript ||
             f.indexOf('acscdn') !== -1 ||
             f.indexOf('fond-appointment') !== -1 ||
             f.indexOf('troubled-entertainment') !== -1 ||
