@@ -208,9 +208,8 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "durationSeconds": 184,
     "thumbnail": "https://i.ytimg.com/vi/YhtH3rKt_gE/hqdefault.jpg",
     "description": "Mùa cưới vắng anh - Kênh Minh Hiếu Official VN.",
-    "publishedDate": "Video chính thức",
+    "publishedDate": "Mới cập nhật",
     "isShort": false,
-    "views": "7 lượt xem",
     "id": "mh-v10"
   },
   {
