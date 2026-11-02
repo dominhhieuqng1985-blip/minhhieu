@@ -90,7 +90,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Một giấc mơ thôi - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "2 lượt xem",
+    "views": "3 lượt xem",
     "id": "mh-v2"
   },
   {
@@ -225,7 +225,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mùa lúa chín không anh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "10 lượt xem",
+    "views": "11 lượt xem",
     "id": "mh-v11"
   },
   {
@@ -240,7 +240,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mùa cưới vắng anh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "8 lượt xem",
+    "views": "9 lượt xem",
     "id": "mh-v12"
   },
   {
@@ -255,7 +255,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Chuyến đò không đợi - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "8 lượt xem",
+    "views": "10 lượt xem",
     "id": "mh-v13"
   },
   {
@@ -270,7 +270,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Trăng tàn bến cũ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "14 lượt xem",
+    "views": "15 lượt xem",
     "id": "mh-v14"
   },
   {
@@ -320,14 +320,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "PmR-0mHv4wU",
-    "title": "Xuyên Không Đến Tu Tiên 16 Năm Làm Phế Vật, Thức Tỉnh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh",
+    "title": "Xuyên Không Đến Tu Tiên 16 Năm Làm Ph��� Vật, Thức Tỉnh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh",
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "3:19:48",
     "durationSeconds": 11988,
     "thumbnail": "https://i.ytimg.com/vi/PmR-0mHv4wU/hqdefault.jpg",
-    "description": "Xuyên Không Đến Tu Tiên 16 Năm Làm Phế Vật, Thức Tỉnh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh - Kênh Minh Hiếu Official VN.",
+    "description": "Xuyên Không Đến Tu Tiên 16 Năm Làm Ph��� Vật, Thức Tỉnh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "10 lượt xem",
@@ -495,7 +495,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Người phụ nữ mà đức phật cảm kích từ đấy lòng và biết ơn - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "12 lượt xem",
+    "views": "13 lượt xem",
     "id": "mh-v29"
   },
   {
