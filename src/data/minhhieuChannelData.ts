@@ -255,7 +255,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Trăng tàn bến cũ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "13 lượt xem",
+    "views": "14 lượt xem",
     "id": "mh-v13"
   },
   {
