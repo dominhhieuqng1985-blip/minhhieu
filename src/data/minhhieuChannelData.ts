@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mẹ ơi con chưa về - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "2 lượt xem",
+    "views": "3 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -255,7 +255,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Chuyến đò không đợi - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "10 lượt xem",
+    "views": "9 lượt xem",
     "id": "mh-v13"
   },
   {
