@@ -330,7 +330,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Đến Tu Tiên 16 Năm Làm Phế Vật, Thức Tỉnh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "11 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v18"
   },
   {
