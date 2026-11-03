@@ -105,7 +105,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mai anh về thăm lại bến xưa - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "3 lượt xem",
+    "views": "4 lượt xem",
     "id": "mh-v3"
   },
   {
@@ -165,7 +165,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Căn nhà xưa vắng mẹ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "4 lượt xem",
+    "views": "5 lượt xem",
     "id": "mh-v7"
   },
   {
@@ -180,7 +180,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Người qua bến mới - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "4 lượt xem",
+    "views": "5 lượt xem",
     "id": "mh-v8"
   },
   {
@@ -210,7 +210,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thư tình gửi người xưa - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "3 lượt xem",
+    "views": "4 lượt xem",
     "id": "mh-v10"
   },
   {
@@ -225,7 +225,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mùa lúa chín không anh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "11 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v11"
   },
   {
@@ -240,7 +240,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mùa cưới vắng anh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "9 lượt xem",
+    "views": "10 lượt xem",
     "id": "mh-v12"
   },
   {
@@ -270,7 +270,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Trăng tàn bến cũ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "15 lượt xem",
+    "views": "16 lượt xem",
     "id": "mh-v14"
   },
   {
@@ -320,14 +320,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "PmR-0mHv4wU",
-    "title": "Xuyên Không Đến Tu Tiên 16 Năm Làm Phế Vật, Thức T��nh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh",
+    "title": "Xuyên Không Đến Tu Tiên 16 Năm Làm Phế Vật, Thức Tỉnh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh",
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "3:19:48",
     "durationSeconds": 11988,
     "thumbnail": "https://i.ytimg.com/vi/PmR-0mHv4wU/hqdefault.jpg",
-    "description": "Xuyên Không Đến Tu Tiên 16 Năm Làm Phế Vật, Thức T��nh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh - Kênh Minh Hiếu Official VN.",
+    "description": "Xuyên Không Đến Tu Tiên 16 Năm Làm Phế Vật, Thức Tỉnh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "10 lượt xem",
@@ -615,14 +615,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "lpiKfekPrgc",
-    "title": "Tập 4: căn nhà ở cu���i con đường",
+    "title": "Tập 4: căn nhà ở cuối con đường",
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "00:60",
     "durationSeconds": 60,
     "thumbnail": "https://i.ytimg.com/vi/lpiKfekPrgc/hqdefault.jpg",
-    "description": "Shorts: Tập 4: căn nhà ở cu���i con đường - Kênh Minh Hiếu Official VN.",
+    "description": "Shorts: Tập 4: căn nhà ở cuối con đường - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
     "id": "mh-v38"
