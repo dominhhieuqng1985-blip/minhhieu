@@ -69,7 +69,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
-    "duration": "5:48",
+    "duration": "05:48",
     "durationSeconds": 348,
     "thumbnail": "https://i.ytimg.com/vi/00_wDwTVVoo/hqdefault.jpg",
     "description": "Mẹ ơi con chưa về - Kênh Minh Hiếu Official VN.",
@@ -255,7 +255,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Chuyến đò không đợi - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "9 lượt xem",
+    "views": "10 lượt xem",
     "id": "mh-v13"
   },
   {
