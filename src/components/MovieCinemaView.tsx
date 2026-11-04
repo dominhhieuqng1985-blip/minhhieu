@@ -1025,7 +1025,7 @@ export const MovieCinemaView: React.FC<MovieCinemaViewProps> = ({
                     </div>
 
                     {/* Prioritized Standalone Banners (300x250 on sm+, 300x100 on mobile) */}
-                    <div className="pt-3 border-t border-slate-800/80 flex flex-col items-center">
+                    <div className="pt-3 flex flex-col items-center">
                       <div className="hidden sm:block">
                         <StandaloneBanner300x250 />
                       </div>
@@ -1950,7 +1950,7 @@ export const MovieCinemaView: React.FC<MovieCinemaViewProps> = ({
               )}
 
               {/* Prioritized Standalone Banners in Movie Catalog Footer */}
-              <div className="pt-4 border-t border-slate-800/70 flex flex-col items-center">
+              <div className="pt-4 flex flex-col items-center">
                 <div className="hidden sm:block">
                   <StandaloneBanner300x250 />
                 </div>

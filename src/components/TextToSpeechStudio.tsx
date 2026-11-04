@@ -53,6 +53,8 @@ import {
   EverAiCorsError,
   DEFAULT_EVERAI_API_KEY,
   STORAGE_KEY_EVERAI_HISTORY,
+  getSelectedStudioVoiceId,
+  setSelectedStudioVoiceId,
 } from '../utils/everai';
 import { hasBackend, isStaticHost, getCustomBackendUrl } from '../utils/api';
 import { VoiceManagerModal } from './VoiceManagerModal';
@@ -86,7 +88,13 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
   // EverAI Settings
   const [apiKey, setApiKey] = useState<string>(getStoredEverAiKey());
   const [showApiKeyInput, setShowApiKeyInput] = useState<boolean>(false);
-  const [selectedEverAiVoice, setSelectedEverAiVoice] = useState<string>('vi_female_kieunhi_mn');
+  const [selectedEverAiVoice, setSelectedEverAiVoiceState] = useState<string>(() =>
+    getSelectedStudioVoiceId()
+  );
+  const setSelectedEverAiVoice = (voiceId: string) => {
+    setSelectedEverAiVoiceState(voiceId);
+    setSelectedStudioVoiceId(voiceId);
+  };
   const [selectedModel, setSelectedModel] = useState<string>('everai-v1.6');
   const [audioType, setAudioType] = useState<'mp3' | 'wav'>('mp3');
   const [bitrate, setBitrate] = useState<number>(128);
@@ -188,10 +196,10 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
       });
   };
 
-  // Sample texts
+  // Sample texts (100% API Voices)
   const sampleTexts = [
     {
-      title: 'Giảng Đạo & Chữ Hiếu (Minh Hiếu)',
+      title: 'Minh Hiếu Lễ Chùa & Giảng Đạo',
       text: `Đức Phật đã từng dạy rằng, trong muôn vàn hạnh lành trên thế gian, chữ Hiếu là đứng đầu. Cha mẹ như hai vị Phật sống trong gia đình, một đời bươn chải sớm hôm vì đàn con thơ. Khi tóc mẹ ngả màu sương, lưng cha thêm còng theo năm tháng, phận làm con xin hãy khắc ghi ơn nghĩa sinh thành.`,
       recommendedVoice: 'voice-ab888766-b59f-402b',
     },
@@ -201,14 +209,14 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
       recommendedVoice: 'voice-f9ae90f1-12e4-470d',
     },
     {
-      title: 'Dân Ca & Tình Người Miền Tây',
-      text: `Về miền Tây sông nước Cửu Long, lắng nghe tiếng đờn kìm réo rắt bên bến lở bến bồi. Cánh lục bình tím ngát trôi lững lờ trên dòng Cổ Chiên, mang theo cái tình mộc mạc, hào sảng mà trĩu nặng nghĩa ân của người dân Nam Bộ.`,
-      recommendedVoice: 'vi_female_kieunhi_mn',
+      title: 'Đạo Lý Sống An Nhiên',
+      text: `Giữa dòng đời vạn biến, giữ được tâm bình an chính là phước báu lớn nhất của đời người. Một lời nói hòa ái, một ánh nhìn bao dung cũng đủ gieo mầm thiện lành khắp nhân gian.`,
+      recommendedVoice: 'voice-74bb4b22-98a7-41a4',
     },
     {
-      title: 'Bản Tin Phát Thanh Chuẩn Bắc',
-      text: `Kính chào quý thính giả, đây là bản tin tổng hợp đặc biệt. Bản tin hôm nay cập nhật những thông tin thời sự mới nhất, những câu chuyện truyền cảm hứng và các góc nhìn văn hóa đặc sắc trong ngày. Cảm ơn quý vị đã luôn đồng hành cùng kênh.`,
-      recommendedVoice: 'vi_male_lehoang_mb',
+      title: 'Kinh Kệ & Triết Lý Uy Nghiêm',
+      text: `Nguyện đem công đức này hướng về khắp tất cả, đệ tử và chúng sanh đều trọn thành Phật đạo. Tâm tịnh tức cõi Phật tịnh, vạn sự cát tường như ý.`,
+      recommendedVoice: 'voice-0e62b161-5866-4e85',
     },
   ];
 
@@ -434,34 +442,16 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
               <span>Chuyển Đổi Text-to-Speech Chuyên Nghiệp</span>
             </h1>
             <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Tích hợp chuẩn API EverAI v1.6 với đầy đủ dàn giọng đọc Nam/Nữ Bắc - Nam, giọng giảng đạo Phật pháp kênh Minh Hiếu, cùng cơ chế đọc miễn phí tức thì qua Web Speech.
+              Kết nối trực tiếp API EverAI v1.6 với giọng đọc <strong>Minh Hiếu Lễ Chùa</strong> (<code>voice-ab888766-b59f-402b</code>) cùng hệ thống giọng đọc API chất lượng cao.
             </p>
           </div>
 
-          {/* Engine Selector */}
+          {/* Direct API Status Badge */}
           <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-950/80 border border-slate-800 shrink-0">
-            <button
-              onClick={() => setEngineMode('everai')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                engineMode === 'everai'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-lg shadow-indigo-600/30">
               <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>EverAI Studio (Chuẩn API)</span>
-            </button>
-            <button
-              onClick={() => setEngineMode('browser')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                engineMode === 'browser'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Mic className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Trình Duyệt (Miễn phí)</span>
-            </button>
+              <span>Kết Nối Trực Tiếp API Giọng Nói</span>
+            </div>
           </div>
         </div>
 
@@ -676,19 +666,7 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
                         className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all"
                       >
                         <Server className="w-3.5 h-3.5" />
-                        <span>⚙️ Mở Cấu Hình Backend Proxy / Cloudflare</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEngineMode('browser');
-                          setLastCorsError(false);
-                          onShowToast('🎙️ Đã chuyển sang Giọng Đọc Trình Duyệt Web Speech (Không cần server)!');
-                        }}
-                        className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs flex items-center gap-1.5 transition-all"
-                      >
-                        <Mic className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Dùng Ngay Web Speech (Miễn phí)</span>
+                        <span>Mở Cấu Hình Backend Proxy / Cloudflare</span>
                       </button>
                     </div>
                   </div>
@@ -857,33 +835,10 @@ export const TextToSpeechStudio: React.FC<TextToSpeechStudioProps> = ({
                       </optgroup>
                     )}
 
-                    <optgroup label="🌟 Giọng Kênh Minh Hiếu & Đạo Lý (Special)">
-                      {EVERAI_VOICES.filter((v) => v.isSpecial).map((v) => (
+                    <optgroup label="Giọng API Kết Nối Trực Tiếp (Minh Hiếu Lễ Chùa & Đạo Lý)">
+                      {EVERAI_VOICES.map((v) => (
                         <option key={v.id} value={v.id}>
-                          {v.name} ({v.region}) - {v.cost}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="🇻🇳 Tiếng Việt - Nữ & Nam Miền Bắc / Nam">
-                      {EVERAI_VOICES.filter((v) => !v.isSpecial && v.language === 'Việt Nam').map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.name} ({v.gender} - {v.region}) - {v.cost}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="🇺🇸 Tiếng Anh (English US / UK / AU / IN)">
-                      {EVERAI_VOICES.filter((v) => v.language === 'English').map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.name} ({v.region}) - {v.cost}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="🌏 Quốc Tế (Trung, Nhật, Hàn, Pháp, TBN)">
-                      {EVERAI_VOICES.filter(
-                        (v) => !v.isSpecial && v.language !== 'Việt Nam' && v.language !== 'English'
-                      ).map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.name} ({v.region})
+                          {v.name} ({v.region}) — {v.id}
                         </option>
                       ))}
                     </optgroup>

@@ -1,9 +1,35 @@
-import { getApiBaseUrl, isStaticHost, getCustomBackendUrl } from './api';
+import { getApiBaseUrl, isStaticHost, getCustomBackendUrl, resolveApiEndpoint, hasBackend } from './api';
 
 export const DEFAULT_EVERAI_API_KEY = 'JZoMqN64fgxOuVcxViFyLj6YinIsiVbc0';
+export const MINH_HIEU_LE_CHUA_VOICE_ID = 'voice-ab888766-b59f-402b';
+export const DEFAULT_STUDIO_VOICE_ID = MINH_HIEU_LE_CHUA_VOICE_ID;
 export const STORAGE_KEY_EVERAI_KEY = 'casttube_everai_api_key';
 export const STORAGE_KEY_EVERAI_HISTORY = 'casttube_everai_history_v1';
 export const STORAGE_KEY_CUSTOM_VOICES = 'casttube_custom_everai_voices_v1';
+export const STORAGE_KEY_SELECTED_EVERAI_VOICE = 'casttube_selected_everai_voice_v1';
+export const STUDIO_VOICE_CHANGED_EVENT = 'casttube:studio-voice-changed';
+
+export function getSelectedStudioVoiceId(): string {
+  if (typeof window === 'undefined') return DEFAULT_STUDIO_VOICE_ID;
+  const saved = (localStorage.getItem(STORAGE_KEY_SELECTED_EVERAI_VOICE) || '').trim();
+  if (!saved) return DEFAULT_STUDIO_VOICE_ID;
+  // Ensure only valid API voice IDs (voice-* or saved custom API voices) are used
+  const isCustomApiVoice = getCustomVoices().some((v) => v.id === saved);
+  if (!saved.startsWith('voice-') && !isCustomApiVoice) {
+    return DEFAULT_STUDIO_VOICE_ID;
+  }
+  return saved;
+}
+
+export function setSelectedStudioVoiceId(voiceId: string): void {
+  if (typeof window === 'undefined') return;
+  const clean = (voiceId || '').trim() || DEFAULT_STUDIO_VOICE_ID;
+  try {
+    localStorage.setItem(STORAGE_KEY_SELECTED_EVERAI_VOICE, clean);
+    window.dispatchEvent(new CustomEvent(STUDIO_VOICE_CHANGED_EVENT, { detail: { voiceId: clean } }));
+  } catch {}
+}
+
 
 export interface EverAiVoice {
   id: string;
@@ -26,24 +52,25 @@ export const EVERAI_MODELS = [
 ];
 
 export const EVERAI_VOICES: EverAiVoice[] = [
-  // Special voices for Minh Hieu Review Phim / Thuyết pháp
+  {
+    id: 'voice-ab888766-b59f-402b',
+    name: 'Minh Hiếu Lễ Chùa',
+    gender: 'Nam',
+    region: 'Lễ Chùa & Giảng Đạo',
+    language: 'Việt Nam',
+    description:
+      'Giọng đọc Minh Hiếu Lễ Chùa ấm áp, nhấn nhá trang nghiêm dùng cho Chú Tiểu, giảng đạo, tụng kinh và văn khấn',
+    cost: '1000 credits',
+    isSpecial: true,
+  },
   {
     id: 'voice-74bb4b22-98a7-41a4',
     name: 'Minh Hiếu - Đạo Lý & Review Phim',
     gender: 'Nam',
     region: 'Thuyết pháp & Đạo lý',
     language: 'Việt Nam',
-    description: 'Giọng đọc truyền cảm, ấm áp, sâu sắc phù hợp đọc kinh kệ, đạo lý và lời bình phim',
-    cost: '1000 credits',
-    isSpecial: true,
-  },
-  {
-    id: 'voice-ab888766-b59f-402b',
-    name: 'Giảng Đạo Nhấn Nhá',
-    gender: 'Nam',
-    region: 'Thuyết pháp & Đạo lý',
-    language: 'Việt Nam',
-    description: 'Giọng đọc ngữ điệu nhấn nhá sâu sắc, phù hợp kinh Phật, đạo lý làm người & triết lý',
+    description:
+      'Giọng đọc truyền cảm, ấm áp, sâu sắc phù hợp đọc kinh kệ, đạo lý và lời bình phim',
     cost: '1000 credits',
     isSpecial: true,
   },
@@ -66,246 +93,6 @@ export const EVERAI_VOICES: EverAiVoice[] = [
     description: 'Giọng nam hào hùng, kịch tính, lôi cuốn cho tóm tắt phim & kịch bản ly kỳ',
     cost: '1000 credits',
     isSpecial: true,
-  },
-
-  // Việt Nam Standard Voices
-  {
-    id: 'vi_female_kieunhi_mn',
-    name: 'Kiều Nhi',
-    gender: 'Nữ',
-    region: 'Miền Nam',
-    language: 'Việt Nam',
-    description: 'Giọng nữ miền Nam ngọt ngào, dịu dàng, phù hợp truyện tâm lý & âm nhạc dân ca',
-    cost: '1000 credits',
-  },
-  {
-    id: 'vi_male_lehoang_mb',
-    name: 'Lê Hoàng',
-    gender: 'Nam',
-    region: 'Miền Bắc',
-    language: 'Việt Nam',
-    description: 'Giọng nam miền Bắc chuẩn, đĩnh đạc, rõ ràng, phong thái phát thanh viên',
-    cost: '1000 credits',
-  },
-  {
-    id: 'vi_female_thuytrang_mb',
-    name: 'Thùy Trang',
-    gender: 'Nữ',
-    region: 'Miền Bắc',
-    language: 'Việt Nam',
-    description: 'Giọng nữ nhẹ nhàng, thanh thoát, truyền cảm xúc mượt mà',
-    cost: '1000 credits',
-  },
-  {
-    id: 'vi_male_minhtriet_mb',
-    name: 'Minh Triết',
-    gender: 'Nam',
-    region: 'Miền Bắc',
-    language: 'Việt Nam',
-    description: 'Giọng nam ấm áp, đáng tin cậy, thích hợp tin tức & kiến thức',
-    cost: '1000 credits',
-  },
-  {
-    id: 'vi_female_hacuc_mb',
-    name: 'Hạ Cúc',
-    gender: 'Nữ',
-    region: 'Miền Bắc',
-    language: 'Việt Nam',
-    description: 'Giọng nữ sâu lắng, êm dịu, đọc truyện đêm khuya rất hay',
-    cost: '1000 credits',
-  },
-  {
-    id: 'vi_male_ductrong_mb',
-    name: 'Đức Trọng',
-    gender: 'Nam',
-    region: 'Miền Bắc',
-    language: 'Việt Nam',
-    description: 'Giọng nam trầm, dứt khoát, phong độ',
-    cost: '1000 credits',
-  },
-  {
-    id: 'vi_female_huyenanh_mb',
-    name: 'Huyền Anh',
-    gender: 'Nữ',
-    region: 'Miền Bắc',
-    language: 'Việt Nam',
-    description: 'Giọng nữ biểu cảm, linh hoạt, lôi cuốn',
-    cost: '1000 credits',
-  },
-  {
-    id: 'vi_female_halinh_mb',
-    name: 'Hà Linh',
-    gender: 'Nữ',
-    region: 'Miền Bắc',
-    language: 'Việt Nam',
-    description: 'Giọng nữ tươi vui, trẻ trung, trong trẻo',
-    cost: '1000 credits',
-  },
-  {
-    id: 'vi_female_hoaian_mb',
-    name: 'Hoài An',
-    gender: 'Nữ',
-    region: 'Miền Bắc',
-    language: 'Việt Nam',
-    description: 'Giọng nữ dịu dàng, hoài niệm, cảm xúc sâu lắng',
-    cost: '1000 credits',
-  },
-  {
-    id: 'vi_female_khanhhuyentvc_mb',
-    name: 'Khánh Huyền',
-    gender: 'Nữ',
-    region: 'Miền Bắc',
-    language: 'Việt Nam',
-    description: 'Giọng đọc TVC quảng cáo chuyên nghiệp, năng lượng cao',
-    cost: '1000 credits',
-  },
-  {
-    id: 'vi_male_echo_default',
-    name: 'Echo (Nam)',
-    gender: 'Nam',
-    region: 'Giọng Mỹ chuẩn',
-    language: 'Việt Nam',
-    description: 'Giọng đọc hiện đại, tiết kiệm chi phí',
-    cost: '100 credits',
-  },
-  {
-    id: 'vi_female_nova_default',
-    name: 'Nova (Nữ)',
-    gender: 'Nữ',
-    region: 'Giọng Mỹ chuẩn',
-    language: 'Việt Nam',
-    description: 'Giọng đọc nữ mượt mà, tiết kiệm chi phí',
-    cost: '100 credits',
-  },
-  {
-    id: 'vi_male_onyx_default',
-    name: 'Onyx (Nam)',
-    gender: 'Nam',
-    region: 'Giọng Mỹ chuẩn',
-    language: 'Việt Nam',
-    description: 'Giọng đọc nam khỏe khoắn, giá rẻ',
-    cost: '100 credits',
-  },
-
-  // English Voices
-  {
-    id: 'en_female_emily_us',
-    name: 'Emily (US)',
-    gender: 'Female',
-    region: 'Mỹ (US)',
-    language: 'English',
-    description: 'Natural high-fidelity American female accent',
-    cost: '1000 credits',
-  },
-  {
-    id: 'en_female_alice_default',
-    name: 'Alice (US)',
-    gender: 'Female',
-    region: 'Mỹ (US)',
-    language: 'English',
-    description: 'Warm and friendly American narrator',
-    cost: '1000 credits',
-  },
-  {
-    id: 'en_male_echo_default',
-    name: 'Echo (US)',
-    gender: 'Male',
-    region: 'Mỹ (US)',
-    language: 'English',
-    description: 'Standard American male voice',
-    cost: '100 credits',
-  },
-  {
-    id: 'en_female_nova_default',
-    name: 'Nova (US)',
-    gender: 'Female',
-    region: 'Mỹ (US)',
-    language: 'English',
-    description: 'Clean American female voice',
-    cost: '100 credits',
-  },
-  {
-    id: 'en_male_onyx_default',
-    name: 'Onyx (US)',
-    gender: 'Male',
-    region: 'Mỹ (US)',
-    language: 'English',
-    description: 'Deep authoritative male narrator',
-    cost: '100 credits',
-  },
-  {
-    id: 'en_female_jessica_au',
-    name: 'Jessica (AU)',
-    gender: 'Female',
-    region: 'Úc (Australia)',
-    language: 'English',
-    description: 'Authentic Australian female accent',
-    cost: '1000 credits',
-  },
-  {
-    id: 'en_female_elara_br',
-    name: 'Elara (UK)',
-    gender: 'Female',
-    region: 'Anh (British)',
-    language: 'English',
-    description: 'Polished British RP female voice',
-    cost: '1000 credits',
-  },
-  {
-    id: 'en_female_meera_indian',
-    name: 'Meera (IN)',
-    gender: 'Female',
-    region: 'Ấn Độ (Indian)',
-    language: 'English',
-    description: 'Fluent Indian English accent',
-    cost: '1000 credits',
-  },
-
-  // Other Global Languages
-  {
-    id: 'zh_female_liu-ying_default',
-    name: 'Liu Ying (Chinese)',
-    gender: 'Female',
-    region: 'Trung Quốc (Mandarin)',
-    language: 'Chinese',
-    description: 'Standard Mandarin Chinese voice',
-    cost: '1000 credits',
-  },
-  {
-    id: 'jp_female_yuki_default',
-    name: 'Yuki (Japanese)',
-    gender: 'Female',
-    region: 'Nhật Bản (Tokyo)',
-    language: 'Japanese',
-    description: 'Natural Japanese narration',
-    cost: '1000 credits',
-  },
-  {
-    id: 'kr_female_seo-yeon_default',
-    name: 'Seo Yeon (Korean)',
-    gender: 'Female',
-    region: 'Hàn Quốc (Seoul)',
-    language: 'Korean',
-    description: 'Natural Korean female voice',
-    cost: '1000 credits',
-  },
-  {
-    id: 'fr_female_camille_default',
-    name: 'Camille (French)',
-    gender: 'Female',
-    region: 'Pháp (Paris)',
-    language: 'French',
-    description: 'Elegant French female voice',
-    cost: '1000 credits',
-  },
-  {
-    id: 'es_female_elana_default',
-    name: 'Elena (Spanish)',
-    gender: 'Female',
-    region: 'Tây Ban Nha (Madrid)',
-    language: 'Spanish',
-    description: 'Warm Spanish female accent',
-    cost: '1000 credits',
   },
 ];
 
@@ -417,11 +204,22 @@ export async function createEverAiTtsJob(params: {
   const key = params.apiKey || getStoredEverAiKey();
   const apiBase = getApiBaseUrl();
 
+  const sanitizedText = (params.inputText || '')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const rawVoiceCode = (params.voiceCode || MINH_HIEU_LE_CHUA_VOICE_ID).trim();
+  const resolvedVoiceCode =
+    rawVoiceCode.startsWith('voice-') || getCustomVoices().some((v) => v.id === rawVoiceCode)
+      ? rawVoiceCode
+      : MINH_HIEU_LE_CHUA_VOICE_ID;
+
   const bodyPayload = {
     response_type: 'indirect',
     callback_url: params.callbackUrl || 'https://www.everai.vn/callback',
-    input_text: params.inputText,
-    voice_code: params.voiceCode,
+    input_text: sanitizedText || params.inputText,
+    voice_code: resolvedVoiceCode,
     model_id: params.modelId || 'everai-v1.6',
     audio_type: params.audioType || 'mp3',
     bitrate: params.bitrate || 128,
@@ -432,17 +230,17 @@ export async function createEverAiTtsJob(params: {
   };
 
   // Determine endpoint: proxy through local/custom backend if available, or direct call to everai.vn
-  const customBackend = getCustomBackendUrl();
   let endpoint = 'https://www.everai.vn/api/v1/tts';
-
-  if (customBackend) {
-    endpoint = `${customBackend.replace(/\/+$/, '')}/api/everai/tts`;
-  } else if (apiBase) {
-    const cleanBase = apiBase.replace(/\/+$/, '');
-    endpoint = cleanBase.endsWith('/api') ? `${cleanBase}/everai/tts` : `${cleanBase}/api/everai/tts`;
+  if (hasBackend()) {
+    endpoint = resolveApiEndpoint('everai/tts');
+  } else {
+    const customBackend = getCustomBackendUrl();
+    if (customBackend) {
+      endpoint = `${customBackend.replace(/\/+$/, '')}/api/everai/tts`;
+    }
   }
 
-  const isCallingDirectEverAi = endpoint === 'https://www.everai.vn/api/v1/tts';
+  const isCallingDirectEverAi = endpoint.startsWith('https://www.everai.vn');
 
   let res: Response;
   try {
@@ -495,6 +293,23 @@ export async function createEverAiTtsJob(params: {
 
   const data = await res.json();
   if (data.status === 0 || !data.result) {
+    // If legacy preset voice is rejected with 406 on EverAI v1.6, seamlessly retry with verified Studio voice
+    if (
+      (data.error_code === 406 || String(data.error_message || '').includes("doesn't support voice")) &&
+      params.voiceCode !== DEFAULT_STUDIO_VOICE_ID
+    ) {
+      const fallbackVoice =
+        params.voiceCode.includes('uynghiem') || params.voiceCode.includes('ductrong')
+          ? 'voice-0e62b161-5866-4e85'
+          : params.voiceCode.includes('nhannha')
+          ? 'voice-ab888766-b59f-402b'
+          : DEFAULT_STUDIO_VOICE_ID;
+      return createEverAiTtsJob({
+        ...params,
+        voiceCode: fallbackVoice,
+        modelId: 'everai-v1.6',
+      });
+    }
     throw new Error(data.error_message || 'EverAI không khởi tạo được yêu cầu');
   }
 
@@ -522,16 +337,14 @@ export async function pollEverAiTtsJob(
   const key = apiKey || getStoredEverAiKey();
   const apiBase = getApiBaseUrl();
 
-  const customBackend = getCustomBackendUrl();
   let endpoint = `https://www.everai.vn/api/v1/tts/${encodeURIComponent(requestId)}`;
-
-  if (customBackend) {
-    endpoint = `${customBackend.replace(/\/+$/, '')}/api/everai/tts/${encodeURIComponent(requestId)}`;
-  } else if (apiBase) {
-    const cleanBase = apiBase.replace(/\/+$/, '');
-    endpoint = cleanBase.endsWith('/api')
-      ? `${cleanBase}/everai/tts/${encodeURIComponent(requestId)}`
-      : `${cleanBase}/api/everai/tts/${encodeURIComponent(requestId)}`;
+  if (hasBackend()) {
+    endpoint = resolveApiEndpoint(`everai/tts/${encodeURIComponent(requestId)}`);
+  } else {
+    const customBackend = getCustomBackendUrl();
+    if (customBackend) {
+      endpoint = `${customBackend.replace(/\/+$/, '')}/api/everai/tts/${encodeURIComponent(requestId)}`;
+    }
   }
 
   const isCallingDirectEverAi = endpoint.startsWith('https://www.everai.vn');

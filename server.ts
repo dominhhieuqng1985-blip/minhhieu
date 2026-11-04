@@ -33,6 +33,20 @@ import {
   deleteDocumentInNeon,
   incrementDocumentDownloadCount,
   getDocumentById,
+  getTempleOverviewFromNeon,
+  createTempleMeritRecordInNeon,
+  createOrUpdateMemorialTombInNeon,
+  addMemorialTributeInNeon,
+  updateTempleOrderStatusByAdminInNeon,
+  deleteMemorialTombByAdminInNeon,
+  registerTempleMemberInNeon,
+  loginTempleMemberWithNeon,
+  verifyTempleMemberToken,
+  updateTempleMemberProfileInNeon,
+  logoutTempleMemberSession,
+  createTempleGuestbookEntryInNeon,
+  likeTempleGuestbookEntryInNeon,
+  syncAllTempleDataToNeon,
   AdminPrincipal,
 } from './src/server/neonClient';
 import { solveProblemLocally } from './src/utils/smartBoardSolver';
@@ -83,7 +97,7 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE, PATCH');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, Authorization, X-Requested-With, X-Admin-Token, X-Gemini-Api-Key, X-RapidAPI-Key, Accept, Origin, Cache-Control'
+    'Content-Type, Authorization, X-Requested-With, X-Admin-Token, X-Member-Token, X-Gemini-Api-Key, X-RapidAPI-Key, Accept, Origin, Cache-Control'
   );
   res.setHeader('Access-Control-Max-Age', '86400');
   if (req.method === 'OPTIONS') {
@@ -2537,6 +2551,112 @@ app.post(
 );
 
 // =========================================================================
+// EVERAI TTS API PROXY (Studio Giọng Nói & Virtual Buddhist Temple)
+// =========================================================================
+const DEFAULT_EVERAI_SERVER_KEY = 'JZoMqN64fgxOuVcxViFyLj6YinIsiVbc0';
+
+function extractEverAiKey(req: express.Request): string {
+  const authHeader = String(req.headers.authorization || '').trim();
+  if (authHeader.toLowerCase().startsWith('bearer ')) {
+    const candidate = authHeader.slice(7).trim();
+    if (candidate) return candidate;
+  }
+  const bodyKey = String(req.body?.apiKey || '').trim();
+  if (bodyKey) return bodyKey;
+  const queryKey = String(req.query?.apiKey || '').trim();
+  if (queryKey) return queryKey;
+  if (process.env.EVERAI_API_KEY && process.env.EVERAI_API_KEY.trim()) {
+    return process.env.EVERAI_API_KEY.trim();
+  }
+  return DEFAULT_EVERAI_SERVER_KEY;
+}
+
+// 1. POST /api/everai/tts - Submit TTS generation job
+app.post(['/api/everai/tts', '/minhhieu/api/everai/tts'], async (req, res) => {
+  try {
+    const key = extractEverAiKey(req);
+    const targetUrl = 'https://www.everai.vn/api/v1/tts';
+
+    const payload = {
+      response_type: req.body?.response_type || 'indirect',
+      callback_url: req.body?.callback_url || 'https://www.everai.vn/callback',
+      input_text: req.body?.input_text || '',
+      voice_code: req.body?.voice_code || 'voice-74bb4b22-98a7-41a4', // Default to Minh Hiếu
+      model_id: req.body?.model_id || 'everai-v1.6',
+      audio_type: req.body?.audio_type || 'mp3',
+      bitrate: req.body?.bitrate || 128,
+      speed_rate: Number((req.body?.speed_rate ?? 1.0).toFixed(1)),
+      pitch_rate: Number((req.body?.pitch_rate ?? 1.0).toFixed(1)),
+      volume: Math.round(req.body?.volume ?? 100),
+      generate_srt: !!req.body?.generate_srt,
+    };
+
+    if (!payload.input_text) {
+      return res.status(400).json({ status: 0, error_message: 'Thiếu nội dung văn bản input_text để chuyển giọng nói' });
+    }
+
+    const everaiRes = await fetch(targetUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const responseText = await everaiRes.text();
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = { status: 0, error_message: responseText.slice(0, 200) || `Lỗi máy chủ EverAI (${everaiRes.status})` };
+    }
+
+    return res.status(everaiRes.status).json(data);
+  } catch (err: any) {
+    console.error('EverAI TTS proxy error:', err?.message || err);
+    return res.status(500).json({
+      status: 0,
+      error_message: 'Lỗi kết nối máy chủ EverAI: ' + (err?.message || 'Không thể liên lạc với everai.vn'),
+    });
+  }
+});
+
+// 2. GET /api/everai/tts/:requestId - Poll TTS job progress
+app.get(['/api/everai/tts/:requestId', '/minhhieu/api/everai/tts/:requestId'], async (req, res) => {
+  try {
+    const key = extractEverAiKey(req);
+    const requestId = encodeURIComponent(req.params.requestId);
+    const targetUrl = `https://www.everai.vn/api/v1/tts/${requestId}`;
+
+    const everaiRes = await fetch(targetUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        Accept: 'application/json',
+      },
+    });
+
+    const responseText = await everaiRes.text();
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = { status: 0, error_message: responseText.slice(0, 200) || `Lỗi kiểm tra tiến độ EverAI (${everaiRes.status})` };
+    }
+
+    return res.status(everaiRes.status).json(data);
+  } catch (err: any) {
+    console.error('EverAI Poll proxy error:', err?.message || err);
+    return res.status(500).json({
+      status: 0,
+      error_message: 'Lỗi truy vấn trạng thái EverAI: ' + (err?.message || 'Không thể kiểm tra'),
+    });
+  }
+});
+
+// =========================================================================
 // HILLTOPADS PUBLISHER API PROXY & AD REVENUE ENGINE
 // Key: XOxIVWkMqKGQUcaHf3CGzhCYAizN2oSnzrgcYPBzho9JvQUqoYY1cTqFToARZvfe
 // =========================================================================
@@ -4611,13 +4731,346 @@ app.post(
   }
 );
 
+// =========================================================================
+// ENDPOINTS: CHÙA ONLINE & HOA VIÊN KHU MỘ 3D (NEON POSTGRESQL + ADMIN PAYMENT)
+// =========================================================================
+
+function extractMemberTokenFromRequest(req: express.Request): string {
+  const headerToken = String(req.headers['x-member-token'] || '').trim();
+  if (headerToken) return headerToken;
+  const hasAdminHeader = String(req.headers['x-admin-token'] || '').trim();
+  if (!hasAdminHeader) {
+    const authHeader = String(req.headers.authorization || '').trim();
+    if (authHeader.toLowerCase().startsWith('bearer ')) {
+      return authHeader.slice(7).trim();
+    }
+  }
+  return '';
+}
+
+async function resolveTempleActorFromRequest(req: express.Request): Promise<{
+  memberId: string | null;
+  isAdmin: boolean;
+  adminUsername: string | null;
+}> {
+  let adminUser: AdminPrincipal | null = null;
+  const adminToken = extractAdminTokenFromRequest(req);
+  if (adminToken) {
+    try {
+      adminUser = await verifyAdminSessionToken(adminToken);
+    } catch {
+      adminUser = null;
+    }
+  }
+
+  let memberId: string | null = null;
+  const memberHeaderToken = String(req.headers['x-member-token'] || '').trim();
+  const fallbackBearer =
+    !adminUser && String(req.headers.authorization || '').toLowerCase().startsWith('bearer ')
+      ? String(req.headers.authorization || '').slice(7).trim()
+      : '';
+  const memberToken = memberHeaderToken || fallbackBearer;
+  if (memberToken) {
+    try {
+      const mem = await verifyTempleMemberToken(memberToken);
+      if (mem?.id) memberId = mem.id;
+    } catch {
+      memberId = null;
+    }
+  }
+
+  return {
+    memberId,
+    isAdmin: Boolean(adminUser),
+    adminUsername: adminUser?.username || null,
+  };
+}
+
+app.get(['/api/temple/overview', '/minhhieu/api/temple/overview'], async (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  try {
+    const data = await getTempleOverviewFromNeon();
+    return res.json({ success: true, ...data });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Lỗi tải dữ liệu Chùa & Hoa Viên 3D từ Neon PostgreSQL',
+    });
+  }
+});
+
+app.post(['/api/temple/members/register', '/minhhieu/api/temple/members/register'], async (req, res) => {
+  try {
+    const ipAddress = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').slice(0, 90);
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 450);
+    const result = await registerTempleMemberInNeon({
+      ...(req.body || {}),
+      ipAddress,
+      userAgent,
+    });
+    return res.json({ success: true, ...result });
+  } catch (err: any) {
+    return res.status(400).json({
+      success: false,
+      error: err?.message || 'Lỗi đăng ký thành viên trên Neon PostgreSQL',
+    });
+  }
+});
+
+app.post(['/api/temple/members/login', '/minhhieu/api/temple/members/login'], async (req, res) => {
+  try {
+    const ipAddress = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').slice(0, 90);
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 450);
+    const result = await loginTempleMemberWithNeon({
+      identifier: String(req.body?.identifier || req.body?.username || ''),
+      password: String(req.body?.password || ''),
+      ipAddress,
+      userAgent,
+    });
+    return res.json({ success: true, ...result });
+  } catch (err: any) {
+    return res.status(401).json({
+      success: false,
+      error: err?.message || 'Thông tin đăng nhập thành viên không chính xác',
+    });
+  }
+});
+
+app.get(['/api/temple/members/me', '/minhhieu/api/temple/members/me'], async (req, res) => {
+  try {
+    const token = extractMemberTokenFromRequest(req);
+    if (!token) {
+      return res.json({ success: true, member: null });
+    }
+    const member = await verifyTempleMemberToken(token);
+    return res.json({ success: true, member });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Lỗi xác thực phiên thành viên',
+    });
+  }
+});
+
+app.put(['/api/temple/members/profile', '/minhhieu/api/temple/members/profile'], async (req, res) => {
+  try {
+    const token = extractMemberTokenFromRequest(req);
+    const current = await verifyTempleMemberToken(token);
+    if (!current?.id) {
+      return res.status(401).json({
+        success: false,
+        error: 'Phiên đăng nhập thành viên đã hết hạn. Vui lòng đăng nhập lại!',
+      });
+    }
+    const updated = await updateTempleMemberProfileInNeon(current.id, req.body || {});
+    return res.json({ success: true, member: updated });
+  } catch (err: any) {
+    return res.status(400).json({
+      success: false,
+      error: err?.message || 'Lỗi cập nhật hồ sơ thành viên',
+    });
+  }
+});
+
+app.post(['/api/temple/members/logout', '/minhhieu/api/temple/members/logout'], async (req, res) => {
+  try {
+    const token = extractMemberTokenFromRequest(req);
+    if (token) {
+      await logoutTempleMemberSession(token);
+    }
+    return res.json({ success: true });
+  } catch {
+    return res.json({ success: true });
+  }
+});
+
+app.post(['/api/temple/merit', '/minhhieu/api/temple/merit'], async (req, res) => {
+  try {
+    const payload = { ...(req.body || {}) };
+    if (!payload.memberId) {
+      const token = extractMemberTokenFromRequest(req);
+      if (token) {
+        const mem = await verifyTempleMemberToken(token);
+        if (mem?.id) payload.memberId = mem.id;
+      }
+    }
+    const record = await createTempleMeritRecordInNeon(payload);
+    return res.json({ success: true, record });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Lỗi lưu ghi danh công đức vào Neon PostgreSQL',
+    });
+  }
+});
+
+app.post(['/api/temple/tombs', '/minhhieu/api/temple/tombs'], async (req, res) => {
+  try {
+    const actor = await resolveTempleActorFromRequest(req);
+    const payload = { ...(req.body || {}) };
+    if (actor.memberId) {
+      payload.memberId = actor.memberId;
+    }
+    const tomb = await createOrUpdateMemorialTombInNeon(payload, actor);
+    return res.json({ success: true, tomb });
+  } catch (err: any) {
+    const errMsg = err?.message || 'Lỗi xây dựng và lưu ngôi mộ 3D vào Neon PostgreSQL';
+    const status = errMsg.includes('chỉ có quyền chỉnh sửa')
+      ? 403
+      : errMsg.includes('Đăng ký hoặc Đăng nhập')
+      ? 401
+      : 400;
+    return res.status(status).json({
+      success: false,
+      error: errMsg,
+    });
+  }
+});
+
+app.post(['/api/temple/tombs/:id/tribute', '/minhhieu/api/temple/tombs/:id/tribute'], async (req, res) => {
+  try {
+    const actor = await resolveTempleActorFromRequest(req);
+    const tombId = String(req.params.id || '').trim();
+    const payload = { ...(req.body || {}), tombId };
+    if (actor.memberId) {
+      payload.memberId = actor.memberId;
+    }
+    const result = await addMemorialTributeInNeon(payload, actor);
+    return res.json({ success: true, ...result });
+  } catch (err: any) {
+    const errMsg = err?.message || 'Lỗi ghi nhận thắp nhang / dọn dẹp vào Neon PostgreSQL';
+    const status = errMsg.includes('không được chỉnh sửa') ? 403 : 400;
+    return res.status(status).json({
+      success: false,
+      error: errMsg,
+    });
+  }
+});
+
+app.post(['/api/temple/guestbook', '/minhhieu/api/temple/guestbook'], async (req, res) => {
+  try {
+    const payload = { ...(req.body || {}) };
+    if (!payload.memberId) {
+      const token = extractMemberTokenFromRequest(req);
+      if (token) {
+        const mem = await verifyTempleMemberToken(token);
+        if (mem?.id) payload.memberId = mem.id;
+      }
+    }
+    const entry = await createTempleGuestbookEntryInNeon(payload);
+    return res.json({ success: true, entry });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Lỗi lưu lưu bút vào Neon PostgreSQL',
+    });
+  }
+});
+
+app.post(['/api/temple/guestbook/:id/like', '/minhhieu/api/temple/guestbook/:id/like'], async (req, res) => {
+  try {
+    const entry = await likeTempleGuestbookEntryInNeon(String(req.params.id || ''));
+    return res.json({ success: true, entry });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Lỗi cập nhật lượt chúc phúc lưu bút',
+    });
+  }
+});
+
+app.post(['/api/temple/sync-all', '/minhhieu/api/temple/sync-all'], async (req, res) => {
+  try {
+    const actor = await resolveTempleActorFromRequest(req);
+    const payload = { ...(req.body || {}) };
+    if (actor.memberId) {
+      payload.memberId = actor.memberId;
+    }
+    const synced = await syncAllTempleDataToNeon(payload, actor);
+    return res.json({
+      success: true,
+      message: 'Đã tự động cập nhật bảng dữ liệu mới & đồng bộ toàn bộ hồ sơ vào Neon PostgreSQL!',
+      ...synced,
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Lỗi đồng bộ dữ liệu bản mới vào Neon PostgreSQL',
+    });
+  }
+});
+
+app.post(
+  ['/api/temple/admin/payment-settings', '/minhhieu/api/temple/admin/payment-settings'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser as AdminPrincipal;
+      const actor = adminUser?.username || 'admin';
+      const settings = req.body || {};
+      await upsertAppSettingInNeon({
+        key: 'temple_payment_settings',
+        value: settings,
+        category: 'payment',
+        isPublic: true,
+        description: 'Tài khoản Admin nhận thanh toán vật phẩm Chùa & Vật liệu Khu Mộ 3D',
+        updatedBy: actor,
+      });
+      return res.json({ success: true, paymentSettings: settings });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err?.message || 'Lỗi lưu cấu hình tài khoản thanh toán Admin',
+      });
+    }
+  }
+);
+
+app.post(
+  ['/api/temple/admin/approve', '/minhhieu/api/temple/admin/approve'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser as AdminPrincipal;
+      const { targetType, id, paymentStatus } = req.body || {};
+      await updateTempleOrderStatusByAdminInNeon({
+        targetType: targetType === 'merit' ? 'merit' : 'tomb',
+        id: String(id || ''),
+        paymentStatus: String(paymentStatus || 'approved'),
+        actor: adminUser?.username || 'admin',
+      });
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || 'Lỗi duyệt đơn' });
+    }
+  }
+);
+
+app.delete(
+  ['/api/temple/admin/tombs/:id', '/minhhieu/api/temple/admin/tombs/:id'],
+  requireAdminAuth,
+  async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser as AdminPrincipal;
+      const deleted = await deleteMemorialTombByAdminInNeon(
+        String(req.params.id || ''),
+        adminUser?.username || 'admin'
+      );
+      return res.json({ success: deleted });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || 'Lỗi xóa vị trí mộ' });
+    }
+  }
+);
+
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
-  // Tự động khởi tạo bảng cơ sở dữ liệu, tài khoản Admin gốc & cài đặt trên Neon PostgreSQL ngay khi khởi động
-  ensureNeonBootstrapped()
+  // Tự động khởi tạo & nâng cấp toàn bộ bảng dữ liệu mới nhất trên Neon PostgreSQL ngay khi khởi động
+  initializeNeonSchema()
+    .then(() => ensureNeonBootstrapped())
     .then((ready) => {
       if (ready) {
-        console.log('Neon PostgreSQL schema & Admin security initialized.');
+        console.log('Neon PostgreSQL schema & latest Temple/Memorial migrations initialized.');
       }
     })
     .catch((err) => {

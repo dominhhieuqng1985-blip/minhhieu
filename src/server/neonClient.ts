@@ -297,6 +297,12 @@ export const ALL_MANAGED_TABLES = [
   'neon_study_records',
   'neon_tiktok_history',
   'neon_documents',
+  'neon_temple_members',
+  'neon_temple_member_sessions',
+  'neon_temple_merit_records',
+  'neon_memorial_tombs',
+  'neon_memorial_tributes',
+  'neon_temple_guestbook',
 ];
 
 export const BROWSABLE_NEON_TABLES = [
@@ -308,6 +314,11 @@ export const BROWSABLE_NEON_TABLES = [
   'neon_app_users',
   'neon_tiktok_history',
   'neon_documents',
+  'neon_temple_members',
+  'neon_temple_merit_records',
+  'neon_memorial_tombs',
+  'neon_memorial_tributes',
+  'neon_temple_guestbook',
 ];
 
 export async function initializeNeonSchema(): Promise<{
@@ -482,15 +493,196 @@ export async function initializeNeonSchema(): Promise<{
       );
     `);
 
+    // 10. Bảng neon_temple_members: Thành viên Phật tử đăng ký, đăng nhập, cúng dường trong chùa & xây dựng khu mộ
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS neon_temple_members (
+        id VARCHAR(100) PRIMARY KEY,
+        username VARCHAR(100) UNIQUE,
+        password_hash TEXT,
+        full_name VARCHAR(255) NOT NULL,
+        dharma_name VARCHAR(150),
+        phone VARCHAR(60),
+        email VARCHAR(180),
+        address VARCHAR(255),
+        role VARCHAR(40) DEFAULT 'member',
+        is_active BOOLEAN DEFAULT TRUE,
+        merit_points INTEGER DEFAULT 0,
+        total_donated NUMERIC(14, 0) DEFAULT 0,
+        tombs_built INTEGER DEFAULT 0,
+        last_login_at TIMESTAMPTZ,
+        metadata JSONB DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // Tự động nâng cấp đầy đủ các cột bản mới cho bảng neon_temple_members nếu đã tồn tại từ bản cũ
+    await client.query(`
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS username VARCHAR(100) UNIQUE;
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS password_hash TEXT;
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS dharma_name VARCHAR(150);
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS phone VARCHAR(60);
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS email VARCHAR(180);
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS address VARCHAR(255);
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS role VARCHAR(40) DEFAULT 'member';
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS merit_points INTEGER DEFAULT 0;
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS total_donated NUMERIC(14, 0) DEFAULT 0;
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS tombs_built INTEGER DEFAULT 0;
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+      ALTER TABLE neon_temple_members ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+    `);
+
+    // 10b. Bảng neon_temple_member_sessions: Lưu trữ phiên đăng nhập Thành viên Phật tử bền vững trên PostgreSQL
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS neon_temple_member_sessions (
+        token_hash VARCHAR(128) PRIMARY KEY,
+        member_id VARCHAR(100) NOT NULL REFERENCES neon_temple_members(id) ON DELETE CASCADE,
+        username VARCHAR(100),
+        ip_address VARCHAR(100),
+        user_agent TEXT,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // 11. Bảng neon_temple_merit_records: Sổ vàng ghi danh cúng dường, mua vật phẩm dâng lễ & kết nối bài kinh
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS neon_temple_merit_records (
+        id VARCHAR(100) PRIMARY KEY,
+        member_id VARCHAR(100) REFERENCES neon_temple_members(id) ON DELETE SET NULL,
+        donor_name VARCHAR(255) NOT NULL,
+        dharma_name VARCHAR(150),
+        phone VARCHAR(60),
+        address VARCHAR(255),
+        prayer_type VARCHAR(50) DEFAULT 'cau-an',
+        prayer_text TEXT,
+        sutra_id VARCHAR(100),
+        sutra_title VARCHAR(255),
+        items_json JSONB DEFAULT '[]'::jsonb,
+        custom_donation NUMERIC(14, 0) DEFAULT 0,
+        total_amount NUMERIC(14, 0) DEFAULT 0,
+        total_merit_points INTEGER DEFAULT 0,
+        payment_method VARCHAR(50) DEFAULT 'tuy-tam',
+        payment_status VARCHAR(50) DEFAULT 'completed',
+        transaction_code VARCHAR(120),
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      ALTER TABLE neon_temple_merit_records ADD COLUMN IF NOT EXISTS member_id VARCHAR(100);
+      ALTER TABLE neon_temple_merit_records ADD COLUMN IF NOT EXISTS sutra_id VARCHAR(100);
+      ALTER TABLE neon_temple_merit_records ADD COLUMN IF NOT EXISTS sutra_title VARCHAR(255);
+      ALTER TABLE neon_temple_merit_records ADD COLUMN IF NOT EXISTS items_json JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE neon_temple_merit_records ADD COLUMN IF NOT EXISTS custom_donation NUMERIC(14, 0) DEFAULT 0;
+      ALTER TABLE neon_temple_merit_records ADD COLUMN IF NOT EXISTS total_amount NUMERIC(14, 0) DEFAULT 0;
+      ALTER TABLE neon_temple_merit_records ADD COLUMN IF NOT EXISTS total_merit_points INTEGER DEFAULT 0;
+      ALTER TABLE neon_temple_merit_records ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'tuy-tam';
+      ALTER TABLE neon_temple_merit_records ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'completed';
+      ALTER TABLE neon_temple_merit_records ADD COLUMN IF NOT EXISTS transaction_code VARCHAR(120);
+    `);
+
+    // 12. Bảng neon_memorial_tombs: Hoa Viên Khu Mộ 3D & Bia Tưởng Niệm Người Quá Cố (Đầy đủ Dương Lịch, Âm Lịch, Hưởng Thọ / Hưởng Dương)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS neon_memorial_tombs (
+        id VARCHAR(100) PRIMARY KEY,
+        plot_code VARCHAR(30) UNIQUE NOT NULL,
+        zone_name VARCHAR(200) NOT NULL,
+        row_index INTEGER NOT NULL DEFAULT 0,
+        col_index INTEGER NOT NULL DEFAULT 0,
+        stele_header VARCHAR(150) DEFAULT 'PHẬT QUANG TIẾP DẪN',
+        deceased_full_name VARCHAR(255) NOT NULL,
+        deceased_dharma_name VARCHAR(150),
+        gender VARCHAR(20) DEFAULT 'Nam',
+        birth_solar VARCHAR(60) NOT NULL,
+        birth_lunar VARCHAR(120) NOT NULL,
+        death_solar VARCHAR(60) NOT NULL,
+        death_lunar VARCHAR(120) NOT NULL,
+        longevity_type VARCHAR(30) NOT NULL DEFAULT 'huong-tho',
+        longevity_age INTEGER NOT NULL DEFAULT 80,
+        hometown VARCHAR(255),
+        epitaph TEXT,
+        erected_by VARCHAR(255),
+        member_id VARCHAR(100) REFERENCES neon_temple_members(id) ON DELETE SET NULL,
+        builder_name VARCHAR(255) NOT NULL,
+        builder_phone VARCHAR(60),
+        builder_email VARCHAR(180),
+        material_id VARCHAR(60) DEFAULT 'granite_kim_sa',
+        architecture_id VARCHAR(60) DEFAULT 'mo_don_tam_cap',
+        addons_json JSONB DEFAULT '[]'::jsonb,
+        dedicated_sutra_id VARCHAR(100) DEFAULT 'kinh-a-di-da',
+        total_cost NUMERIC(14, 0) DEFAULT 0,
+        payment_method VARCHAR(50) DEFAULT 'vietqr_admin',
+        payment_status VARCHAR(50) DEFAULT 'approved',
+        incense_count INTEGER DEFAULT 1,
+        flower_count INTEGER DEFAULT 1,
+        last_incense_at TIMESTAMPTZ DEFAULT NOW(),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS member_id VARCHAR(100);
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS builder_phone VARCHAR(60);
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS builder_email VARCHAR(180);
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS material_id VARCHAR(60) DEFAULT 'granite_kim_sa';
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS architecture_id VARCHAR(60) DEFAULT 'mo_don_tam_cap';
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS addons_json JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS dedicated_sutra_id VARCHAR(100) DEFAULT 'kinh-a-di-da';
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS total_cost NUMERIC(14, 0) DEFAULT 0;
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'vietqr_admin';
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'approved';
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS incense_count INTEGER DEFAULT 1;
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS flower_count INTEGER DEFAULT 1;
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS last_incense_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE neon_memorial_tombs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+    `);
+
+    // 13. Bảng neon_memorial_tributes: Nhật ký đốt nhang, dâng hoa, mua vật phẩm tưởng nhớ tại khu mộ 3D
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS neon_memorial_tributes (
+        id VARCHAR(100) PRIMARY KEY,
+        tomb_id VARCHAR(100) REFERENCES neon_memorial_tombs(id) ON DELETE CASCADE,
+        plot_code VARCHAR(30),
+        visitor_name VARCHAR(255) NOT NULL,
+        tribute_type VARCHAR(50) DEFAULT 'dot-nhang',
+        item_name VARCHAR(255),
+        amount NUMERIC(14, 0) DEFAULT 0,
+        message TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // 14. Bảng neon_temple_guestbook: Sổ lưu bút thập phương cầu nguyện bền vững trên PostgreSQL
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS neon_temple_guestbook (
+        id VARCHAR(100) PRIMARY KEY,
+        member_id VARCHAR(100) REFERENCES neon_temple_members(id) ON DELETE SET NULL,
+        name VARCHAR(255) NOT NULL,
+        dharma_name VARCHAR(150),
+        location VARCHAR(255) DEFAULT 'Việt Nam',
+        wish TEXT NOT NULL,
+        likes INTEGER DEFAULT 1,
+        offerings_count INTEGER DEFAULT 1,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     // Indexes tối ưu hiệu năng truy vấn
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON neon_admin_sessions(expires_at);
+      CREATE INDEX IF NOT EXISTS idx_temple_member_sessions_expires ON neon_temple_member_sessions(expires_at);
       CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON neon_admin_audit_logs(created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_channel_videos_deleted ON neon_channel_videos(is_deleted, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_study_created_at ON neon_study_records(created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_study_subject ON neon_study_records(subject);
       CREATE INDEX IF NOT EXISTS idx_tiktok_created_at ON neon_tiktok_history(downloaded_at DESC);
       CREATE INDEX IF NOT EXISTS idx_documents_created_at ON neon_documents(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_temple_merit_created ON neon_temple_merit_records(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_memorial_tombs_plot ON neon_memorial_tombs(plot_code);
+      CREATE INDEX IF NOT EXISTS idx_memorial_tributes_tomb ON neon_memorial_tributes(tomb_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_temple_guestbook_created ON neon_temple_guestbook(created_at DESC);
     `);
 
     // Tự động khởi tạo tài khoản Super Admin gốc nếu bảng neon_admin_accounts đang trống
@@ -618,6 +810,22 @@ export async function initializeNeonSchema(): Promise<{
         pub: false,
         desc: 'Chính sách bảo mật khóa hoàn toàn khu vực cài đặt & cơ sở dữ liệu cho riêng Admin',
       },
+      {
+        key: 'temple_payment_settings',
+        val: {
+          bankId: 'MB',
+          bankName: 'Ngân hàng Quân Đội (MB Bank)',
+          accountNo: '0985123688',
+          accountName: 'MINH HIEU OFFICIAL VN',
+          paypalMeUrl: 'https://www.paypal.com',
+          adminContact: 'Quản trị viên Minh Hiếu Official VN (@MinhHieuOfficialvn)',
+          autoApproveOrders: true,
+          noteTemplate: 'CUNG DUONG CHUA HOA VIEN 3D',
+        },
+        cat: 'payment',
+        pub: true,
+        desc: 'Tài khoản Admin nhận thanh toán vật phẩm cúng dường Chùa & Vật liệu xây dựng Khu Mộ 3D',
+      },
     ];
 
     for (const item of defaultSettingsSeeds) {
@@ -627,6 +835,136 @@ export async function initializeNeonSchema(): Promise<{
          ON CONFLICT (setting_key) DO NOTHING;`,
         [item.key, JSON.stringify(item.val), item.cat, item.pub, item.desc]
       );
+    }
+
+    // Dọn sạch vĩnh viễn các ngôi mộ mẫu (tomb-seed-*) và hồ sơ mẫu gắn kèm theo yêu cầu Quản trị viên
+    await client.query(
+      `DELETE FROM neon_memorial_tributes WHERE tomb_id IN ('tomb-seed-a2', 'tomb-seed-a5', 'tomb-seed-b3', 'tomb-seed-c4') OR tomb_id LIKE 'tomb-seed-%';`
+    );
+    await client.query(
+      `DELETE FROM neon_memorial_tombs WHERE id IN ('tomb-seed-a2', 'tomb-seed-a5', 'tomb-seed-b3', 'tomb-seed-c4') OR id LIKE 'tomb-seed-%';`
+    );
+    await client.query(
+      `DELETE FROM neon_temple_members WHERE id IN ('mem-van-binh', 'mem-minh-tam', 'mem-thu-thuy', 'mem-dinh-khoi');`
+    );
+
+    // Gieo mầm dữ liệu Ghi danh Công đức Chùa ban đầu nếu bảng còn trống (không gieo mộ mẫu)
+    const meritCountRes = await client.query(`SELECT count(*)::int AS cnt FROM neon_temple_merit_records;`);
+    if ((meritCountRes.rows[0]?.cnt || 0) === 0) {
+      await client.query(
+        `INSERT INTO neon_temple_members (id, full_name, dharma_name, phone, address, merit_points, total_donated, tombs_built)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING;`,
+        ['mem-minh-hieu', 'Đỗ Minh Hiếu', 'Nhuận Trí', '0985***688', 'Quảng Ngãi / TP. Hồ Chí Minh', 420, 280000, 0]
+      );
+
+      const seedMerit = [
+        {
+          id: 'CB-20261104-001',
+          member_id: 'mem-minh-hieu',
+          donor_name: 'Đỗ Minh Hiếu',
+          dharma_name: 'Nhuận Trí',
+          phone: '0985***688',
+          address: 'Quảng Ngãi / TP. Hồ Chí Minh',
+          prayer_type: 'cau-an',
+          prayer_text: 'Nguyện cầu mười phương Chư Phật gia hộ cho cha mẹ mạnh khỏe sống lâu trăm tuổi, gia đạo bình an, công việc hanh thông, mọi sự kiết tường như ý.',
+          sutra_id: 'kinh-duoc-su',
+          sutra_title: 'Kinh Dược Sư Cầu Bình An & Sức Khỏe Cho Gia Đạo',
+          items_json: [
+            { itemId: 'store-nhang-tram', itemName: 'Nhang Trầm Hương Xứ Quảng', quantity: 1, price: 30000, subtotal: 30000 },
+            { itemId: 'store-hoa-sen', itemName: 'Bó Hoa Sen Trắng Tinh Khiết Dâng Phật', quantity: 2, price: 50000, subtotal: 100000 },
+            { itemId: 'store-mam-ngu-qua', itemName: 'Mâm Ngũ Quả Cúng Phật Đủ Đầy', quantity: 1, price: 100000, subtotal: 100000 },
+          ],
+          custom_donation: 50000,
+          total_amount: 280000,
+          total_merit_points: 420,
+          payment_method: 'vietqr_admin',
+          payment_status: 'approved',
+        },
+        {
+          id: 'CB-20261103-089',
+          member_id: null,
+          donor_name: 'Nguyễn Thị Diệu Hương',
+          dharma_name: 'Diệu Tâm',
+          phone: '0912***345',
+          address: 'Ba Đình, Hà Nội',
+          prayer_type: 'cau-an',
+          prayer_text: 'Cầu nguyện mười phương Chư Phật gia hộ gia đình an khang, tâm Bồ Đề kiên cố, phước huệ trang nghiêm.',
+          sutra_id: 'kinh-a-di-da',
+          sutra_title: 'Kinh A Di Đà (Cầu Siêu Độ Cửu Huyền Thất Tổ & Vãng Sanh Cực Lạc)',
+          items_json: [
+            { itemId: 'store-cap-den-dau', itemName: 'Cặp Đèn Dầu Vô Lượng Quang', quantity: 1, price: 40000, subtotal: 40000 },
+            { itemId: 'store-hoa-dang', itemName: 'Đèn Hoa Đăng Cầu Bình An Hồ Sen', quantity: 3, price: 35000, subtotal: 105000 },
+          ],
+          custom_donation: 100000,
+          total_amount: 245000,
+          total_merit_points: 350,
+          payment_method: 'vietqr_admin',
+          payment_status: 'approved',
+        },
+      ];
+      for (const mr of seedMerit) {
+        await client.query(
+          `INSERT INTO neon_temple_merit_records (
+            id, member_id, donor_name, dharma_name, phone, address, prayer_type, prayer_text,
+            sutra_id, sutra_title, items_json, custom_donation, total_amount, total_merit_points, payment_method, payment_status
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16)
+          ON CONFLICT (id) DO NOTHING;`,
+          [
+            mr.id, mr.member_id, mr.donor_name, mr.dharma_name, mr.phone, mr.address, mr.prayer_type, mr.prayer_text,
+            mr.sutra_id, mr.sutra_title, JSON.stringify(mr.items_json), mr.custom_donation, mr.total_amount, mr.total_merit_points, mr.payment_method, mr.payment_status,
+          ]
+        );
+      }
+    }
+
+    // Tự động gieo mầm Sổ Lưu Bút Thập Phương nếu bảng neon_temple_guestbook còn trống
+    const gbCountRes = await client.query(`SELECT count(*)::int AS cnt FROM neon_temple_guestbook;`);
+    if ((gbCountRes.rows[0]?.cnt || 0) === 0) {
+      const seedGuestbook = [
+        {
+          id: 'gb-1',
+          name: 'Nguyễn Văn Minh',
+          dharma_name: 'Pháp danh Tâm An',
+          location: 'Quận 1, TP. Hồ Chí Minh',
+          wish: 'Nam Mô A Di Đà Phật. Con kính nguyện mười phương Chư Phật gia hộ cho cha mẹ con luôn dồi dào sức khỏe, sống đời bình an, gia đình thuận hòa ấm no, tai qua nạn khỏi.',
+          likes: 42,
+          offerings_count: 3,
+        },
+        {
+          id: 'gb-2',
+          name: 'Trần Thị Mỹ Duyên',
+          dharma_name: 'Pháp danh Diệu Thiện',
+          location: 'Hà Nội',
+          wish: 'Con cầu nguyện cho con cái chăm ngoan học giỏi, thi cử đỗ đạt, công việc hanh thông, đất nước thanh bình nhân dân ấm no hạnh phúc.',
+          likes: 38,
+          offerings_count: 2,
+        },
+        {
+          id: 'gb-3',
+          name: 'Lê Hoàng Phong',
+          dharma_name: 'Pháp danh Nhuận Trí',
+          location: 'Đà Nẵng',
+          wish: 'Được vào chiêm bái ngôi chùa online 3D thật thanh tịnh và trang nghiêm. Nguyện đem công đức này hồi hướng cho tất cả chúng sinh đều được an lạc và sớm giác ngộ.',
+          likes: 56,
+          offerings_count: 5,
+        },
+        {
+          id: 'gb-4',
+          name: 'Phạm Hồng Phúc',
+          dharma_name: 'Pháp danh Thiện Duyên',
+          location: 'Cần Thơ',
+          wish: 'Con cầu bình an cho gia đạo, tiêu trừ mọi oan khiên tật ách, gieo duyên lành cho mọi người cùng biết đến Phật pháp từ bi.',
+          likes: 29,
+          offerings_count: 1,
+        },
+      ];
+      for (const gb of seedGuestbook) {
+        await client.query(
+          `INSERT INTO neon_temple_guestbook (id, name, dharma_name, location, wish, likes, offerings_count)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING;`,
+          [gb.id, gb.name, gb.dharma_name, gb.location, gb.wish, gb.likes, gb.offerings_count]
+        );
+      }
     }
 
     // Tự động gieo mầm tài liệu mặc định nếu bảng neon_documents chưa có dữ liệu
@@ -816,6 +1154,7 @@ export async function initializeNeonSchema(): Promise<{
 
     // Dọn dẹp các phiên đăng nhập đã hết hạn
     await client.query(`DELETE FROM neon_admin_sessions WHERE expires_at <= NOW();`);
+    await client.query(`DELETE FROM neon_temple_member_sessions WHERE expires_at <= NOW();`);
 
     await recordAdminAuditLog(
       'system',
@@ -831,7 +1170,7 @@ export async function initializeNeonSchema(): Promise<{
     return {
       success: true,
       message:
-        'Đã tự động khởi tạo đầy đủ 8 bảng dữ liệu (Tài khoản Admin, Phiên bảo mật, Cấu hình hệ thống, Video kênh, Nhật ký, Học tập & TikTok) trên Neon PostgreSQL!',
+        'Đã tự động tạo & cập nhật đầy đủ toàn bộ bảng dữ liệu mới nhất (Admin, Thành viên Phật tử, Phiên đăng nhập, Sổ vàng công đức, Khu mộ 3D, Nhật ký hương khói, Sổ lưu bút, Video & Cài đặt) trên Neon PostgreSQL!',
       tables: ALL_MANAGED_TABLES,
       seededInitialAdmin,
     };
@@ -1932,6 +2271,18 @@ export async function queryNeonTable(
       } else if (tableName === 'neon_admin_audit_logs') {
         whereClause = `WHERE admin_username ILIKE $1 OR action ILIKE $1 OR COALESCE(target, '') ILIKE $1`;
         params.push(q);
+      } else if (tableName === 'neon_temple_members') {
+        whereClause = `WHERE full_name ILIKE $1 OR COALESCE(username, '') ILIKE $1 OR COALESCE(dharma_name, '') ILIKE $1 OR COALESCE(phone, '') ILIKE $1`;
+        params.push(q);
+      } else if (tableName === 'neon_memorial_tombs') {
+        whereClause = `WHERE plot_code ILIKE $1 OR deceased_full_name ILIKE $1 OR builder_name ILIKE $1`;
+        params.push(q);
+      } else if (tableName === 'neon_temple_merit_records') {
+        whereClause = `WHERE donor_name ILIKE $1 OR COALESCE(dharma_name, '') ILIKE $1 OR COALESCE(prayer_text, '') ILIKE $1`;
+        params.push(q);
+      } else if (tableName === 'neon_temple_guestbook') {
+        whereClause = `WHERE name ILIKE $1 OR wish ILIKE $1 OR COALESCE(location, '') ILIKE $1`;
+        params.push(q);
       }
     }
 
@@ -1949,6 +2300,8 @@ export async function queryNeonTable(
     const selectCols =
       tableName === 'neon_admin_accounts'
         ? `id, username, display_name, email, role, is_active, failed_attempts, last_login_at, created_at, updated_at, '[SCRYPT PROTECTED]' AS password_security`
+        : tableName === 'neon_temple_members'
+        ? `id, username, full_name, dharma_name, phone, email, address, role, is_active, merit_points, total_donated, tombs_built, last_login_at, created_at, updated_at`
         : `*`;
 
     params.push(limit);
@@ -2419,4 +2772,1186 @@ export async function getDocumentById(id: string): Promise<any | null> {
   const localList = readLocalDocumentsFallback();
   return localList.find((x) => x.id === cleanId) || null;
 }
+
+// =========================================================================
+// CHÙA ONLINE & HOA VIÊN KHU MỘ 3D (NEON POSTGRESQL PERSISTENCE)
+// =========================================================================
+
+function formatMeritRowFromDb(row: any): any {
+  const dt = row.created_at ? new Date(row.created_at) : new Date();
+  const formattedDate = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+  return {
+    id: String(row.id),
+    memberId: row.member_id || undefined,
+    donorName: String(row.donor_name || 'Thí chủ'),
+    dharmaName: row.dharma_name || undefined,
+    phone: row.phone || undefined,
+    address: row.address || undefined,
+    prayerType: row.prayer_type || 'cau-an',
+    prayerText: row.prayer_text || '',
+    sutraId: row.sutra_id || undefined,
+    sutraTitle: row.sutra_title || undefined,
+    items: Array.isArray(row.items_json) ? row.items_json : [],
+    customDonation: Number(row.custom_donation || 0),
+    totalAmount: Number(row.total_amount || 0),
+    totalMeritPoints: Number(row.total_merit_points || 0),
+    paymentMethod: row.payment_method || 'tuy-tam',
+    paymentStatus: row.payment_status || 'completed',
+    transactionCode: row.transaction_code || undefined,
+    createdAt: formattedDate,
+  };
+}
+
+function formatTombRowFromDb(row: any): any {
+  const dt = row.created_at ? new Date(row.created_at) : new Date();
+  const formattedDate = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+  return {
+    id: String(row.id),
+    plotCode: String(row.plot_code),
+    zoneName: String(row.zone_name || ''),
+    rowIndex: Number(row.row_index || 0),
+    colIndex: Number(row.col_index || 0),
+    steleHeader: String(row.stele_header || 'PHẬT QUANG TIẾP DẪN'),
+    deceasedFullName: String(row.deceased_full_name || ''),
+    deceasedDharmaName: row.deceased_dharma_name || undefined,
+    gender: row.gender === 'Nữ' ? 'Nữ' : 'Nam',
+    birthSolar: String(row.birth_solar || ''),
+    birthLunar: String(row.birth_lunar || ''),
+    deathSolar: String(row.death_solar || ''),
+    deathLunar: String(row.death_lunar || ''),
+    longevityType: row.longevity_type || 'huong-tho',
+    longevityAge: Number(row.longevity_age || 80),
+    hometown: row.hometown || undefined,
+    epitaph: row.epitaph || undefined,
+    erectedBy: String(row.erected_by || 'Gia quyến đồng lập'),
+    memberId: row.member_id || undefined,
+    builderName: String(row.builder_name || 'Gia quyến'),
+    builderPhone: row.builder_phone || undefined,
+    builderEmail: row.builder_email || undefined,
+    materialId: row.material_id || 'granite_kim_sa',
+    architectureId: row.architecture_id || 'mo_don_tam_cap',
+    addons: Array.isArray(row.addons_json) ? row.addons_json : [],
+    dedicatedSutraId: row.dedicated_sutra_id || 'kinh-a-di-da',
+    totalCost: Number(row.total_cost || 0),
+    paymentMethod: row.payment_method || 'vietqr_admin',
+    paymentStatus: row.payment_status || 'approved',
+    incenseCount: Number(row.incense_count || 1),
+    flowerCount: Number(row.flower_count || 1),
+    lastIncenseAt: row.last_incense_at ? new Date(row.last_incense_at).toISOString() : undefined,
+    createdAt: formattedDate,
+  };
+}
+
+function formatMemberRowFromDb(r: any): any {
+  const dt = r.created_at ? new Date(r.created_at) : new Date();
+  const formattedDate = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+  return {
+    id: String(r.id),
+    username: r.username || undefined,
+    fullName: String(r.full_name || 'Phật tử'),
+    dharmaName: r.dharma_name || undefined,
+    phone: r.phone || undefined,
+    email: r.email || undefined,
+    address: r.address || undefined,
+    meritPoints: Number(r.merit_points || 0),
+    totalDonated: Number(r.total_donated || 0),
+    tombsBuilt: Number(r.tombs_built || 0),
+    createdAt: formattedDate,
+  };
+}
+
+function formatGuestbookRowFromDb(r: any): any {
+  const dt = r.created_at ? new Date(r.created_at) : new Date();
+  const formattedDate = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+  return {
+    id: String(r.id),
+    memberId: r.member_id || undefined,
+    name: String(r.name || 'Phật tử'),
+    dharmaName: r.dharma_name || undefined,
+    location: String(r.location || 'Việt Nam'),
+    wish: String(r.wish || ''),
+    likes: Number(r.likes || 1),
+    offeringsCount: Number(r.offerings_count || 1),
+    createdAt: formattedDate,
+  };
+}
+
+export async function getTempleOverviewFromNeon(): Promise<{
+  paymentSettings: any;
+  members: any[];
+  meritRecords: any[];
+  tombs: any[];
+  tributes: any[];
+  guestbook: any[];
+}> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) {
+    throw new Error('Chưa kết nối Neon PostgreSQL');
+  }
+
+  const [payRes, memRes, meritRes, tombRes, tribRes, gbRes] = await Promise.all([
+    pool.query(`SELECT setting_value FROM neon_app_settings WHERE setting_key = 'temple_payment_settings' LIMIT 1;`),
+    pool.query(`SELECT * FROM neon_temple_members ORDER BY total_donated DESC, merit_points DESC, created_at DESC LIMIT 250;`),
+    pool.query(`SELECT * FROM neon_temple_merit_records ORDER BY created_at DESC LIMIT 250;`),
+    pool.query(`SELECT * FROM neon_memorial_tombs ORDER BY row_index ASC, col_index ASC;`),
+    pool.query(`SELECT * FROM neon_memorial_tributes ORDER BY created_at DESC LIMIT 150;`),
+    pool.query(`SELECT * FROM neon_temple_guestbook ORDER BY created_at DESC LIMIT 150;`),
+  ]);
+
+  return {
+    paymentSettings: payRes.rows[0]?.setting_value || null,
+    members: memRes.rows.map(formatMemberRowFromDb),
+    meritRecords: meritRes.rows.map(formatMeritRowFromDb),
+    tombs: tombRes.rows.map(formatTombRowFromDb),
+    tributes: tribRes.rows.map((t) => ({
+      id: t.id,
+      tombId: t.tomb_id,
+      plotCode: t.plot_code || '',
+      visitorName: t.visitor_name,
+      tributeType: t.tribute_type,
+      itemName: t.item_name || undefined,
+      amount: Number(t.amount || 0),
+      message: t.message || '',
+      createdAt: t.created_at,
+    })),
+    guestbook: gbRes.rows.map(formatGuestbookRowFromDb),
+  };
+}
+
+async function upsertTempleMemberWithClient(
+  client: pg.PoolClient,
+  info: {
+    memberId?: string;
+    fullName: string;
+    dharmaName?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    addMerit?: number;
+    addDonated?: number;
+    addTombs?: number;
+  }
+): Promise<string> {
+  const cleanName = String(info.fullName || 'Phật tử').trim();
+  const cleanPhone = String(info.phone || '').trim();
+  const cleanEmail = String(info.email || '').trim();
+
+  if (info.memberId && String(info.memberId).trim()) {
+    const explicitId = String(info.memberId).trim();
+    const existingRes = await client.query(
+      `SELECT id FROM neon_temple_members WHERE id = $1 LIMIT 1;`,
+      [explicitId]
+    );
+    if (existingRes.rows.length > 0) {
+      await client.query(
+        `UPDATE neon_temple_members SET
+          full_name = COALESCE(NULLIF($2, ''), full_name),
+          dharma_name = COALESCE(NULLIF($3, ''), dharma_name),
+          phone = COALESCE(NULLIF($4, ''), phone),
+          email = COALESCE(NULLIF($5, ''), email),
+          address = COALESCE(NULLIF($6, ''), address),
+          merit_points = merit_points + $7,
+          total_donated = total_donated + $8,
+          tombs_built = tombs_built + $9,
+          updated_at = NOW()
+         WHERE id = $1;`,
+        [
+          explicitId,
+          cleanName,
+          info.dharmaName || null,
+          cleanPhone || null,
+          cleanEmail || null,
+          info.address || null,
+          Number(info.addMerit || 0),
+          Number(info.addDonated || 0),
+          Number(info.addTombs || 0),
+        ]
+      );
+      return explicitId;
+    }
+  }
+
+  const slug = cleanName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 36);
+  const memberId =
+    (info.memberId && String(info.memberId).trim()) ||
+    `mem-${slug || 'phattu'}-${cleanPhone ? cleanPhone.slice(-4) : 'tam-bao'}`;
+
+  await client.query(
+    `INSERT INTO neon_temple_members (
+      id, full_name, dharma_name, phone, email, address, merit_points, total_donated, tombs_built, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+    ON CONFLICT (id) DO UPDATE SET
+      full_name = EXCLUDED.full_name,
+      dharma_name = COALESCE(NULLIF(EXCLUDED.dharma_name, ''), neon_temple_members.dharma_name),
+      phone = COALESCE(NULLIF(EXCLUDED.phone, ''), neon_temple_members.phone),
+      email = COALESCE(NULLIF(EXCLUDED.email, ''), neon_temple_members.email),
+      address = COALESCE(NULLIF(EXCLUDED.address, ''), neon_temple_members.address),
+      merit_points = neon_temple_members.merit_points + $7,
+      total_donated = neon_temple_members.total_donated + $8,
+      tombs_built = neon_temple_members.tombs_built + $9,
+      updated_at = NOW();`,
+    [
+      memberId,
+      cleanName,
+      info.dharmaName || null,
+      cleanPhone || null,
+      cleanEmail || null,
+      info.address || null,
+      Number(info.addMerit || 0),
+      Number(info.addDonated || 0),
+      Number(info.addTombs || 0),
+    ]
+  );
+
+  return memberId;
+}
+
+// =========================================================================
+// ĐĂNG KÝ, ĐĂNG NHẬP & QUẢN LÝ TÀI KHOẢN THÀNH VIÊN PHẬT TỬ (NEON POSTGRESQL)
+// =========================================================================
+
+function createStatelessMemberToken(memberId: string, username: string, expiresAtIso: string): string {
+  const payloadStr = Buffer.from(
+    JSON.stringify({ mid: memberId, u: username, exp: expiresAtIso }),
+    'utf-8'
+  ).toString('base64url');
+  const sig = crypto
+    .createHmac('sha256', FALLBACK_HMAC_SECRET)
+    .update(`member:${payloadStr}`)
+    .digest('base64url');
+  return `tmem_${payloadStr}.${sig}`;
+}
+
+function verifyStatelessMemberToken(rawToken: string): { memberId: string; username: string } | null {
+  try {
+    if (!rawToken || !rawToken.startsWith('tmem_')) return null;
+    const body = rawToken.slice(5);
+    const dotIdx = body.lastIndexOf('.');
+    if (dotIdx <= 0) return null;
+    const payloadStr = body.slice(0, dotIdx);
+    const sig = body.slice(dotIdx + 1);
+    const expectedSig = crypto
+      .createHmac('sha256', FALLBACK_HMAC_SECRET)
+      .update(`member:${payloadStr}`)
+      .digest('base64url');
+    if (sig !== expectedSig) return null;
+    const parsed = JSON.parse(Buffer.from(payloadStr, 'base64url').toString('utf-8'));
+    if (!parsed?.mid || !parsed?.exp) return null;
+    if (new Date(parsed.exp).getTime() <= Date.now()) return null;
+    return { memberId: String(parsed.mid), username: String(parsed.u || '') };
+  } catch {
+    return null;
+  }
+}
+
+export async function registerTempleMemberInNeon(params: {
+  username?: string;
+  password: string;
+  fullName: string;
+  dharmaName?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  ipAddress?: string;
+  userAgent?: string;
+}): Promise<{ token: string; member: any }> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối cơ sở dữ liệu Neon PostgreSQL');
+
+  const fullName = String(params.fullName || '').trim();
+  const password = String(params.password || '');
+  const phone = String(params.phone || '').trim();
+  const email = String(params.email || '').trim().toLowerCase();
+  const rawUsername = String(params.username || phone || email.split('@')[0] || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
+
+  if (!fullName) {
+    throw new Error('Vui lòng nhập Họ và tên thành viên!');
+  }
+  if (!rawUsername || rawUsername.length < 3) {
+    throw new Error('Tên đăng nhập (hoặc Số điện thoại) phải có từ 3 ký tự trở lên!');
+  }
+  if (password.length < 4) {
+    throw new Error('Mật khẩu phải có từ 4 ký tự trở lên!');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const dupCheck = await client.query(
+      `SELECT id, password_hash FROM neon_temple_members
+       WHERE LOWER(username) = LOWER($1)
+          OR ($2 <> '' AND phone = $2 AND password_hash IS NOT NULL)
+          OR ($3 <> '' AND LOWER(email) = LOWER($3) AND password_hash IS NOT NULL)
+       LIMIT 1;`,
+      [rawUsername, phone, email]
+    );
+    if (dupCheck.rows.length > 0 && dupCheck.rows[0].password_hash) {
+      throw new Error('Tên đăng nhập, số điện thoại hoặc email này đã được đăng ký! Vui lòng chuyển sang Đăng Nhập.');
+    }
+
+    const passwordHash = hashPasswordScrypt(password);
+    const memberId = `mem-${rawUsername.replace(/[^a-z0-9]/g, '').slice(0, 24) || 'phattu'}-${Date.now().toString(36)}`;
+
+    const insertRes = await client.query(
+      `INSERT INTO neon_temple_members (
+        id, username, password_hash, full_name, dharma_name, phone, email, address,
+        merit_points, total_donated, tombs_built, last_login_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 100, 0, 0, NOW(), NOW())
+      RETURNING *;`,
+      [
+        memberId,
+        rawUsername,
+        passwordHash,
+        fullName,
+        params.dharmaName ? String(params.dharmaName).trim() : null,
+        phone || null,
+        email || null,
+        params.address ? String(params.address).trim() : null,
+      ]
+    );
+
+    const memberRow = insertRes.rows[0];
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const rawToken = createStatelessMemberToken(memberRow.id, rawUsername, expiresAt);
+    const tokenHash = hashSessionToken(rawToken);
+
+    await client.query(
+      `INSERT INTO neon_temple_member_sessions (token_hash, member_id, username, ip_address, user_agent, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6);`,
+      [tokenHash, memberRow.id, rawUsername, params.ipAddress || '', params.userAgent || '', expiresAt]
+    );
+
+    await client.query('COMMIT');
+    return {
+      token: rawToken,
+      member: formatMemberRowFromDb(memberRow),
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function loginTempleMemberWithNeon(params: {
+  identifier: string;
+  password: string;
+  ipAddress?: string;
+  userAgent?: string;
+}): Promise<{ token: string; member: any }> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối cơ sở dữ liệu Neon PostgreSQL');
+
+  const identifier = String(params.identifier || '').trim();
+  const password = String(params.password || '');
+  if (!identifier || !password) {
+    throw new Error('Vui lòng nhập Tên đăng nhập / Số điện thoại và Mật khẩu!');
+  }
+
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      `SELECT * FROM neon_temple_members
+       WHERE LOWER(username) = LOWER($1)
+          OR phone = $1
+          OR LOWER(email) = LOWER($1)
+       ORDER BY (password_hash IS NOT NULL) DESC, created_at DESC
+       LIMIT 1;`,
+      [identifier]
+    );
+
+    if (res.rows.length === 0 || !res.rows[0].password_hash) {
+      throw new Error('Không tìm thấy tài khoản thành viên hoặc tài khoản chưa đặt mật khẩu. Vui lòng Đăng Ký Thành Viên mới!');
+    }
+
+    const row = res.rows[0];
+    if (row.is_active === false) {
+      throw new Error('Tài khoản thành viên này đang tạm khóa.');
+    }
+
+    const ok = verifyPasswordScrypt(password, row.password_hash);
+    if (!ok) {
+      throw new Error('Mật khẩu không chính xác. Vui lòng kiểm tra lại!');
+    }
+
+    await client.query(
+      `UPDATE neon_temple_members SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1;`,
+      [row.id]
+    );
+
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const rawToken = createStatelessMemberToken(row.id, row.username || row.id, expiresAt);
+    const tokenHash = hashSessionToken(rawToken);
+
+    await client.query(
+      `INSERT INTO neon_temple_member_sessions (token_hash, member_id, username, ip_address, user_agent, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (token_hash) DO NOTHING;`,
+      [tokenHash, row.id, row.username || row.id, params.ipAddress || '', params.userAgent || '', expiresAt]
+    );
+
+    return {
+      token: rawToken,
+      member: formatMemberRowFromDb(row),
+    };
+  } finally {
+    client.release();
+  }
+}
+
+export async function verifyTempleMemberToken(rawToken: string): Promise<any | null> {
+  if (!rawToken || !rawToken.trim()) return null;
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) return null;
+
+  try {
+    const tokenHash = hashSessionToken(rawToken.trim());
+    const sessRes = await pool.query(
+      `SELECT m.* FROM neon_temple_member_sessions s
+       JOIN neon_temple_members m ON m.id = s.member_id
+       WHERE s.token_hash = $1 AND s.expires_at > NOW() AND m.is_active IS DISTINCT FROM FALSE
+       LIMIT 1;`,
+      [tokenHash]
+    );
+    if (sessRes.rows.length > 0) {
+      return formatMemberRowFromDb(sessRes.rows[0]);
+    }
+
+    const stateless = verifyStatelessMemberToken(rawToken.trim());
+    if (stateless) {
+      const memRes = await pool.query(
+        `SELECT * FROM neon_temple_members WHERE id = $1 AND is_active IS DISTINCT FROM FALSE LIMIT 1;`,
+        [stateless.memberId]
+      );
+      if (memRes.rows.length > 0) {
+        return formatMemberRowFromDb(memRes.rows[0]);
+      }
+    }
+  } catch (err) {
+    console.warn('verifyTempleMemberToken warning:', err);
+  }
+  return null;
+}
+
+export async function updateTempleMemberProfileInNeon(
+  memberId: string,
+  updates: {
+    fullName?: string;
+    dharmaName?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    newPassword?: string;
+  }
+): Promise<any> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  const newPassHash =
+    updates.newPassword && updates.newPassword.trim().length >= 4
+      ? hashPasswordScrypt(updates.newPassword.trim())
+      : null;
+
+  const res = await pool.query(
+    `UPDATE neon_temple_members SET
+       full_name = COALESCE(NULLIF($2, ''), full_name),
+       dharma_name = COALESCE($3, dharma_name),
+       phone = COALESCE($4, phone),
+       email = COALESCE($5, email),
+       address = COALESCE($6, address),
+       password_hash = COALESCE($7, password_hash),
+       updated_at = NOW()
+     WHERE id = $1
+     RETURNING *;`,
+    [
+      memberId,
+      updates.fullName ? updates.fullName.trim() : '',
+      updates.dharmaName !== undefined ? updates.dharmaName.trim() || null : null,
+      updates.phone !== undefined ? updates.phone.trim() || null : null,
+      updates.email !== undefined ? updates.email.trim().toLowerCase() || null : null,
+      updates.address !== undefined ? updates.address.trim() || null : null,
+      newPassHash,
+    ]
+  );
+  if (res.rows.length === 0) throw new Error('Không tìm thấy hồ sơ thành viên');
+  return formatMemberRowFromDb(res.rows[0]);
+}
+
+export async function logoutTempleMemberSession(rawToken: string): Promise<void> {
+  if (!rawToken) return;
+  const pool = getPool();
+  if (!pool) return;
+  try {
+    const tokenHash = hashSessionToken(rawToken.trim());
+    await pool.query(`DELETE FROM neon_temple_member_sessions WHERE token_hash = $1;`, [tokenHash]);
+  } catch {}
+}
+
+export async function createTempleMeritRecordInNeon(payload: any): Promise<any> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const recordId =
+      String(payload.id || '').trim() ||
+      `CB-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`;
+
+    const totalAmount = Number(payload.totalAmount || 0);
+    const totalMeritPoints = Number(payload.totalMeritPoints || 30);
+
+    const memberId = await upsertTempleMemberWithClient(client, {
+      memberId: payload.memberId,
+      fullName: payload.donorName,
+      dharmaName: payload.dharmaName,
+      phone: payload.phone,
+      email: payload.email,
+      address: payload.address,
+      addMerit: totalMeritPoints,
+      addDonated: totalAmount,
+      addTombs: 0,
+    });
+
+    const paySettingsRes = await client.query(
+      `SELECT setting_value FROM neon_app_settings WHERE setting_key = 'temple_payment_settings' LIMIT 1;`
+    );
+    const autoApprove = paySettingsRes.rows[0]?.setting_value?.autoApproveOrders !== false;
+    const paymentStatus =
+      totalAmount <= 0 ? 'completed' : autoApprove ? 'approved' : (payload.paymentStatus || 'pending_admin');
+
+    const res = await client.query(
+      `INSERT INTO neon_temple_merit_records (
+        id, member_id, donor_name, dharma_name, phone, address, prayer_type, prayer_text,
+        sutra_id, sutra_title, items_json, custom_donation, total_amount, total_merit_points,
+        payment_method, payment_status, transaction_code
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16,$17)
+      ON CONFLICT (id) DO UPDATE SET
+        prayer_text = EXCLUDED.prayer_text,
+        items_json = EXCLUDED.items_json,
+        total_amount = EXCLUDED.total_amount,
+        payment_status = EXCLUDED.payment_status
+      RETURNING *;`,
+      [
+        recordId,
+        memberId,
+        String(payload.donorName || 'Thí chủ').trim(),
+        payload.dharmaName ? String(payload.dharmaName).trim() : null,
+        payload.phone ? String(payload.phone).trim() : null,
+        payload.address ? String(payload.address).trim() : null,
+        payload.prayerType || 'cau-an',
+        payload.prayerText || '',
+        payload.sutraId || null,
+        payload.sutraTitle || null,
+        JSON.stringify(Array.isArray(payload.items) ? payload.items : []),
+        Number(payload.customDonation || 0),
+        totalAmount,
+        totalMeritPoints,
+        payload.paymentMethod || (totalAmount > 0 ? 'vietqr_admin' : 'tuy-tam'),
+        paymentStatus,
+        payload.transactionCode || null,
+      ]
+    );
+
+    await client.query('COMMIT');
+    return formatMeritRowFromDb(res.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export interface TempleTombActorContext {
+  memberId?: string | null;
+  isAdmin?: boolean;
+  adminUsername?: string | null;
+}
+
+export async function createOrUpdateMemorialTombInNeon(
+  payload: any,
+  actor?: TempleTombActorContext
+): Promise<any> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const plotCode = String(payload.plotCode || '').trim().toUpperCase();
+    if (!plotCode) throw new Error('Thiếu mã vị trí ô mộ (plotCode)');
+    if (!String(payload.deceasedFullName || '').trim()) {
+      throw new Error('Vui lòng nhập Họ và tên người quá cố để khắc bia mộ!');
+    }
+    if (String(payload.id || '').startsWith('tomb-seed-')) {
+      throw new Error('Không cho phép khôi phục ngôi mộ mẫu đã xóa.');
+    }
+
+    const isAdmin = Boolean(actor?.isAdmin);
+    const actorMemberId = actor?.memberId ? String(actor.memberId).trim() : '';
+
+    // Tra cứu ngôi mộ hiện hữu theo ID hoặc theo mã ô đất
+    let existingRow: any = null;
+    if (payload.id) {
+      const byIdRes = await client.query(
+        `SELECT * FROM neon_memorial_tombs WHERE id = $1 LIMIT 1;`,
+        [String(payload.id)]
+      );
+      existingRow = byIdRes.rows[0] || null;
+    }
+    if (!existingRow) {
+      const byPlotRes = await client.query(
+        `SELECT * FROM neon_memorial_tombs WHERE UPPER(plot_code) = $1 LIMIT 1;`,
+        [plotCode]
+      );
+      existingRow = byPlotRes.rows[0] || null;
+    }
+
+    if (existingRow) {
+      // Nếu người dùng bấm Lập Mộ Mới (không có payload.id) vào ô đã có mộ
+      if (!payload.id) {
+        throw new Error(
+          `Ô mộ ${plotCode} đã có thành viên khác lập bia (${existingRow.deceased_full_name}). Vui lòng chọn một ô đất trống khác trên sơ đồ!`
+        );
+      }
+
+      // Kiểm tra phân quyền chỉnh sửa nghiêm ngặt: Chỉ Admin hoặc chính Thành viên đã tạo mộ này mới được sửa
+      const isOwner =
+        Boolean(actorMemberId) &&
+        Boolean(existingRow.member_id) &&
+        String(existingRow.member_id) === actorMemberId;
+
+      if (!isAdmin && !isOwner) {
+        throw new Error(
+          'Bạn chỉ có quyền chỉnh sửa ngôi mộ do chính tài khoản thành viên của mình tạo. Đối với mộ xung quanh của thành viên khác, quý khách chỉ được dọn dẹp, dâng hương và nghe đọc!'
+        );
+      }
+    } else {
+      // Lập mộ mới: Bắt buộc phải Đăng nhập Thành viên (hoặc Admin) để gắn quyền sở hữu mộ
+      if (!isAdmin && !actorMemberId) {
+        throw new Error(
+          'Vui lòng Đăng ký hoặc Đăng nhập tài khoản Thành viên trước khi lập mộ mới (thành viên tạo mộ nào sẽ có quyền quản lý & chỉnh sửa mộ đó)!'
+        );
+      }
+    }
+
+    const tombId = existingRow
+      ? String(existingRow.id)
+      : String(payload.id || `tomb-${plotCode.toLowerCase()}-${Date.now()}`);
+    const totalCost = Number(payload.totalCost || 0);
+
+    // Giữ nguyên chủ sở hữu gốc khi Admin chỉnh sửa hộ thành viên; khi lập mới thì gắn chặt vào actorMemberId
+    let ownerMemberId: string | null = null;
+    if (existingRow) {
+      ownerMemberId = existingRow.member_id || actorMemberId || null;
+      if (ownerMemberId) {
+        await upsertTempleMemberWithClient(client, {
+          memberId: ownerMemberId,
+          fullName: payload.builderName || existingRow.builder_name || 'Gia quyến',
+          dharmaName: payload.builderDharmaName,
+          phone: payload.builderPhone,
+          email: payload.builderEmail,
+          address: payload.hometown,
+          addMerit: 40,
+          addDonated: 0,
+          addTombs: 0,
+        });
+      }
+    } else {
+      ownerMemberId = await upsertTempleMemberWithClient(client, {
+        memberId: actorMemberId || payload.memberId || `mem-admin-${actor?.adminUsername || 'root'}`,
+        fullName: payload.builderName || (isAdmin ? `Admin (${actor?.adminUsername || 'Quản trị'})` : 'Gia quyến'),
+        dharmaName: payload.builderDharmaName,
+        phone: payload.builderPhone,
+        email: payload.builderEmail,
+        address: payload.hometown,
+        addMerit: 200,
+        addDonated: totalCost,
+        addTombs: 1,
+      });
+    }
+
+    const paySettingsRes = await client.query(
+      `SELECT setting_value FROM neon_app_settings WHERE setting_key = 'temple_payment_settings' LIMIT 1;`
+    );
+    const autoApprove = paySettingsRes.rows[0]?.setting_value?.autoApproveOrders !== false;
+    const paymentStatus =
+      totalCost <= 0 ? 'approved' : autoApprove ? 'approved' : (payload.paymentStatus || 'pending_admin');
+
+    let res;
+    if (existingRow) {
+      res = await client.query(
+        `UPDATE neon_memorial_tombs SET
+          zone_name = $2,
+          row_index = $3,
+          col_index = $4,
+          stele_header = $5,
+          deceased_full_name = $6,
+          deceased_dharma_name = $7,
+          gender = $8,
+          birth_solar = $9,
+          birth_lunar = $10,
+          death_solar = $11,
+          death_lunar = $12,
+          longevity_type = $13,
+          longevity_age = $14,
+          hometown = $15,
+          epitaph = $16,
+          erected_by = $17,
+          member_id = COALESCE(member_id, $18),
+          builder_name = $19,
+          builder_phone = $20,
+          builder_email = $21,
+          material_id = $22,
+          architecture_id = $23,
+          addons_json = $24::jsonb,
+          dedicated_sutra_id = $25,
+          total_cost = $26,
+          payment_method = $27,
+          payment_status = $28,
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING *;`,
+        [
+          tombId,
+          String(payload.zoneName || existingRow.zone_name || 'Hoa Viên Tâm Linh 3D'),
+          Number(payload.rowIndex ?? existingRow.row_index ?? 0),
+          Number(payload.colIndex ?? existingRow.col_index ?? 0),
+          String(payload.steleHeader || 'PHẬT QUANG TIẾP DẪN').trim(),
+          String(payload.deceasedFullName || '').trim().toUpperCase(),
+          payload.deceasedDharmaName ? String(payload.deceasedDharmaName).trim() : null,
+          payload.gender === 'Nữ' ? 'Nữ' : 'Nam',
+          String(payload.birthSolar || '').trim(),
+          String(payload.birthLunar || '').trim(),
+          String(payload.deathSolar || '').trim(),
+          String(payload.deathLunar || '').trim(),
+          payload.longevityType || 'huong-tho',
+          Number(payload.longevityAge || 80),
+          payload.hometown ? String(payload.hometown).trim() : null,
+          payload.epitaph ? String(payload.epitaph).trim() : null,
+          String(payload.erectedBy || 'Gia quyến đồng phụng lập').trim(),
+          ownerMemberId,
+          String(payload.builderName || existingRow.builder_name || 'Gia quyến').trim(),
+          payload.builderPhone ? String(payload.builderPhone).trim() : null,
+          payload.builderEmail ? String(payload.builderEmail).trim() : null,
+          payload.materialId || 'da_xanh_cong_duc',
+          payload.architectureId || 'mo_don_tam_cap',
+          JSON.stringify(Array.isArray(payload.addons) ? payload.addons : ['lu_huong_da']),
+          payload.dedicatedSutraId || 'kinh-a-di-da',
+          totalCost,
+          payload.paymentMethod || (totalCost <= 0 ? 'tuy-tam' : 'vietqr_admin'),
+          paymentStatus,
+        ]
+      );
+    } else {
+      res = await client.query(
+        `INSERT INTO neon_memorial_tombs (
+          id, plot_code, zone_name, row_index, col_index, stele_header,
+          deceased_full_name, deceased_dharma_name, gender,
+          birth_solar, birth_lunar, death_solar, death_lunar,
+          longevity_type, longevity_age, hometown, epitaph, erected_by,
+          member_id, builder_name, builder_phone, builder_email,
+          material_id, architecture_id, addons_json, dedicated_sutra_id,
+          total_cost, payment_method, payment_status, incense_count, flower_count, updated_at
+        ) VALUES (
+          $1,$2,$3,$4,$5,$6,
+          $7,$8,$9,
+          $10,$11,$12,$13,
+          $14,$15,$16,$17,$18,
+          $19,$20,$21,$22,
+          $23,$24,$25::jsonb,$26,
+          $27,$28,$29,1,1,NOW()
+        )
+        RETURNING *;`,
+        [
+          tombId,
+          plotCode,
+          String(payload.zoneName || 'Hoa Viên Tâm Linh 3D'),
+          Number(payload.rowIndex || 0),
+          Number(payload.colIndex || 0),
+          String(payload.steleHeader || 'PHẬT QUANG TIẾP DẪN').trim(),
+          String(payload.deceasedFullName || '').trim().toUpperCase(),
+          payload.deceasedDharmaName ? String(payload.deceasedDharmaName).trim() : null,
+          payload.gender === 'Nữ' ? 'Nữ' : 'Nam',
+          String(payload.birthSolar || '').trim(),
+          String(payload.birthLunar || '').trim(),
+          String(payload.deathSolar || '').trim(),
+          String(payload.deathLunar || '').trim(),
+          payload.longevityType || 'huong-tho',
+          Number(payload.longevityAge || 80),
+          payload.hometown ? String(payload.hometown).trim() : null,
+          payload.epitaph ? String(payload.epitaph).trim() : null,
+          String(payload.erectedBy || 'Gia quyến đồng phụng lập').trim(),
+          ownerMemberId,
+          String(payload.builderName || 'Gia quyến').trim(),
+          payload.builderPhone ? String(payload.builderPhone).trim() : null,
+          payload.builderEmail ? String(payload.builderEmail).trim() : null,
+          payload.materialId || 'da_xanh_cong_duc',
+          payload.architectureId || 'mo_don_tam_cap',
+          JSON.stringify(Array.isArray(payload.addons) ? payload.addons : ['lu_huong_da']),
+          payload.dedicatedSutraId || 'kinh-a-di-da',
+          totalCost,
+          payload.paymentMethod || (totalCost <= 0 ? 'tuy-tam' : 'vietqr_admin'),
+          paymentStatus,
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
+    return formatTombRowFromDb(res.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function addMemorialTributeInNeon(
+  payload: {
+    tombId: string;
+    plotCode?: string;
+    memberId?: string;
+    visitorName: string;
+    tributeType: string;
+    itemName?: string;
+    addonToUnlock?: string;
+    amount?: number;
+    message?: string;
+  },
+  actor?: TempleTombActorContext
+): Promise<{ tomb: any; tribute: any }> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const existingRes = await client.query(
+      `SELECT * FROM neon_memorial_tombs WHERE id = $1 LIMIT 1;`,
+      [payload.tombId]
+    );
+    const existingTomb = existingRes.rows[0];
+    if (!existingTomb) {
+      throw new Error('Không tìm thấy phần mộ này trên cơ sở dữ liệu.');
+    }
+
+    const tribId = `trib-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const isFlower = payload.tributeType === 'dang-hoa';
+    const isClean = payload.tributeType === 'don-dep';
+    const isIncense = payload.tributeType === 'dot-nhang';
+
+    let tombRes;
+    if (payload.addonToUnlock) {
+      // Mua gắn thêm vật phẩm làm thay đổi cấu trúc 3D của ngôi mộ: Chỉ chủ sở hữu ngôi mộ hoặc Admin mới được phép
+      const isAdmin = Boolean(actor?.isAdmin);
+      const actorMemberId = actor?.memberId ? String(actor.memberId).trim() : '';
+      const isOwner =
+        Boolean(actorMemberId) &&
+        Boolean(existingTomb.member_id) &&
+        String(existingTomb.member_id) === actorMemberId;
+
+      if (!isAdmin && !isOwner) {
+        throw new Error(
+          'Mộ của thành viên khác không được chỉnh sửa vật phẩm kiến trúc. Quý khách chỉ được dọn dẹp, dâng hương và nghe đọc!'
+        );
+      }
+
+      tombRes = await client.query(
+        `UPDATE neon_memorial_tombs
+         SET incense_count = incense_count + 1,
+             total_cost = total_cost + $2,
+             addons_json = CASE
+               WHEN NOT (addons_json @> to_jsonb($3::text)) THEN addons_json || to_jsonb($3::text)
+               ELSE addons_json
+             END,
+             last_incense_at = NOW(),
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING *;`,
+        [payload.tombId, Number(payload.amount || 0), payload.addonToUnlock]
+      );
+    } else {
+      tombRes = await client.query(
+        `UPDATE neon_memorial_tombs
+         SET incense_count = incense_count + $2,
+             flower_count = flower_count + $3,
+             last_incense_at = NOW(),
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING *;`,
+        [payload.tombId, isIncense ? 1 : 0, isFlower || isClean ? 1 : 0]
+      );
+    }
+
+    const defaultMsg = isClean
+      ? 'Thành tâm dọn dẹp, lau bia và chăm sóc phần mộ thanh tịnh trang nghiêm.'
+      : isFlower
+      ? 'Dâng đóa hoa sen thanh khiết kính viếng hương linh.'
+      : 'Thành tâm thắp nén nhang trầm tưởng nhớ.';
+
+    const tribRes = await client.query(
+      `INSERT INTO neon_memorial_tributes (
+        id, tomb_id, plot_code, visitor_name, tribute_type, item_name, amount, message
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      RETURNING *;`,
+      [
+        tribId,
+        payload.tombId,
+        payload.plotCode || tombRes.rows[0]?.plot_code || existingTomb.plot_code || '',
+        String(payload.visitorName || 'Khách thập phương').trim(),
+        payload.tributeType || 'dot-nhang',
+        payload.itemName || (isClean ? 'Dọn dẹp & chăm sóc mộ phần' : null),
+        Number(payload.amount || 0),
+        payload.message || defaultMsg,
+      ]
+    );
+
+    const effectiveMemberId = actor?.memberId || payload.memberId;
+    if (Number(payload.amount || 0) > 0 || effectiveMemberId) {
+      await upsertTempleMemberWithClient(client, {
+        memberId: effectiveMemberId || undefined,
+        fullName: payload.visitorName || 'Khách viếng mộ',
+        addMerit: Number(payload.amount || 0) > 0 ? 60 : 25,
+        addDonated: Number(payload.amount || 0),
+      });
+    }
+
+    await client.query('COMMIT');
+    return {
+      tomb: tombRes.rows[0] ? formatTombRowFromDb(tombRes.rows[0]) : null,
+      tribute: {
+        id: tribRes.rows[0].id,
+        tombId: tribRes.rows[0].tomb_id,
+        plotCode: tribRes.rows[0].plot_code,
+        visitorName: tribRes.rows[0].visitor_name,
+        tributeType: tribRes.rows[0].tribute_type,
+        itemName: tribRes.rows[0].item_name || undefined,
+        amount: Number(tribRes.rows[0].amount || 0),
+        message: tribRes.rows[0].message || '',
+        createdAt: tribRes.rows[0].created_at,
+      },
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function createTempleGuestbookEntryInNeon(payload: {
+  id?: string;
+  memberId?: string;
+  name: string;
+  dharmaName?: string;
+  location?: string;
+  wish: string;
+}): Promise<any> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  const entryId = String(payload.id || `gb-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`);
+  const res = await pool.query(
+    `INSERT INTO neon_temple_guestbook (id, member_id, name, dharma_name, location, wish, likes, offerings_count)
+     VALUES ($1, $2, $3, $4, $5, $6, 1, 1)
+     ON CONFLICT (id) DO UPDATE SET wish = EXCLUDED.wish
+     RETURNING *;`,
+    [
+      entryId,
+      payload.memberId || null,
+      String(payload.name || 'Phật tử').trim(),
+      payload.dharmaName ? String(payload.dharmaName).trim() : null,
+      String(payload.location || 'Việt Nam').trim(),
+      String(payload.wish || '').trim(),
+    ]
+  );
+  return formatGuestbookRowFromDb(res.rows[0]);
+}
+
+export async function likeTempleGuestbookEntryInNeon(entryId: string): Promise<any> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+  const res = await pool.query(
+    `UPDATE neon_temple_guestbook SET likes = likes + 1 WHERE id = $1 RETURNING *;`,
+    [entryId]
+  );
+  return res.rows[0] ? formatGuestbookRowFromDb(res.rows[0]) : null;
+}
+
+/**
+ * Tự động tạo/cập nhật bảng bản mới và đồng bộ toàn bộ dữ liệu Chùa & Khu Mộ 3D vào Neon PostgreSQL
+ */
+export async function syncAllTempleDataToNeon(
+  payload: {
+    tombs?: any[];
+    meritRecords?: any[];
+    guestbook?: any[];
+    memberId?: string;
+    meritPoints?: number;
+  },
+  actor?: TempleTombActorContext
+): Promise<{
+  syncedTombs: number;
+  syncedMerit: number;
+  syncedGuestbook: number;
+  overview: any;
+}> {
+  // Luôn chạy initializeNeonSchema() để đảm bảo mọi bảng & cột mới nhất đều được tự động tạo/cập nhật và xóa sạch mộ mẫu
+  await initializeNeonSchema();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  let syncedTombs = 0;
+  let syncedMerit = 0;
+  let syncedGuestbook = 0;
+
+  const effectiveMemberId = actor?.memberId || payload.memberId;
+  if (effectiveMemberId && typeof payload.meritPoints === 'number' && payload.meritPoints > 0) {
+    try {
+      await pool.query(
+        `UPDATE neon_temple_members
+         SET merit_points = GREATEST(merit_points, $2), updated_at = NOW()
+         WHERE id = $1;`,
+        [effectiveMemberId, Math.round(payload.meritPoints)]
+      );
+    } catch {}
+  }
+
+  // Chỉ đồng bộ mộ thật của thành viên đã đăng nhập hoặc Admin, tuyệt đối bỏ qua mộ mẫu (tomb-seed-*)
+  if (Array.isArray(payload.tombs) && (actor?.isAdmin || actor?.memberId)) {
+    for (const t of payload.tombs) {
+      const tid = String(t?.id || '');
+      if (
+        t &&
+        t.plotCode &&
+        t.deceasedFullName &&
+        !t.isDraft &&
+        !tid.startsWith('tomb-seed-') &&
+        (actor?.isAdmin || (actor?.memberId && t.memberId === actor.memberId))
+      ) {
+        try {
+          const check = await pool.query(
+            `SELECT id FROM neon_memorial_tombs WHERE UPPER(plot_code) = $1 LIMIT 1;`,
+            [String(t.plotCode).trim().toUpperCase()]
+          );
+          if (check.rows.length === 0) {
+            await createOrUpdateMemorialTombInNeon({ ...t, id: undefined }, actor);
+            syncedTombs++;
+          }
+        } catch {}
+      }
+    }
+  }
+
+  if (Array.isArray(payload.meritRecords)) {
+    for (const mr of payload.meritRecords) {
+      if (mr && mr.id && mr.donorName) {
+        try {
+          const check = await pool.query(
+            `SELECT id FROM neon_temple_merit_records WHERE id = $1 LIMIT 1;`,
+            [String(mr.id)]
+          );
+          if (check.rows.length === 0) {
+            await createTempleMeritRecordInNeon(mr);
+            syncedMerit++;
+          }
+        } catch {}
+      }
+    }
+  }
+
+  if (Array.isArray(payload.guestbook)) {
+    for (const gb of payload.guestbook) {
+      if (gb && gb.id && gb.name && gb.wish) {
+        try {
+          const check = await pool.query(
+            `SELECT id FROM neon_temple_guestbook WHERE id = $1 LIMIT 1;`,
+            [String(gb.id)]
+          );
+          if (check.rows.length === 0) {
+            await createTempleGuestbookEntryInNeon(gb);
+            syncedGuestbook++;
+          }
+        } catch {}
+      }
+    }
+  }
+
+  const overview = await getTempleOverviewFromNeon();
+  return {
+    syncedTombs,
+    syncedMerit,
+    syncedGuestbook,
+    overview,
+  };
+}
+
+export async function updateTempleOrderStatusByAdminInNeon(params: {
+  targetType: 'merit' | 'tomb';
+  id: string;
+  paymentStatus: string;
+  actor: string;
+}): Promise<boolean> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) return false;
+  if (params.targetType === 'merit') {
+    await pool.query(
+      `UPDATE neon_temple_merit_records SET payment_status = $2 WHERE id = $1;`,
+      [params.id, params.paymentStatus]
+    );
+  } else {
+    await pool.query(
+      `UPDATE neon_memorial_tombs SET payment_status = $2, updated_at = NOW() WHERE id = $1;`,
+      [params.id, params.paymentStatus]
+    );
+  }
+  await recordAdminAuditLog(params.actor, 'APPROVE_TEMPLE_ORDER', params.id, params);
+  return true;
+}
+
+export async function deleteMemorialTombByAdminInNeon(tombId: string, actor: string): Promise<boolean> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) return false;
+  const existing = await pool.query(
+    `SELECT member_id FROM neon_memorial_tombs WHERE id = $1 LIMIT 1;`,
+    [tombId]
+  );
+  const ownerId = existing.rows[0]?.member_id;
+  await pool.query(`DELETE FROM neon_memorial_tributes WHERE tomb_id = $1;`, [tombId]);
+  const res = await pool.query(`DELETE FROM neon_memorial_tombs WHERE id = $1;`, [tombId]);
+  if ((res.rowCount || 0) > 0 && ownerId) {
+    await pool.query(
+      `UPDATE neon_temple_members SET tombs_built = GREATEST(0, tombs_built - 1), updated_at = NOW() WHERE id = $1;`,
+      [ownerId]
+    );
+  }
+  await recordAdminAuditLog(actor, 'DELETE_MEMORIAL_TOMB', tombId, {});
+  return (res.rowCount || 0) > 0;
+}
+
 

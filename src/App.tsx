@@ -62,6 +62,7 @@ import { TikTokDownloaderStudio } from './components/TikTokDownloaderStudio';
 import { TikTokVideoPlayer, PlayerErrorBoundary } from './components/TikTokVideoPlayer';
 import { MovieCinemaView } from './components/MovieCinemaView';
 import { KidsLearningStudio } from './components/KidsLearningStudio';
+import { VirtualBuddhistTemple } from './components/VirtualBuddhistTemple';
 import {
   isTikTokEpisode,
   isTikTokUrl,
@@ -481,6 +482,7 @@ function AppContent() {
   // Navigation & Search
   const [activeNav, setActiveNav] = useState<string>('catalog');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [ttsInitialText, setTtsInitialText] = useState<string>('');
   const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
   const [isAddVideoModalOpen, setIsAddVideoModalOpen] = useState<boolean>(false);
   const [isGlobalSearchModalOpen, setIsGlobalSearchModalOpen] = useState<boolean>(false);
@@ -1667,8 +1669,17 @@ function AppContent() {
                 }, 100);
               }}
             />
+          ) : activeNav === 'le-chua' ? (
+            <VirtualBuddhistTemple
+              onShowToast={showToast}
+              onSendToTTS={(text) => {
+                setTtsInitialText(text);
+                setActiveNav('tts');
+                showToast('Đã chuyển bài giảng sang Studio Giọng Nói Minh Hiếu!');
+              }}
+            />
           ) : activeNav === 'tts' ? (
-            <TextToSpeechStudio onShowToast={showToast} />
+            <TextToSpeechStudio initialText={ttsInitialText} onShowToast={showToast} />
           ) : activeNav === 'kids-learning' ? (
             <KidsLearningStudio onShowToast={showToast} />
           ) : activeNav === 'downloader' ? (
@@ -2330,7 +2341,7 @@ function AppContent() {
       <CompanionRightSidebar
         isOpen={isRightSidebarOpen}
         onClose={() => setIsRightSidebarOpen(false)}
-        hideAds={activeNav === 'kids-learning'}
+        hideAds={activeNav === 'kids-learning' || activeNav === 'le-chua'}
         currentEpisode={currentEpisode}
         activeQueue={activeQueue}
         activePlaylistTitle={activePlaylistTitle}
@@ -2589,10 +2600,10 @@ function AppContent() {
           </span>
         </button>
       )}
-      {/* Adcash Video Slider (Zone 12358158) - Strictly hidden in Kids Learning */}
-      {activeNav !== 'kids-learning' && <AdcashVideoSlider zoneId="12358158" />}
-      {/* Mobile Sticky Bottom Banner (300x100) - Strictly hidden in Kids Learning */}
-      {activeNav !== 'kids-learning' && <MobileStickyBottomBanner />}
+      {/* Adcash Video Slider (Zone 12358158) - Strictly hidden in Kids Learning & Lễ Chùa */}
+      {activeNav !== 'kids-learning' && activeNav !== 'le-chua' && <AdcashVideoSlider zoneId="12358158" />}
+      {/* Mobile Sticky Bottom Banner (300x100) - Strictly hidden in Kids Learning & Lễ Chùa */}
+      {activeNav !== 'kids-learning' && activeNav !== 'le-chua' && <MobileStickyBottomBanner />}
     </div>
   );
 }

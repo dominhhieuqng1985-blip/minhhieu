@@ -215,6 +215,29 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
 
             <button
               onClick={() => {
+                onNavigate('le-chua');
+                onClose();
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                activeSection === 'le-chua'
+                  ? 'bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 text-white shadow-md shadow-amber-600/30'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-900'
+              }`}
+              title="Lễ Chùa Online 3D & 4D - Chiêm bái, thắp hương, nghe kinh, giảng đạo, cúng dường Tam Bảo"
+            >
+              <Sparkles className={`w-4 h-4 shrink-0 ${activeSection === 'le-chua' ? 'text-amber-200' : 'text-amber-400'}`} />
+              {!isCollapsed && (
+                <div className="flex-1 text-left flex items-center justify-between">
+                  <span>Lễ Chùa (3D/4D)</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                    An Lạc
+                  </span>
+                </div>
+              )}
+            </button>
+
+            <button
+              onClick={() => {
                 onNavigate('kids-learning');
                 onClose();
               }}

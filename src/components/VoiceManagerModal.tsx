@@ -103,16 +103,18 @@ export const VoiceManagerModal: React.FC<VoiceManagerModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Fill sample voice requested by user: voice-74bb4b22-98a7-41a4
+  // Fill sample voice requested by user: voice-ab888766-b59f-402b (Minh Hiếu Lễ Chùa)
   const handleLoadSampleVoice = () => {
-    setVoiceId('voice-74bb4b22-98a7-41a4');
-    setVoiceName('Minh Hiếu - Đạo Lý & Review Phim');
-    setRegion('Thuyết pháp & Đạo lý');
+    setVoiceId('voice-ab888766-b59f-402b');
+    setVoiceName('Minh Hiếu Lễ Chùa');
+    setRegion('Lễ Chùa & Giảng Đạo');
     setGender('Nam');
     setCountry('Việt Nam');
-    setDescription('Giọng đọc truyền cảm, ấm áp, sâu sắc phù hợp đọc kinh kệ, đạo lý và lời bình phim');
+    setDescription(
+      'Giọng đọc Minh Hiếu Lễ Chùa ấm áp, trang nghiêm dùng cho Chú Tiểu, giảng đạo, tụng kinh và văn khấn'
+    );
     setEditingId(null);
-    onShowToast('✨ Đã nạp mẫu ID voice-74bb4b22-98a7-41a4 vào biểu mẫu!');
+    onShowToast('Đã nạp mẫu giọng Minh Hiếu Lễ Chùa (voice-ab888766-b59f-402b)!');
   };
 
   // Reset Form

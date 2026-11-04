@@ -19,6 +19,7 @@ import {
   Settings,
   GraduationCap,
   FolderDown,
+  Sparkles,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
@@ -223,6 +224,22 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Rạp Cinema</span>
             <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-yellow-400 text-slate-950 font-black uppercase">
               Hot
+            </span>
+          </button>
+
+          <button
+            onClick={() => onNavigate('le-chua')}
+            className={`transition-all whitespace-nowrap py-1.5 px-3 rounded-xl flex items-center gap-2 ${
+              activeSection === 'le-chua'
+                ? 'text-white font-bold bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 shadow-md shadow-amber-600/30'
+                : 'text-amber-300 hover:text-white hover:bg-slate-900 border border-amber-500/30'
+            }`}
+            title="Ngôi Chùa Online 3D & 4D - Chiêm bái, thắp hương, nghe kinh, giảng đạo, cúng dường Tam Bảo"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>Lễ Chùa (3D/4D)</span>
+            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/25 text-amber-200 font-bold uppercase">
+              Thiền
             </span>
           </button>
 

@@ -337,7 +337,7 @@ export const CompanionRightSidebar: React.FC<CompanionRightSidebarProps> = ({
         )}
 
         {!hideAds && (
-          <div className="pt-3 border-t border-slate-800/80 flex flex-col items-center">
+          <div className="pt-3 flex flex-col items-center">
             <div className="hidden sm:block">
               <StandaloneBanner300x250 />
             </div>
