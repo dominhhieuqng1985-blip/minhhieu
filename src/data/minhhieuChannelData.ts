@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mẹ ơi con chưa về - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "3 lượt xem",
+    "views": "6 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -90,7 +90,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Một giấc mơ thôi - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "3 lượt xem",
+    "views": "4 lượt xem",
     "id": "mh-v2"
   },
   {
@@ -150,7 +150,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Hẹn nhau mùa nước nỗi - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "7 lượt xem",
+    "views": "8 lượt xem",
     "id": "mh-v6"
   },
   {
@@ -165,7 +165,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Căn nhà xưa vắng mẹ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "5 lượt xem",
+    "views": "6 lượt xem",
     "id": "mh-v7"
   },
   {
@@ -180,7 +180,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Người qua bến mới - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "5 lượt xem",
+    "views": "6 lượt xem",
     "id": "mh-v8"
   },
   {
@@ -195,7 +195,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thôi đành quên nhau - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "4 lượt xem",
+    "views": "5 lượt xem",
     "id": "mh-v9"
   },
   {
@@ -210,7 +210,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thư tình gửi người xưa - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "4 lượt xem",
+    "views": "5 lượt xem",
     "id": "mh-v10"
   },
   {
@@ -225,7 +225,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mùa lúa chín không anh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "12 lượt xem",
+    "views": "13 lượt xem",
     "id": "mh-v11"
   },
   {
@@ -240,7 +240,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mùa cưới vắng anh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "10 lượt xem",
+    "views": "11 lượt xem",
     "id": "mh-v12"
   },
   {
@@ -255,7 +255,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Chuyến đò không đợi - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "10 lượt xem",
+    "views": "11 lượt xem",
     "id": "mh-v13"
   },
   {
@@ -270,7 +270,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Trăng tàn bến cũ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "16 lượt xem",
+    "views": "17 lượt xem",
     "id": "mh-v14"
   },
   {
