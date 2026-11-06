@@ -270,7 +270,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Chuyến đò không đợi - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "11 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v14"
   },
   {
@@ -285,7 +285,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Trăng tàn bến cũ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "17 lượt xem",
+    "views": "18 lượt xem",
     "id": "mh-v15"
   },
   {
