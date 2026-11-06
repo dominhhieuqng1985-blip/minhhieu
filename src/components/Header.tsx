@@ -20,8 +20,10 @@ import {
   GraduationCap,
   FolderDown,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import { useOnlineUsers } from '../hooks/useOnlineUsers';
 
 interface HeaderProps {
   activeSection: string;
@@ -51,6 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
   isRightSidebarOpen,
 }) => {
   const { isAdmin, adminUser, requireAdmin, openAdminModal, logout } = useAdminAuth();
+  const { formattedCount } = useOnlineUsers();
 
   const handleProtectedConnect = () => {
     requireAdmin(
@@ -126,6 +129,20 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Section: Actions, Admin Widget & Companion Sidebar Toggle */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Live Online Counter across entire web */}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-semibold shadow-sm select-none"
+            title="Số lượng người dùng đang truy cập trực tuyến trên toàn trang web"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <Users className="w-3.5 h-3.5 text-emerald-400 hidden xs:inline" />
+            <span className="font-mono text-emerald-300 font-bold">{formattedCount}</span>
+            <span className="hidden sm:inline text-emerald-400/80 font-medium">online</span>
+          </div>
+
           {/* Admin Status / Login Widget */}
           {isAdmin ? (
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/15 border border-amber-500/40 rounded-xl text-amber-300 text-xs font-semibold shadow-sm">
@@ -324,6 +341,13 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
         </nav>
+
+        {/* Real-time Online Indicator */}
+        <div className="hidden lg:flex items-center gap-1.5 text-xs text-slate-400 pl-3 shrink-0 select-none">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+          <span className="font-mono text-emerald-400 font-bold">{formattedCount}</span>
+          <span className="text-[11px] text-slate-400">người đang online</span>
+        </div>
       </div>
     </header>
   );

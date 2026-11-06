@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Sparkles,
   Database,
+  Users,
 } from 'lucide-react';
 import {
   authenticateAdmin,
@@ -21,6 +22,7 @@ import {
   adminLogout,
   changeAdminPassword,
 } from '../utils/adminAuth';
+import { AdminUserManagementModal } from './admin/AdminUserManagementModal';
 
 interface AdminAuthModalProps {
   isOpen: boolean;
@@ -59,6 +61,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
   const [changeMsg, setChangeMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null
   );
+  const [showUserMgmt, setShowUserMgmt] = useState(false);
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
@@ -266,6 +269,15 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>Tiếp Tục Mở Cài Đặt Quản Trị</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowUserMgmt(true)}
+                  className="w-full py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 transition-transform active:scale-98"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Quản Lý Tài Khoản User &amp; Đổi Mật Khẩu</span>
                 </button>
 
                 <div className="flex items-center gap-2">
@@ -503,6 +515,13 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
           <span>© Minh Hiếu TuBe</span>
         </div>
       </div>
+
+      {/* Admin User & Member Management Modal */}
+      <AdminUserManagementModal
+        isOpen={showUserMgmt}
+        onClose={() => setShowUserMgmt(false)}
+        onShowToast={onShowToast || (() => {})}
+      />
     </div>
   );
 };

@@ -23,6 +23,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { MemorialPark3DCanvas } from './MemorialPark3DCanvas';
+import { UniversalOfferingsStoreModal } from './UniversalOfferingsStoreModal';
 import {
   MemorialPlotSlot,
   MemorialTombRecord,
@@ -127,6 +128,7 @@ export const MemorialParkSection: React.FC<MemorialParkSectionProps> = ({
   const [visitorName, setVisitorName] = useState<string>('');
   const [tributeMessage, setTributeMessage] = useState<string>('');
   const [isSubmittingTribute, setIsSubmittingTribute] = useState<boolean>(false);
+  const [isTombStoreOpen, setIsTombStoreOpen] = useState<boolean>(false);
 
   // Addon Upgrade Checkout Modal for Existing Tomb
   const [pendingAddonUpgrade, setPendingAddonUpgrade] = useState<{
@@ -1811,6 +1813,15 @@ export const MemorialParkSection: React.FC<MemorialParkSectionProps> = ({
 
                 <button
                   type="button"
+                  onClick={() => setIsTombStoreOpen(true)}
+                  className="py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow whitespace-nowrap"
+                >
+                  <ShoppingBag className="w-4 h-4 text-emerald-200" />
+                  <span>Mua Hoa Quả &amp; Lễ Vật Đi Viếng</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => {
                     const sutra =
                       TEMPLE_SUTRAS.find((s) => s.id === selectedTomb.dedicatedSutraId) ||
@@ -2509,6 +2520,26 @@ export const MemorialParkSection: React.FC<MemorialParkSectionProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* SHOP HOA TƯƠI, MÂM TRÁI CÂY & LỄ VẬT ĐI VIẾNG MỘ */}
+      {selectedTomb && (
+        <UniversalOfferingsStoreModal
+          isOpen={isTombStoreOpen}
+          onClose={() => setIsTombStoreOpen(false)}
+          initialTargetName={`Mộ ${selectedTomb.deceasedFullName} (${selectedTomb.plotCode})`}
+          currentMember={currentMember}
+          tombs={tombs}
+          paymentSettings={paymentSettings}
+          onOfferSuccess={(record) => {
+            onAddMeritPoints(
+              record.totalMeritPoints,
+              `Dâng Lễ Viếng Mộ ${selectedTomb.deceasedFullName}`
+            );
+            handleTombTribute(selectedTomb, 'dang-hoa');
+          }}
+          onShowToast={onShowToast}
+        />
       )}
     </div>
   );

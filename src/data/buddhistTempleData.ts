@@ -82,13 +82,21 @@ export interface TempleGuestbookEntry {
   offeringsCount?: number;
 }
 
+export const REAL_STATUE_IMAGES = {
+  thichCa: new URL('../assets/images/buddha_shakyamuni_real_1793969726250.jpg', import.meta.url).href,
+  quanAm: new URL('../assets/images/boddhisattva_quan_am_real_1793969741943.jpg', import.meta.url).href,
+  aDiDa: new URL('../assets/images/buddha_amitabha_real_1793969781444.jpg', import.meta.url).href,
+  diaTang: new URL('../assets/images/bodhisattva_dia_tang_real_1793969759129.jpg', import.meta.url).href,
+  congTamQuan: new URL('../assets/images/vietnamese_triple_gate_real_1793969797558.jpg', import.meta.url).href,
+};
+
 export const BUDDHA_STATUES: BuddhaStatue[] = [
   {
     id: 'thich-ca',
     name: 'Đức Bổn Sư Thích Ca Mâu Ni',
     title: 'Đấng Toàn Giác • Giáo Chủ Cõi Ta Bà',
-    imageUrl: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=800&q=80',
-    description: 'Bậc Đạo Sư khai sáng đạo Phật, từ bỏ ngai vàng cung điện để tìm con đường cứu độ muôn loài thoát khỏi sinh lão bệnh tử.',
+    imageUrl: REAL_STATUE_IMAGES.thichCa,
+    description: 'Kim thân Đức Bổn Sư Thích Ca Mâu Ni thếp vàng rực rỡ ngự trên đài sen tam cấp, pháp tướng trang nghiêm từ bi vô lượng, khai sáng đạo Phật cứu độ chúng sinh thoát khỏi luân hồi sinh tử.',
     vow: 'Tất cả chúng sinh đều có Phật tính, chỉ cần dứt trừ vô minh và tham ái thì đều có thể đạt tới giác ngộ giải thoát.',
     mantra: 'Nam Mô Bổn Sư Thích Ca Mâu Ni Phật',
     color: 'from-amber-500 to-yellow-600',
@@ -97,8 +105,8 @@ export const BUDDHA_STATUES: BuddhaStatue[] = [
     id: 'quan-am',
     name: 'Đại Bi Quán Thế Âm Bồ Tát',
     title: 'Mẹ Hiền Quán Thế Âm • Cứu Khổ Cứu Nạn',
-    imageUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80',
-    description: 'Bồ Tát của lòng từ bi vô lượng, lắng nghe mọi tiếng kêu cứu khổ của chúng sinh trong cõi Ta Bà để thị hiện cứu vớt.',
+    imageUrl: REAL_STATUE_IMAGES.quanAm,
+    description: 'Tôn tượng Mẹ Từ Bi Quán Thế Âm tạc bằng bạch ngọc cẩm thạch ngự bên hồ sen bích ngọc, tay cầm nhành dương liễu và bình tịnh thủy cam lộ rưới tắt mọi khổ đau trong cõi nhân gian.',
     vow: 'Nguyện đem lòng từ bi cứu giúp mọi nỗi khổ đau của nhân gian, nơi nào có tiếng kêu cầu bi thiết, nơi đó có Bồ Tát hiện thân.',
     mantra: 'Nam Mô Đại Bi Quán Thế Âm Bồ Tát • Án Ma Ni Bát Mê Hồng',
     color: 'from-sky-500 to-teal-600',
@@ -107,8 +115,8 @@ export const BUDDHA_STATUES: BuddhaStatue[] = [
     id: 'a-di-da',
     name: 'Đức Phật A Di Đà',
     title: 'Vô Lượng Thọ • Giáo Chủ Cõi Tây Phương Cực Lạc',
-    imageUrl: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=800&q=80',
-    description: 'Đức Phật của ánh sáng vô lượng và tuổi thọ vô biên, tiếp dẫn chúng sinh có tâm niệm Phật vãng sanh về cõi Tịnh Độ trang nghiêm.',
+    imageUrl: REAL_STATUE_IMAGES.aDiDa,
+    description: 'Đức Phật của ánh sáng vô lượng quang và thọ mạng vô biên, đứng trên hoa sen vàng tiếp dẫn chư vị thiện nam tín nữ vãng sanh Tây Phương Tịnh Độ.',
     vow: 'Chúng sinh trong mười phương hết lòng tin ưa, xưng niệm danh hiệu từ một đến mười niệm khi lâm chung tất được vãng sanh Cực Lạc.',
     mantra: 'Nam Mô A Di Đà Phật',
     color: 'from-red-500 to-rose-600',
@@ -116,12 +124,12 @@ export const BUDDHA_STATUES: BuddhaStatue[] = [
   {
     id: 'dia-tang',
     name: 'Đại Nguyện Địa Tạng Vương Bồ Tát',
-    title: 'U Minh Giáo Chủ • Đại Hiếu Bồ Tát',
-    imageUrl: 'https://images.unsplash.com/photo-1599707367072-cd6ada2bc375?auto=format&fit=crop&w=800&q=80',
-    description: 'Vị Bồ Tát với đại nguyện độ tận chúng sinh cõi địa ngục tăm tối, tượng trưng cho hạnh nguyện hiếu thảo bậc nhất và sự nhẫn nhục.',
+    title: 'U Minh Giáo Chủ • Kim Thân Hoàng Kim Tích Trượng',
+    imageUrl: REAL_STATUE_IMAGES.diaTang,
+    description: 'Đức Địa Tạng Vương Bồ Tát thủ trì tích trượng 12 khoen vàng và như ý bảo châu tỏa sáng cõi u minh, đại nguyện sâu dày độ tận chúng sinh nơi ba đường ác.',
     vow: 'Địa ngục vị không, thệ bất thành Phật; Chúng sinh độ tận, phương chứng Bồ Đề.',
-    mantra: 'Nam Mô Đại Nguyện Địa Tạng Vương Bồ Tát',
-    color: 'from-amber-600 to-orange-700',
+    mantra: 'Nam Mô Đại Nguyện Địa Tạng Vương Bồ Tát • Án Bát La Mạt Lân Đà Nẵng Ta Bà Ha',
+    color: 'from-amber-500 via-yellow-500 to-amber-700',
   },
   {
     id: 'di-lac',
@@ -1062,6 +1070,8 @@ export interface TempleMemberRecord {
   phone?: string;
   email?: string;
   address?: string;
+  role?: string;
+  isActive?: boolean;
   meritPoints: number;
   totalDonated: number;
   tombsBuilt: number;

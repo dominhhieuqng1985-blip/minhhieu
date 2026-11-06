@@ -137,6 +137,20 @@ class BuddhistAudioEngine {
       console.warn('Incense chime error:', err);
     }
   }
+
+  /**
+   * Alias: Gõ mõ
+   */
+  public strikeWoodenFish(volume = 0.6) {
+    this.hitWoodenFish(volume);
+  }
+
+  /**
+   * Alias: Thỉnh chuông / bát chuông xoay
+   */
+  public strikeSingingBowl(volume = 0.5) {
+    this.ringTempleBell(volume);
+  }
 }
 
 export const buddhistAudio = new BuddhistAudioEngine();

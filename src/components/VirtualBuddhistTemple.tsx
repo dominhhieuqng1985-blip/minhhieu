@@ -42,10 +42,13 @@ import {
   UserPlus,
   UserCheck,
   RefreshCw,
+  Maximize2,
 } from 'lucide-react';
 import { Temple3DCanvas } from './temple/Temple3DCanvas';
 import { MemorialParkSection } from './temple/MemorialParkSection';
 import { TempleMemberAuthModal } from './temple/TempleMemberAuthModal';
+import { HoaVienGatekeeperModal } from './temple/HoaVienGatekeeperModal';
+import { UniversalOfferingsStoreModal } from './temple/UniversalOfferingsStoreModal';
 import {
   buddhistAudio,
   speakViaStudioVoiceApi,
@@ -56,6 +59,7 @@ import {
   MINH_HIEU_LE_CHUA_VOICE_ID,
 } from '../utils/everai';
 import { resolveApiEndpoint, safeFetchJson } from '../utils/api';
+import { useOnlineUsers } from '../hooks/useOnlineUsers';
 import {
   getStoredMemberProfile,
   fetchCurrentTempleMember,
@@ -63,6 +67,7 @@ import {
 } from '../utils/templeMemberAuth';
 import { getAdminAuthHeaders } from '../utils/adminAuth';
 import {
+  REAL_STATUE_IMAGES,
   BUDDHA_STATUES,
   ARHAT_LIST,
   TEMPLE_SUTRAS,
@@ -93,6 +98,7 @@ import {
 interface VirtualBuddhistTempleProps {
   onShowToast?: (message: string) => void;
   onSendToTTS?: (text: string) => void;
+  onExitTemple?: () => void;
 }
 
 type TempleTab =
@@ -113,6 +119,7 @@ const STORAGE_KEY_MERIT_RECORDS = 'buddhist_temple_merit_records_v1';
 export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
   onShowToast = () => {},
   onSendToTTS,
+  onExitTemple,
 }) => {
   // Navigation & View state
   const [activeTab, setActiveTab] = useState<TempleTab>('chanh-dien');
@@ -131,11 +138,19 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
     }
   });
 
-  // Capacity & Visitor Queue Simulation (Max 500)
-  const [visitorCount, setVisitorCount] = useState<number>(382);
+  // Real-time online users across the entire website
+  const { onlineCount, formattedCount } = useOnlineUsers();
+  const [visitorCount, setVisitorCount] = useState<number>(onlineCount || 268);
+  const [selectedHallId, setSelectedHallId] = useState<string>('cong-tam-quan');
   const [simulateOverCapacity, setSimulateOverCapacity] = useState<boolean>(false);
   const [queueCountdown, setQueueCountdown] = useState<number>(8);
   const [isQueueBypassed, setIsQueueBypassed] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!simulateOverCapacity && onlineCount) {
+      setVisitorCount(onlineCount);
+    }
+  }, [onlineCount, simulateOverCapacity]);
 
   // Direct API Voice ID: Minh Hiếu Lễ Chùa (voice-ab888766-b59f-402b)
   const selectedStudioVoiceId = MINH_HIEU_LE_CHUA_VOICE_ID;
@@ -150,6 +165,13 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
 
   // Selected Items for Modals
   const [selectedStatue, setSelectedStatue] = useState<BuddhaStatue | null>(null);
+  const [fullScreenStatue, setFullScreenStatue] = useState<{
+    title: string;
+    subtitle: string;
+    imageUrl: string;
+    mantra: string;
+    vow: string;
+  } | null>(null);
   const [selectedArhat, setSelectedArhat] = useState<ArhatItem | null>(null);
   const [isArhatSpeaking, setIsArhatSpeaking] = useState<boolean>(false);
   const [arhatLoadingStage, setArhatLoadingStage] = useState<string>('');
@@ -264,6 +286,24 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
   const [isMemberModalOpen, setIsMemberModalOpen] = useState<boolean>(false);
   const [memberModalMode, setMemberModalMode] = useState<'login' | 'register' | 'profile'>('login');
   const [externalFocusPlotCode, setExternalFocusPlotCode] = useState<string | null>(null);
+
+  const [isHoaVienGateOpen, setIsHoaVienGateOpen] = useState<boolean>(false);
+  const [isUniversalStoreOpen, setIsUniversalStoreOpen] = useState<boolean>(false);
+  const [universalStoreTarget, setUniversalStoreTarget] = useState<string>('Chánh Điện Đại Bi Tự');
+
+  const handleOpenHoaVien = () => {
+    const isUnlocked =
+      typeof window !== 'undefined' &&
+      (sessionStorage.getItem('hoavien_unlocked') === 'true' ||
+        localStorage.getItem('hoavien_unlocked') === 'true' ||
+        Boolean(currentMember));
+
+    if (isUnlocked) {
+      setActiveTab('hoa-vien-mo');
+    } else {
+      setIsHoaVienGateOpen(true);
+    }
+  };
   const [isSyncingAllData, setIsSyncingAllData] = useState<boolean>(false);
 
   const openMemberAuthModal = (mode: 'login' | 'register' | 'profile' = 'login') => {
@@ -1036,6 +1076,18 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
 
           {/* Quick Metrics & Direct Cúng Dường + Khu Mộ 3D + Thành Viên Buttons */}
           <div className="flex items-center flex-wrap gap-2">
+            {onExitTemple && (
+              <button
+                type="button"
+                onClick={onExitTemple}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 font-bold text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                title="Trở về trang chủ"
+              >
+                <span>←</span>
+                <span>Trang Chủ</span>
+              </button>
+            )}
+
             {/* MEMBER LOGIN / REGISTER / PROFILE BUTTON */}
             <button
               type="button"
@@ -1058,7 +1110,7 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
             {/* DIRECT PROMINENT BUTTON: HOA VIÊN KHU MỘ 3D */}
             <button
               type="button"
-              onClick={() => setActiveTab('hoa-vien-mo')}
+              onClick={handleOpenHoaVien}
               className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/50 font-bold text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
             >
               <span>🪦</span>
@@ -1210,31 +1262,39 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
       )}
 
       {/* 2. THREE.JS 3D/4D SANCTUARY HERO CANVAS WITH ALTAR ACTIONS */}
-      <section className="relative w-full h-[380px] sm:h-[460px] lg:h-[500px] bg-slate-950 overflow-hidden border-b border-amber-950/60">
+      <section className="relative w-full h-[520px] sm:h-[600px] lg:h-[640px] bg-slate-950 overflow-hidden border-b border-amber-950/60">
         <Temple3DCanvas
           timeOfDay={timeOfDay}
           isIncenseLit={isIncenseLit}
           isBellRinging={isBellRinging}
+          selectedHallId={selectedHallId}
+          onSelectHall={(hall) => setSelectedHallId(hall.id)}
+          onOpenOfferings={(hallName) => {
+            setUniversalStoreTarget(hallName);
+            setIsUniversalStoreOpen(true);
+          }}
+          onOpenHoaVien={handleOpenHoaVien}
+          onShowToast={onShowToast}
           className="w-full h-full"
         />
 
         {/* Overlay Ambient Vignette & Buddhist Lighting */}
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-slate-950 via-transparent to-slate-950/50" />
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-slate-950 via-transparent to-slate-950/40" />
 
         {/* 3D Scene Interactive Overlay Controls */}
-        <div className="absolute bottom-5 inset-x-4 max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-2 sm:gap-3 pointer-events-auto">
+        <div className="absolute bottom-16 sm:bottom-20 inset-x-4 max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-2 sm:gap-3 pointer-events-auto">
           {/* Thắp Hương Button */}
           <button
             type="button"
             onClick={handleLightIncense}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all shadow-lg active:scale-95 ${
+            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg active:scale-95 ${
               isIncenseLit
                 ? 'bg-amber-500/20 border-2 border-amber-400 text-amber-200'
                 : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-300'
             }`}
           >
-            <Flame className={`w-4 h-4 ${isIncenseLit ? 'text-amber-400 animate-bounce' : 'text-slate-400'}`} />
-            <span>{isIncenseLit ? 'Hương Trầm Đang Tỏa Khói' : 'Thắp 3 Nén Tâm Hương'}</span>
+            <Flame className={`w-3.5 h-3.5 ${isIncenseLit ? 'text-amber-400 animate-bounce' : 'text-slate-400'}`} />
+            <span>{isIncenseLit ? 'Hương Trầm Đang Tỏa' : 'Thắp 3 Nén Tâm Hương'}</span>
           </button>
 
           {/* Lạy Phật 3 Lạy */}
@@ -1242,14 +1302,14 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
             type="button"
             onClick={handleBowToBuddha}
             disabled={isBowing}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all shadow-lg active:scale-95 ${
+            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg active:scale-95 ${
               isBowing
                 ? 'bg-yellow-500 text-slate-950 font-black scale-105'
                 : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-200'
             }`}
           >
             <span>🙏</span>
-            <span>{isBowing ? 'Cúi Đầu Cung Kính Lạy Phật...' : 'Lạy Phật 3 Lạy'}</span>
+            <span>{isBowing ? 'Cung Kính Lạy Phật...' : 'Lạy Phật 3 Lạy'}</span>
           </button>
 
           {/* Thỉnh Chuông Gia Trì */}
@@ -1257,7 +1317,7 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
             type="button"
             onClick={handleRingBell}
             disabled={isBellRinging}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all shadow-lg active:scale-95 ${
+            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg active:scale-95 ${
               isBellRinging
                 ? 'bg-amber-600 text-white font-black animate-pulse'
                 : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-200'
@@ -1267,15 +1327,28 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
             <span>{isBellRinging ? 'Chuông Ngân Vang...' : 'Thỉnh Đại Hồng Chung'}</span>
           </button>
 
+          {/* Mở Cửa Hàng Hoa Quả & Lễ Vật Cúng Dường */}
+          <button
+            type="button"
+            onClick={() => {
+              setUniversalStoreTarget('Chánh Điện Đại Bi Tự');
+              setIsUniversalStoreOpen(true);
+            }}
+            className="px-3.5 py-1.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+          >
+            <ShoppingBag className="w-3.5 h-3.5 text-emerald-200" />
+            <span>Shop Hoa Quả &amp; Lễ Vật</span>
+          </button>
+
           {/* Gieo Quẻ Xăm Lời Phật Dạy */}
           <button
             type="button"
             onClick={handleDrawFortune}
             disabled={isDrawingFortune}
-            className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95"
+            className="px-3.5 py-1.5 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg transition-all active:scale-95"
           >
-            <Sparkles className="w-4 h-4 text-yellow-300" />
-            <span>{isDrawingFortune ? 'Đang Lắc Ống Xăm...' : 'Gieo Quẻ Lời Phật Dạy'}</span>
+            <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+            <span>{isDrawingFortune ? 'Đang Lắc Quẻ...' : 'Gieo Quẻ Phật Dạy'}</span>
           </button>
         </div>
 
@@ -1409,13 +1482,13 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
                 : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            <span>🏛️</span>
-            <span>Đại Hùng Bảo Điện</span>
+            <span>⛩️</span>
+            <span>Toàn Cảnh Chùa 3D &amp; Chánh Điện</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('hoa-vien-mo')}
+            onClick={handleOpenHoaVien}
             className={`px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all ${
               activeTab === 'hoa-vien-mo'
                 ? 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-slate-950 font-black shadow-lg shadow-amber-500/30'
@@ -1523,56 +1596,357 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
       {/* 5. TAB CONTENTS */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
         {/* ========================================================================= */}
-        {/* TAB 1: ĐẠI HÙNG BẢO ĐIỆN (TÔN TƯỢNG CHƯ PHẬT & BỒ TÁT TRANG NGHIÊM) */}
+        {/* TAB 1: TOÀN CẢNH CHÙA 3D & CHÁNH ĐIỆN CHIÊM BÁI TRANG NGHIÊM */}
         {/* ========================================================================= */}
         {activeTab === 'chanh-dien' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            {/* Header with live pilgrims counter */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-amber-950/40 border border-amber-500/30 shadow-xl">
               <div>
-                <h3 className="text-base sm:text-lg font-black text-amber-300 flex items-center gap-2">
-                  <span>Tôn Tượng Chư Phật &amp; Chư Bồ Tát</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400">
+                  Chùa 3D Trực Tuyến • Đại Bi Cổ Tự
+                </span>
+                <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                  <span>⛩️ Quần Thể Chùa 3D &amp; Chánh Điện Chiêm Bái</span>
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Nhấn vào từng tôn tượng để đọc hạnh nguyện, niệm chân ngôn và phát tâm chiêm bái
+                <p className="text-xs text-slate-300 mt-1">
+                  Cổng Tam Quan uy nghiêm, Chánh Điện phụng thờ Đức Bổn Sư, Điện Quan Âm, Địa Tạng &amp; Tháp Chuông cổ kính
                 </p>
+              </div>
+
+              {/* Real-time online pilgrims badge */}
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold shadow-sm shrink-0">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <Users className="w-3.5 h-3.5 text-emerald-400" />
+                <span>
+                  <strong className="font-mono text-emerald-200 text-sm">{formattedCount}</strong> Phật tử đang online
+                </span>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {BUDDHA_STATUES.map((statue) => (
-                <div
-                  key={statue.id}
-                  onClick={() => setSelectedStatue(statue)}
-                  className="group relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-800 hover:border-amber-500/60 transition-all duration-300 shadow-xl hover:shadow-amber-500/15 cursor-pointer flex flex-col"
-                >
-                  <div className="relative h-56 w-full overflow-hidden bg-slate-950">
-                    <img
-                      src={statue.imageUrl}
-                      alt={statue.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/25 to-transparent" />
-                    <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-950/80 text-amber-300 border border-amber-500/40 backdrop-blur-sm">
-                      Chiêm Bái
+            {/* Quick Hall Selector Pill Matrix */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              {[
+                { id: 'cong-tam-quan', icon: '⛩️', title: 'Cổng Tam Quan', desc: 'Tam Giải Thoát Môn' },
+                { id: 'chanh-dien', icon: '🏛️', title: 'Chánh Điện', desc: 'Đức Bổn Sư Thích Ca' },
+                { id: 'dien-quan-am', icon: '🪷', title: 'Điện Quan Âm', desc: 'Hồ Sen & Mẹ Từ Bi' },
+                { id: 'dien-dia-tang', icon: '⚜️', title: 'Điện Địa Tạng', desc: 'Đại Nguyện Cứu Khổ' },
+                { id: 'thap-chuong', icon: '🔔', title: 'Tháp Chuông', desc: 'Đại Hồng Chung' },
+                { id: 'vuon-la-han', icon: '🗿', title: 'Vườn La Hán', desc: '18 Vị Tôn Giả' },
+              ].map((h) => {
+                const isSelected = selectedHallId === h.id;
+                return (
+                  <button
+                    key={h.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedHallId(h.id);
+                      window.scrollTo({ top: 380, behavior: 'smooth' });
+                    }}
+                    className={`p-3 rounded-2xl text-left border transition-all flex flex-col justify-between gap-1.5 shadow-md active:scale-95 ${
+                      isSelected
+                        ? 'bg-gradient-to-tr from-amber-500 via-yellow-500 to-amber-600 text-slate-950 border-amber-400 shadow-amber-500/20 scale-[1.02] font-black'
+                        : 'bg-slate-900/90 hover:bg-slate-850 text-slate-200 border-slate-800 hover:border-amber-500/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xl">{h.icon}</span>
+                      {isSelected && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-950 text-amber-300 font-bold uppercase">
+                          Đang xem
+                        </span>
+                      )}
                     </div>
-                  </div>
-
-                  <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
                     <div>
-                      <h4 className="font-black text-white text-sm group-hover:text-amber-300 transition-colors">
-                        {statue.name}
-                      </h4>
-                      <div className="text-[11px] text-amber-400 font-medium">{statue.title}</div>
-                      <p className="text-xs text-slate-400 line-clamp-2 mt-1">{statue.description}</p>
+                      <div className={`text-xs font-bold ${isSelected ? 'text-slate-950 font-black' : 'text-white'}`}>
+                        {h.title}
+                      </div>
+                      <div className={`text-[10px] ${isSelected ? 'text-slate-900 font-medium' : 'text-slate-400'}`}>
+                        {h.desc}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active Hall Detail Showcase & Direct Worship Actions */}
+            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-6 shadow-2xl space-y-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">
+                      {selectedHallId === 'cong-tam-quan' ? '⛩️' : selectedHallId === 'dien-quan-am' ? '🪷' : selectedHallId === 'dien-dia-tang' ? '⚜️' : selectedHallId === 'thap-chuong' ? '🔔' : selectedHallId === 'vuon-la-han' ? '🗿' : '🏛️'}
+                    </span>
+                    <h4 className="text-lg font-black text-white">
+                      {selectedHallId === 'cong-tam-quan'
+                        ? 'Cổng Tam Quan Uy Nghiêm • Đại Bi Cổ Tự'
+                        : selectedHallId === 'dien-quan-am'
+                        ? 'Quan Âm Các • Bồ Tát Quán Thế Âm'
+                        : selectedHallId === 'dien-dia-tang'
+                        ? 'Điện Đại Nguyện Địa Tạng Vương Bồ Tát'
+                        : selectedHallId === 'thap-chuong'
+                        ? 'Tháp Đại Hồng Chung & Gác Trống Bát Nhã'
+                        : selectedHallId === 'vuon-la-han'
+                        ? 'Vườn Thập Bát La Hán Tôn Giả'
+                        : 'Đại Hùng Bảo Điện • Phật Thích Ca Mâu Ni'}
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed max-w-3xl">
+                    {selectedHallId === 'cong-tam-quan'
+                      ? 'Cổng Tam Quan với kiến trúc ba lối đi tượng trưng cho Tam Giải Thoát Môn: Không Môn (cửa giữa), Vô Tướng Môn (cửa trái) và Vô Tác Môn (cửa phải). Mái ngói vảy cá 2 tầng chồng diêm uốn lượn đầu đao rồng thếp vàng, hoành phi sơn son thếp vàng "ĐẠI BI CỔ TỰ", câu đối rực rỡ, đôi sư tử đá hộ trì và đèn lồng đỏ lung linh đón phật tử thập phương.'
+                      : selectedHallId === 'dien-quan-am'
+                      ? 'Tôn tượng Đức Mẹ Từ Bi Quán Thế Âm bằng bạch ngọc tọa lạc thanh tịnh bên hồ sen bích ngọc. Tay trái cầm bình tịnh thủy chứa nước cam lộ rưới mát muôn loài, tay phải cầm nhành dương liễu dập tắt ngọn lửa khổ đau của nhân gian.'
+                      : selectedHallId === 'dien-dia-tang'
+                      ? 'Điện thờ Bồ Tát Địa Tạng Vương - U Minh Giáo Chủ với đại nguyện sâu dày: "Địa ngục vị không, thệ bất thành Phật; Chúng sinh độ tận, phương chứng bồ đề". Ngài thủ trì tích trượng 12 khoen rung chuyển cửa địa ngục và ngọc như ý chiếu soi u tối.'
+                      : selectedHallId === 'thap-chuong'
+                      ? 'Đại hồng chung bằng đồng cổ kính ngân nga sớm tối. Mỗi tiếng chuông chùa vang lên như lời khai thị nhiệm mầu, tiêu tan phiền muộn, phá tan tăm tối cõi luân hồi.'
+                      : selectedHallId === 'vuon-la-han'
+                      ? 'Quần thể 18 tôn tượng Thập Bát La Hán tạc bằng đá cẩm thạch trắng thanh khiết, ngự dưới bóng mát cây bồ đề, mỗi vị biểu trưng cho một phẩm hạnh phi thường và con đường giải thoát giác ngộ.'
+                      : 'Chánh điện uy nghiêm nhất của tự viện, nơi tôn trí Kim Thân Đức Bổn Sư Thích Ca Mâu Ni Phật ngự trên Đài Sen Tam Cấp thếp vàng, hào quang chiếu diệu muôn phương, phía trước có bàn thờ tam bảo dâng hoa sen, nến sáng và mâm ngũ quả.'}
+                  </p>
+                </div>
+
+                {/* Direct Worship Actions */}
+                <div className="flex items-center flex-wrap gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleLightIncense}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 ${
+                      isIncenseLit
+                        ? 'bg-amber-500/20 border border-amber-400 text-amber-200'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                    }`}
+                  >
+                    <Flame className={`w-3.5 h-3.5 ${isIncenseLit ? 'text-amber-400 animate-bounce' : 'text-slate-400'}`} />
+                    <span>{isIncenseLit ? 'Hương Đang Tỏa' : 'Thắp Hương Trầm'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleBowToBuddha}
+                    disabled={isBowing}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 ${
+                      isBowing
+                        ? 'bg-yellow-500 text-slate-950 font-black'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                    }`}
+                  >
+                    <span>🙏</span>
+                    <span>{isBowing ? 'Đang Lạy...' : 'Tam Bái (3 Lạy)'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUniversalStoreTarget('Chánh Điện & Bàn Thờ Tam Bảo');
+                      setIsUniversalStoreOpen(true);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>Dâng Hoa &amp; Lễ Vật</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const mantra = selectedHallId === 'dien-quan-am'
+                        ? 'Nam Mô Đại Bi Quán Thế Âm Bồ Tát'
+                        : selectedHallId === 'dien-dia-tang'
+                        ? 'Nam Mô Đại Nguyện Địa Tạng Vương Bồ Tát'
+                        : selectedHallId === 'cong-tam-quan'
+                        ? 'Nam Mô Tiêu Diện Đại Sĩ, Hộ Pháp Vi Đà Tôn Thiên Bồ Tát'
+                        : 'Nam Mô Bổn Sư Thích Ca Mâu Ni Phật';
+                      speakViaStudioVoiceApi(mantra, {
+                        voiceId: MINH_HIEU_LE_CHUA_VOICE_ID,
+                        speedRate: 0.95,
+                      });
+                      buddhistAudio.ringTempleBell(0.8);
+                      onShowToast(`Đang xướng niệm: "${mantra}"`);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                    <span>Niệm Hồng Danh</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* REAL SACRED BUDDHA STATUE SHOWCASE (CHIÊM BÁI PHÁP TƯỚNG TÔN TƯỢNG THẬT) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-950 via-amber-950/20 to-slate-950 border border-amber-500/30 shadow-inner">
+                {/* Left: Photorealistic Statue Image with Altar Frame */}
+                <div className="lg:col-span-5 relative group">
+                  <div className="relative rounded-2xl overflow-hidden border-2 border-amber-500/60 shadow-2xl bg-slate-950 aspect-square flex items-center justify-center">
+                    <img
+                      src={
+                        selectedHallId === 'cong-tam-quan'
+                          ? REAL_STATUE_IMAGES.congTamQuan
+                          : selectedHallId === 'dien-quan-am'
+                          ? REAL_STATUE_IMAGES.quanAm
+                          : selectedHallId === 'dien-dia-tang'
+                          ? REAL_STATUE_IMAGES.diaTang
+                          : selectedHallId === 'thap-chuong'
+                          ? REAL_STATUE_IMAGES.aDiDa
+                          : REAL_STATUE_IMAGES.thichCa
+                      }
+                      alt="Tôn tượng thật"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+
+                    {/* Radiant Golden Halo Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-amber-500/10 pointer-events-none" />
+
+                    {/* Badge: Tôn Tượng Thật 100% */}
+                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 shadow-md uppercase tracking-wider flex items-center gap-1">
+                      <span>✨</span>
+                      <span>Tôn Tượng Thật • Trang Nghiêm</span>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-amber-300 font-semibold">
-                      <span>Đọc hạnh nguyện</span>
-                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                    </div>
+                    {/* Zoom / Fullscreen Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const img = selectedHallId === 'cong-tam-quan'
+                          ? REAL_STATUE_IMAGES.congTamQuan
+                          : selectedHallId === 'dien-quan-am'
+                          ? REAL_STATUE_IMAGES.quanAm
+                          : selectedHallId === 'dien-dia-tang'
+                          ? REAL_STATUE_IMAGES.diaTang
+                          : selectedHallId === 'thap-chuong'
+                          ? REAL_STATUE_IMAGES.aDiDa
+                          : REAL_STATUE_IMAGES.thichCa;
+                        const title = selectedHallId === 'cong-tam-quan'
+                          ? 'Cổng Tam Quan • Đại Bi Cổ Tự'
+                          : selectedHallId === 'dien-quan-am'
+                          ? 'Đại Bi Quán Thế Âm Bồ Tát'
+                          : selectedHallId === 'dien-dia-tang'
+                          ? 'Đại Nguyện Địa Tạng Vương Bồ Tát'
+                          : selectedHallId === 'thap-chuong'
+                          ? 'Đức Phật A Di Đà Tiếp Dẫn'
+                          : 'Đức Bổn Sư Thích Ca Mâu Ni Phật';
+                        const mantra = selectedHallId === 'dien-quan-am'
+                          ? 'Nam Mô Đại Bi Quán Thế Âm Bồ Tát'
+                          : selectedHallId === 'dien-dia-tang'
+                          ? 'Nam Mô Đại Nguyện Địa Tạng Vương Bồ Tát'
+                          : selectedHallId === 'thap-chuong'
+                          ? 'Nam Mô A Di Đà Phật'
+                          : selectedHallId === 'cong-tam-quan'
+                          ? 'Nam Mô A Di Đà Phật'
+                          : 'Nam Mô Bổn Sư Thích Ca Mâu Ni Phật';
+                        setFullScreenStatue({
+                          title,
+                          subtitle: 'Pháp Tướng Kim Thân Thật • Cung Kính Chiêm Bái',
+                          imageUrl: img,
+                          mantra,
+                          vow: 'Nguyện đem công đức chiêm bái này, hồi hướng khắp tất cả, đệ tử cùng chúng sinh, đều trọn thành Phật đạo.',
+                        });
+                      }}
+                      className="absolute bottom-3 right-3 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-amber-200 border border-amber-500/40 text-xs font-bold transition-all flex items-center gap-1.5 backdrop-blur-sm shadow-lg active:scale-95"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span>Xem Cận Cảnh HD</span>
+                    </button>
                   </div>
                 </div>
-              ))}
+
+                {/* Right: Sacred Real Statues Gallery Switcher */}
+                <div className="lg:col-span-7 flex flex-col justify-between space-y-3">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                      Bảo Điện Tôn Trí • Kim Thân Chân Thực
+                    </span>
+                    <h5 className="text-base font-black text-white">
+                      Chiêm Bái Trực Diện Chư Phật &amp; Bồ Tát (Ảnh Chụp Thật Tại Chùa)
+                    </h5>
+                    <p className="text-xs text-slate-300 leading-relaxed mt-1">
+                      Mỗi tôn tượng đều mang pháp tướng tôn nghiêm thếp vàng rực rỡ, toát lên lòng từ bi và trí tuệ vô biên. Bạn có thể chọn từng tôn tượng để chiêm ngưỡng diện mạo chân thực, lắng lòng nghe tiếng niệm Phật và dâng nén tâm hương.
+                    </p>
+                  </div>
+
+                  {/* 4 Real Statue Thumbnail Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                    {[
+                      { id: 'chanh-dien', name: 'Đức Thích Ca', img: REAL_STATUE_IMAGES.thichCa, desc: 'Thếp vàng ngự đài sen' },
+                      { id: 'dien-quan-am', name: 'Mẹ Quán Âm', img: REAL_STATUE_IMAGES.quanAm, desc: 'Bạch ngọc bên hồ sen' },
+                      { id: 'dien-dia-tang', name: 'Ngài Địa Tạng', img: REAL_STATUE_IMAGES.diaTang, desc: 'Tích trượng & ngọc châu' },
+                      { id: 'cong-tam-quan', name: 'Cổng Tam Quan', img: REAL_STATUE_IMAGES.congTamQuan, desc: 'Chùa cổ uy nghiêm' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setSelectedHallId(item.id)}
+                        className={`p-1.5 rounded-xl border text-left transition-all flex flex-col gap-1.5 group ${
+                          selectedHallId === item.id
+                            ? 'bg-amber-500/20 border-amber-400 ring-1 ring-amber-400 shadow-md'
+                            : 'bg-slate-900/80 border-slate-800 hover:border-amber-500/40 hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className="relative aspect-square rounded-lg overflow-hidden bg-slate-950">
+                          <img
+                            src={item.img}
+                            alt={item.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          {selectedHallId === item.id && (
+                            <div className="absolute inset-0 border-2 border-amber-400 rounded-lg pointer-events-none" />
+                          )}
+                        </div>
+                        <div className="px-0.5">
+                          <div className={`text-[11px] font-bold truncate ${selectedHallId === item.id ? 'text-amber-300 font-black' : 'text-slate-200'}`}>
+                            {item.name}
+                          </div>
+                          <div className="text-[9px] text-slate-400 truncate">{item.desc}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Quick Vow & Quote */}
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-[11px] text-amber-200/90 italic flex items-center gap-2">
+                    <span className="text-base shrink-0">📿</span>
+                    <span>
+                      "Chiêm ngưỡng tướng tốt của chư Phật, dứt trừ muôn vàn phiền não, sinh tâm hoan hỷ hướng thiện."
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Architectural & Spiritual Insights */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                    <span>⛩️</span>
+                    <span>Cổng Tam Quan &amp; Ý Nghĩa</span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Ba cửa chùa mở lối cho con người bước qua chấp niệm thế tục, thể nhập chân như: Thấy các pháp là Không (Không Môn), vượt thoát tướng trạng hư dối (Vô Tướng Môn), và xả ly tâm mong cầu tạo tác vị kỷ (Vô Tác Môn).
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                    <span>🏮</span>
+                    <span>Nét Đẹp Kiến Trúc Cổ</span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Mái ngói mũi hài vảy cá đỏ gạch, đầu đao cong vút hình mây hóa rồng, cột gỗ lim sơn son thếp vàng, hoành phi câu đối chạm trổ công phu biểu thị sự trường tồn của chánh pháp tại cõi trời Nam.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                    <span>🔔</span>
+                    <span>Hồng Danh &amp; Chân Ngôn</span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Tâm thành một niệm cảm thông mười phương chư Phật. Khi đứng trước mỗi bảo điện, hành giả lắng lòng trì niệm hồng danh để huân tập thiện căn, tiêu trừ nghiệp chướng và cầu an gia quyến.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -3236,60 +3610,328 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
         onShowToast={onShowToast}
       />
 
-      {/* MODAL: INSPECT BUDDHA STATUE */}
+      {/* MODAL: CHIÊM BÁI TÔN TƯỢNG PHẬT & BỒ TÁT */}
       {selectedStatue && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-lg w-full bg-slate-900 border border-amber-500/50 rounded-3xl overflow-hidden shadow-2xl space-y-4">
-            <div className="relative h-60 w-full bg-slate-950">
-              <img
-                src={selectedStatue.imageUrl}
-                alt={selectedStatue.name}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
+          <div className="max-w-lg w-full bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                  {selectedStatue.title}
+                </span>
+                <h3 className="text-lg font-black text-amber-300">{selectedStatue.name}</h3>
+              </div>
               <button
                 type="button"
-                onClick={() => setSelectedStatue(null)}
-                className="absolute top-3 right-3 p-1.5 rounded-full bg-slate-950/80 text-white hover:bg-rose-600"
+                onClick={() => {
+                  stopSpeaking();
+                  setSelectedStatue(null);
+                }}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-6 space-y-3 pt-0">
-              <div>
-                <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
-                  {selectedStatue.title}
+            <div className="aspect-[4/3] w-full rounded-2xl overflow-hidden bg-slate-950 border border-amber-500/30">
+              <img
+                src={selectedStatue.imageUrl}
+                alt={selectedStatue.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <p className="text-slate-300 leading-relaxed font-serif">
+                {selectedStatue.description}
+              </p>
+              {selectedStatue.vow && (
+                <div className="bg-amber-950/30 border border-amber-600/30 rounded-xl p-3">
+                  <strong className="text-amber-400 block mb-1">Đại Nguyện &amp; Hạnh Đức:</strong>
+                  <span className="text-amber-100 italic">{selectedStatue.vow}</span>
+                </div>
+              )}
+              {selectedStatue.mantra && (
+                <div className="bg-slate-950/60 border border-slate-700/60 rounded-xl p-3">
+                  <strong className="text-amber-300 block mb-1">Chân Ngôn / Thần Chú:</strong>
+                  <span className="text-emerald-300 font-mono text-[11px] select-all">{selectedStatue.mantra}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (isSpeaking) {
+                    stopSpeaking();
+                    setIsSpeaking(false);
+                    return;
+                  }
+                  setIsSpeaking(true);
+                  await speakViaStudioVoiceApi(
+                    `${selectedStatue.name}. ${selectedStatue.title}. ${selectedStatue.description}. Nguyện: ${selectedStatue.vow}. Chân ngôn: ${selectedStatue.mantra}`,
+                    {
+                      voiceId: MINH_HIEU_LE_CHUA_VOICE_ID,
+                      speedRate: 1.0,
+                      onEnd: () => setIsSpeaking(false),
+                      onError: (errMsg) => {
+                        setIsSpeaking(false);
+                        onShowToast(errMsg || 'Không thể kết nối giọng đọc API');
+                      },
+                    }
+                  );
+                  addMerit(5, `Chiêm bái ${selectedStatue.name}`);
+                }}
+                className="flex-1 py-2.5 px-3 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+              >
+                {isSpeaking ? '⏹ Dừng Đọc' : '🔊 Nghe Thuyết Minh (Minh Hiếu)'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedStatue(null);
+                  setActiveTab('cung-duong');
+                }}
+                className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-bold rounded-xl text-xs transition-colors"
+              >
+                Dâng Lễ Vật
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CHIÊM BÁI PHÁP TƯỚNG TÔN TƯỢNG THẬT CẬN CẢNH HD */}
+      {fullScreenStatue && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fade-in">
+          <div className="relative max-w-4xl w-full bg-slate-950 border-2 border-amber-500/60 rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(245,158,11,0.3)] my-auto">
+            {/* Top Bar with Title, Badges and Close button */}
+            <div className="p-4 sm:p-5 border-b border-amber-500/30 bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/70 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 text-lg shadow-inner">
+                  🪷
                 </span>
-                <h3 className="text-lg font-black text-white">{selectedStatue.name}</h3>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30">
+                      Tôn Tượng Phật Thật • Chiêm Bái Cận Cảnh
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-mono hidden sm:inline">
+                      HD Resolution
+                    </span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black text-amber-200 tracking-wide mt-0.5">
+                    {fullScreenStatue.title}
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFullScreenStatue(null)}
+                className="w-10 h-10 rounded-2xl bg-slate-800/80 hover:bg-rose-900/60 text-slate-300 hover:text-white border border-slate-700/60 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+                title="Đóng chiêm bái"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 p-4 sm:p-6 items-center">
+              {/* Left / Center: High Res Real Statue Image with Golden Halo */}
+              <div className="lg:col-span-7 relative flex items-center justify-center">
+                <div className="relative w-full max-w-md mx-auto aspect-[3/4] rounded-2xl overflow-hidden border-2 border-amber-500/50 shadow-[0_0_40px_rgba(245,158,11,0.25)] group">
+                  <img
+                    src={fullScreenStatue.imageUrl}
+                    alt={fullScreenStatue.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  {/* Subtle golden ambient glow and smoke overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60 pointer-events-none" />
+                  
+                  {/* Interactive Prostration Stamp when clicked */}
+                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-sm border border-amber-500/30 text-[11px] text-amber-300 font-medium flex items-center gap-1.5 pointer-events-none">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                    <span>Pháp Tướng Trang Nghiêm</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-1.5 text-xs text-slate-300">
-                <strong className="text-amber-300 block">Đại Nguyện Cứu Độ:</strong>
-                <p className="font-serif italic leading-relaxed">{selectedStatue.vow}</p>
-              </div>
+              {/* Right: Contemplation, Prayers, Offerings & Mantras */}
+              <div className="lg:col-span-5 space-y-4">
+                <div className="space-y-1.5">
+                  <span className="text-[11px] text-amber-400 font-bold uppercase tracking-wider block">
+                    {fullScreenStatue.subtitle}
+                  </span>
+                  <p className="text-xs text-slate-300 font-serif leading-relaxed italic bg-slate-900/70 p-3.5 rounded-2xl border border-slate-800">
+                    "{fullScreenStatue.vow}"
+                  </p>
+                </div>
 
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs">
-                <span className="text-slate-400">Chân ngôn trì tụng: </span>
-                <strong className="text-amber-400 font-serif">{selectedStatue.mantra}</strong>
-              </div>
+                {/* Mantra Box */}
+                <div className="bg-amber-950/30 border border-amber-600/40 rounded-2xl p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                      <span>📿 Chân Ngôn / Xưng Niệm</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(fullScreenStatue.mantra);
+                        onShowToast('Đã sao chép câu chân ngôn / danh hiệu Phật');
+                      }}
+                      className="text-amber-300/80 hover:text-amber-200 text-[10px] flex items-center gap-1"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>Sao chép</span>
+                    </button>
+                  </div>
+                  <div className="text-amber-100 font-bold text-sm tracking-wide bg-slate-950/70 p-2.5 rounded-xl border border-amber-500/20 font-serif text-center select-all">
+                    {fullScreenStatue.mantra}
+                  </div>
+                </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleBowToBuddha();
-                    setSelectedStatue(null);
-                  }}
-                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
-                >
-                  Cung Kính Lạy Phật
-                </button>
+                {/* Quick Devotional Actions */}
+                <div className="space-y-2 pt-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
+                    Hành Trì &amp; Công Đức Trước Tôn Tượng
+                  </span>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        buddhistAudio.ringTempleBell(0.8);
+                        addMerit(15, `Dâng 3 nén hương trước ${fullScreenStatue.title}`);
+                        confetti({ particleCount: 30, spread: 60, origin: { y: 0.6 } });
+                        onShowToast(`Đã dâng 3 nén tâm hương kính ngưỡng ${fullScreenStatue.title} (+15 công đức)`);
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 hover:scale-[1.02] active:scale-95"
+                    >
+                      <Flame className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Dâng 3 Nén Hương</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        buddhistAudio.strikeSingingBowl(0.8);
+                        addMerit(15, `Dâng hoa sen tươi cúng dường ${fullScreenStatue.title}`);
+                        confetti({ particleCount: 35, spread: 70, origin: { y: 0.6 } });
+                        onShowToast(`Đã dâng đóa sen thơm thanh tịnh cúng dường ${fullScreenStatue.title} (+15 công đức)`);
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 hover:scale-[1.02] active:scale-95"
+                    >
+                      <span>🪷 Dâng Hoa Sen</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        buddhistAudio.strikeWoodenFish(0.8);
+                        addMerit(10, `Đảnh lễ 1 lạy trước ${fullScreenStatue.title}`);
+                        onShowToast(`Đảnh lễ Chí tâm quy mạng kính lễ ${fullScreenStatue.title} (+10 công đức)`);
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 hover:scale-[1.02] active:scale-95"
+                    >
+                      <span>🙏 Đảnh Lễ 1 Lạy</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        buddhistAudio.ringTempleBell(0.8);
+                        await speakViaStudioVoiceApi(
+                          `Nam Mô A Di Đà Phật. Con xin chí tâm đảnh lễ ${fullScreenStatue.title}. ${fullScreenStatue.mantra}. ${fullScreenStatue.vow}`,
+                          {
+                            voiceId: MINH_HIEU_LE_CHUA_VOICE_ID,
+                            speedRate: 0.95,
+                            onError: () => {
+                              onShowToast('Đang phát danh hiệu chư Phật');
+                            },
+                          }
+                        );
+                        addMerit(20, `Xưng niệm danh hiệu ${fullScreenStatue.title}`);
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 hover:scale-[1.02] active:scale-95"
+                    >
+                      <Volume2 className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Tụng Chân Ngôn</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Switch to Other Real Statues without closing modal */}
+                <div className="pt-2 border-t border-slate-800">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block mb-2">
+                    Chuyển Sang Chiêm Bái Tôn Tượng Khác
+                  </span>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {BUDDHA_STATUES.slice(0, 4).map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => {
+                          buddhistAudio.strikeWoodenFish(0.4);
+                          setFullScreenStatue({
+                            title: st.name,
+                            subtitle: st.title,
+                            imageUrl: st.imageUrl,
+                            mantra: st.mantra,
+                            vow: st.vow,
+                          });
+                        }}
+                        className={`p-1.5 rounded-xl border text-center transition-all ${
+                          fullScreenStatue.title === st.name
+                            ? 'bg-amber-500/20 border-amber-500 text-amber-200 font-bold'
+                            : 'bg-slate-900 border-slate-800 hover:border-amber-500/40 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <div className="w-full aspect-square rounded-lg overflow-hidden mb-1">
+                          <img src={st.imageUrl} alt={st.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="text-[9px] truncate leading-tight font-medium">
+                          {st.name.replace('Đức Bổn Sư ', '').replace('Đại Bi ', '').replace('Đại Nguyện ', '')}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* MODAL: CHÌA KHÓA & MẬT MÃ BẢO VỆ CỔNG HOA VIÊN KHU MỘ 3D */}
+      <HoaVienGatekeeperModal
+        isOpen={isHoaVienGateOpen}
+        onClose={() => setIsHoaVienGateOpen(false)}
+        onUnlockSuccess={(member) => {
+          if (member) setCurrentMember(member);
+          setActiveTab('hoa-vien-mo');
+        }}
+        onOpenRegister={() => {
+          setMemberModalMode('register');
+          setIsMemberModalOpen(true);
+        }}
+        onShowToast={onShowToast || (() => {})}
+      />
+
+      {/* MODAL: SHOP HOA TƯƠI, MÂM TRÁI CÂY & LỄ VẬT CÚNG DƯỜNG / ĐI VIẾNG */}
+      <UniversalOfferingsStoreModal
+        isOpen={isUniversalStoreOpen}
+        onClose={() => setIsUniversalStoreOpen(false)}
+        initialTargetName={universalStoreTarget}
+        currentMember={currentMember}
+        tombs={memorialTombs}
+        paymentSettings={templePaymentSettings}
+        onOfferSuccess={(record) => {
+          setMeritRecords((prev) => [record, ...prev]);
+          addMerit(record.totalMeritPoints, `Dâng Lễ Vật (${record.sutraTitle})`);
+        }}
+        onShowToast={onShowToast || (() => {})}
+      />
 
       {/* MODAL: INSPECT ARHAT */}
       {selectedArhat && (

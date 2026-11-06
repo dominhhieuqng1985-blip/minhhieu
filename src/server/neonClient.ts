@@ -3068,9 +3068,16 @@ export async function registerTempleMemberInNeon(params: {
 
   const fullName = String(params.fullName || '').trim();
   const password = String(params.password || '');
-  const phone = String(params.phone || '').trim();
+  const rawPhone = String(params.phone || '').trim();
+  const digitsOnly = rawPhone.replace(/\D/g, '');
+  let cleanPhone = digitsOnly;
+  if (digitsOnly.startsWith('84') && digitsOnly.length >= 10) {
+    cleanPhone = '0' + digitsOnly.slice(2);
+  }
   const email = String(params.email || '').trim().toLowerCase();
-  const rawUsername = String(params.username || phone || email.split('@')[0] || '')
+  
+  // Normalize username: use phone if given, else email prefix or provided username
+  let rawUsername = String(params.username || cleanPhone || email.split('@')[0] || '')
     .trim()
     .toLowerCase()
     .replace(/\s+/g, '');
@@ -3079,58 +3086,125 @@ export async function registerTempleMemberInNeon(params: {
     throw new Error('Vui lòng nhập Họ và tên thành viên!');
   }
   if (!rawUsername || rawUsername.length < 3) {
-    throw new Error('Tên đăng nhập (hoặc Số điện thoại) phải có từ 3 ký tự trở lên!');
+    if (cleanPhone && cleanPhone.length >= 3) {
+      rawUsername = cleanPhone;
+    } else {
+      throw new Error('Tên đăng nhập hoặc Số điện thoại phải có từ 3 ký tự trở lên!');
+    }
   }
-  if (password.length < 4) {
-    throw new Error('Mật khẩu phải có từ 4 ký tự trở lên!');
+  if (!password || password.length < 4) {
+    throw new Error('Mật khẩu bảo mật phải có từ 4 ký tự trở lên!');
   }
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
+    // Check if an existing member record matches username, phone variations, or email
     const dupCheck = await client.query(
-      `SELECT id, password_hash FROM neon_temple_members
+      `SELECT id, username, phone, email, password_hash, full_name, dharma_name, merit_points, is_active FROM neon_temple_members
        WHERE LOWER(username) = LOWER($1)
-          OR ($2 <> '' AND phone = $2 AND password_hash IS NOT NULL)
-          OR ($3 <> '' AND LOWER(email) = LOWER($3) AND password_hash IS NOT NULL)
+          OR ($2 <> '' AND (
+               phone = $2 
+               OR phone = $3 
+               OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '.', '') = $2
+               OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '.', '') = $3
+               OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '.', '') = ('84' || SUBSTRING($2 FROM 2))
+             ))
+          OR ($4 <> '' AND LOWER(email) = LOWER($4))
+       ORDER BY (password_hash IS NOT NULL) DESC, created_at DESC
        LIMIT 1;`,
-      [rawUsername, phone, email]
+      [rawUsername, cleanPhone, rawPhone, email]
     );
-    if (dupCheck.rows.length > 0 && dupCheck.rows[0].password_hash) {
-      throw new Error('Tên đăng nhập, số điện thoại hoặc email này đã được đăng ký! Vui lòng chuyển sang Đăng Nhập.');
-    }
 
     const passwordHash = hashPasswordScrypt(password);
-    const memberId = `mem-${rawUsername.replace(/[^a-z0-9]/g, '').slice(0, 24) || 'phattu'}-${Date.now().toString(36)}`;
+    let memberRow: any = null;
 
-    const insertRes = await client.query(
-      `INSERT INTO neon_temple_members (
-        id, username, password_hash, full_name, dharma_name, phone, email, address,
-        merit_points, total_donated, tombs_built, last_login_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 100, 0, 0, NOW(), NOW())
-      RETURNING *;`,
-      [
-        memberId,
-        rawUsername,
-        passwordHash,
-        fullName,
-        params.dharmaName ? String(params.dharmaName).trim() : null,
-        phone || null,
-        email || null,
-        params.address ? String(params.address).trim() : null,
-      ]
-    );
+    if (dupCheck.rows.length > 0) {
+      const existing = dupCheck.rows[0];
+      if (existing.password_hash) {
+        // If the password matches the existing registered password, log in directly without error!
+        if (verifyPasswordScrypt(password, existing.password_hash)) {
+          memberRow = existing;
+          await client.query(
+            `UPDATE neon_temple_members SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1;`,
+            [existing.id]
+          );
+        } else {
+          throw new Error(
+            'Số điện thoại hoặc tên đăng nhập này đã có tài khoản trong hệ thống! Quý đạo hữu vui lòng chuyển sang tab "Đăng Nhập" để nhập mật khẩu hoặc bấm "Quên Mật Khẩu" để đặt lại.'
+          );
+        }
+      } else {
+        // Record was auto-created previously without password (e.g. from donation or guestbook)
+        // Safely upgrade this existing row
+        const updateRes = await client.query(
+          `UPDATE neon_temple_members SET
+             password_hash = $1,
+             full_name = $2,
+             dharma_name = COALESCE($3, dharma_name),
+             phone = COALESCE($4, phone),
+             email = COALESCE($5, email),
+             address = COALESCE($6, address),
+             is_active = TRUE,
+             last_login_at = NOW(),
+             updated_at = NOW()
+           WHERE id = $7
+           RETURNING *;`,
+          [
+            passwordHash,
+            fullName,
+            params.dharmaName ? String(params.dharmaName).trim() : null,
+            cleanPhone || rawPhone || null,
+            email || null,
+            params.address ? String(params.address).trim() : null,
+            existing.id,
+          ]
+        );
+        memberRow = updateRes.rows[0];
+      }
+    } else {
+      // Check if username collides, if so append random suffix
+      let finalUsername = rawUsername;
+      const usernameCheck = await client.query(
+        `SELECT id FROM neon_temple_members WHERE LOWER(username) = LOWER($1) LIMIT 1;`,
+        [finalUsername]
+      );
+      if (usernameCheck.rows.length > 0) {
+        finalUsername = `${rawUsername}_${Math.floor(100 + Math.random() * 900)}`;
+      }
 
-    const memberRow = insertRes.rows[0];
+      const memberId = `mem-${finalUsername.replace(/[^a-z0-9]/g, '').slice(0, 20) || 'phattu'}-${Date.now().toString(36)}`;
+
+      const insertRes = await client.query(
+        `INSERT INTO neon_temple_members (
+          id, username, password_hash, full_name, dharma_name, phone, email, address,
+          role, is_active, merit_points, total_donated, tombs_built, last_login_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'member', TRUE, 100, 0, 0, NOW(), NOW())
+        RETURNING *;`,
+        [
+          memberId,
+          finalUsername,
+          passwordHash,
+          fullName,
+          params.dharmaName ? String(params.dharmaName).trim() : null,
+          cleanPhone || rawPhone || null,
+          email || null,
+          params.address ? String(params.address).trim() : null,
+        ]
+      );
+      memberRow = insertRes.rows[0];
+    }
+
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    const rawToken = createStatelessMemberToken(memberRow.id, rawUsername, expiresAt);
+    const rawToken = createStatelessMemberToken(memberRow.id, memberRow.username || memberRow.id, expiresAt);
     const tokenHash = hashSessionToken(rawToken);
 
     await client.query(
       `INSERT INTO neon_temple_member_sessions (token_hash, member_id, username, ip_address, user_agent, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6);`,
-      [tokenHash, memberRow.id, rawUsername, params.ipAddress || '', params.userAgent || '', expiresAt]
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (token_hash) DO NOTHING;`,
+      [tokenHash, memberRow.id, memberRow.username || memberRow.id, params.ipAddress || '', params.userAgent || '', expiresAt]
     );
 
     await client.query('COMMIT');
@@ -3156,10 +3230,47 @@ export async function loginTempleMemberWithNeon(params: {
   const pool = getPool();
   if (!pool) throw new Error('Chưa kết nối cơ sở dữ liệu Neon PostgreSQL');
 
-  const identifier = String(params.identifier || '').trim();
+  const rawIdentifier = String(params.identifier || '').trim();
   const password = String(params.password || '');
-  if (!identifier || !password) {
+
+  if (!rawIdentifier || !password) {
     throw new Error('Vui lòng nhập Tên đăng nhập / Số điện thoại và Mật khẩu!');
+  }
+
+  // 1. Check if user is logging in with Admin credentials
+  try {
+    const adminRes = await loginAdminWithNeon(rawIdentifier, password, true, {
+      ip: params.ipAddress,
+      userAgent: params.userAgent,
+    });
+    if (adminRes && adminRes.token) {
+      return {
+        token: adminRes.token,
+        member: {
+          id: 'admin-' + (adminRes.admin?.username || 'admin'),
+          username: adminRes.admin?.username || 'admin',
+          fullName: adminRes.admin?.displayName || 'Quản Trị Viên Chùa & Hoa Viên',
+          dharmaName: 'Thích Trí Thiện (Admin)',
+          phone: '',
+          email: adminRes.admin?.email || '',
+          role: 'admin',
+          isActive: true,
+          meritPoints: 999999,
+          totalDonated: 999999999,
+          tombsBuilt: 99,
+          createdAt: new Date().toISOString(),
+        },
+      };
+    }
+  } catch {
+    // Not admin, proceed to member query
+  }
+
+  // 2. Normalize phone variations
+  const digitsOnly = rawIdentifier.replace(/\D/g, '');
+  let cleanPhone = digitsOnly;
+  if (digitsOnly.startsWith('84') && digitsOnly.length >= 10) {
+    cleanPhone = '0' + digitsOnly.slice(2);
   }
 
   const client = await pool.connect();
@@ -3168,24 +3279,42 @@ export async function loginTempleMemberWithNeon(params: {
       `SELECT * FROM neon_temple_members
        WHERE LOWER(username) = LOWER($1)
           OR phone = $1
+          OR ($2 <> '' AND (
+               phone = $2 
+               OR phone = $3 
+               OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '.', '') = $2
+               OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '.', '') = $3
+               OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '.', '') = ('84' || SUBSTRING($2 FROM 2))
+             ))
           OR LOWER(email) = LOWER($1)
        ORDER BY (password_hash IS NOT NULL) DESC, created_at DESC
        LIMIT 1;`,
-      [identifier]
+      [rawIdentifier, cleanPhone, digitsOnly]
     );
 
-    if (res.rows.length === 0 || !res.rows[0].password_hash) {
-      throw new Error('Không tìm thấy tài khoản thành viên hoặc tài khoản chưa đặt mật khẩu. Vui lòng Đăng Ký Thành Viên mới!');
+    if (res.rows.length === 0) {
+      throw new Error(
+        'Số điện thoại hoặc tên đăng nhập này chưa được đăng ký! Quý đạo hữu vui lòng chọn tab "Đăng Ký" để tạo tài khoản miễn phí.'
+      );
     }
 
     const row = res.rows[0];
+
+    if (!row.password_hash) {
+      throw new Error(
+        'Tài khoản này chưa tạo mật khẩu bảo vệ. Quý đạo hữu vui lòng chọn tab "Đăng Ký" để đặt mật khẩu kích hoạt tài khoản!'
+      );
+    }
+
     if (row.is_active === false) {
-      throw new Error('Tài khoản thành viên này đang tạm khóa.');
+      throw new Error('Tài khoản thành viên này đang tạm khóa bởi Quản trị viên.');
     }
 
     const ok = verifyPasswordScrypt(password, row.password_hash);
     if (!ok) {
-      throw new Error('Mật khẩu không chính xác. Vui lòng kiểm tra lại!');
+      throw new Error(
+        'Mật khẩu không chính xác! Quý đạo hữu vui lòng kiểm tra lại hoặc bấm "Quên mật khẩu" để lấy lại mật khẩu nhanh chóng.'
+      );
     }
 
     await client.query(
@@ -3211,6 +3340,311 @@ export async function loginTempleMemberWithNeon(params: {
   } finally {
     client.release();
   }
+}
+
+// =========================================================================
+// QUÊN MẬT KHẨU & KHÔI PHỤC MẬT KHẨU THÀNH VIÊN
+// =========================================================================
+
+export async function requestTempleMemberPasswordReset(
+  identifier: string
+): Promise<{ success: boolean; message: string; resetCode: string; contactTarget: string }> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  const rawId = String(identifier || '').trim();
+  const cleanPhone = rawId.replace(/[\s\-\.\(\)]/g, '');
+  if (!rawId) throw new Error('Vui lòng nhập Số điện thoại hoặc Email đã đăng ký!');
+
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      `SELECT * FROM neon_temple_members
+       WHERE LOWER(username) = LOWER($1)
+          OR phone = $1
+          OR ($2 <> '' AND REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '.', '') = $2)
+          OR LOWER(email) = LOWER($1)
+       LIMIT 1;`,
+      [rawId, cleanPhone]
+    );
+
+    if (res.rows.length === 0) {
+      throw new Error('Không tìm thấy tài khoản với số điện thoại hoặc email này!');
+    }
+
+    const row = res.rows[0];
+    const resetCode = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins
+
+    const currentMeta = typeof row.metadata === 'object' && row.metadata !== null ? row.metadata : {};
+    const updatedMeta = {
+      ...currentMeta,
+      pwd_reset_code: resetCode,
+      pwd_reset_expires: expiresAt,
+    };
+
+    await client.query(
+      `UPDATE neon_temple_members SET metadata = $1::jsonb, updated_at = NOW() WHERE id = $2;`,
+      [JSON.stringify(updatedMeta), row.id]
+    );
+
+    const contactTarget = row.phone || row.email || row.username;
+    return {
+      success: true,
+      message: `Mã xác nhận khôi phục mật khẩu 6 số đã được tạo cho tài khoản ${row.full_name}!`,
+      resetCode,
+      contactTarget,
+    };
+  } finally {
+    client.release();
+  }
+}
+
+export async function resetTempleMemberPasswordWithCode(
+  identifier: string,
+  resetCode: string,
+  newPassword: string
+): Promise<{ success: boolean; message: string }> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  const rawId = String(identifier || '').trim();
+  const cleanPhone = rawId.replace(/[\s\-\.\(\)]/g, '');
+  const code = String(resetCode || '').trim();
+  const newPass = String(newPassword || '');
+
+  if (!rawId || !code) {
+    throw new Error('Vui lòng nhập Số điện thoại/Email và Mã xác nhận 6 số!');
+  }
+  if (!newPass || newPass.length < 4) {
+    throw new Error('Mật khẩu mới phải có từ 4 ký tự trở lên!');
+  }
+
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      `SELECT * FROM neon_temple_members
+       WHERE LOWER(username) = LOWER($1)
+          OR phone = $1
+          OR ($2 <> '' AND REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '.', '') = $2)
+          OR LOWER(email) = LOWER($1)
+       LIMIT 1;`,
+      [rawId, cleanPhone]
+    );
+
+    if (res.rows.length === 0) {
+      throw new Error('Không tìm thấy tài khoản thành viên!');
+    }
+
+    const row = res.rows[0];
+    const meta = typeof row.metadata === 'object' && row.metadata !== null ? row.metadata : {};
+
+    if (!meta.pwd_reset_code || String(meta.pwd_reset_code).trim() !== code) {
+      throw new Error('Mã xác nhận không chính xác! Vui lòng kiểm tra lại.');
+    }
+
+    if (meta.pwd_reset_expires && new Date(meta.pwd_reset_expires).getTime() < Date.now()) {
+      throw new Error('Mã xác nhận đã hết hạn (15 phút). Vui lòng yêu cầu mã mới!');
+    }
+
+    const passwordHash = hashPasswordScrypt(newPass);
+    delete meta.pwd_reset_code;
+    delete meta.pwd_reset_expires;
+
+    await client.query(
+      `UPDATE neon_temple_members SET
+         password_hash = $1,
+         metadata = $2::jsonb,
+         updated_at = NOW()
+       WHERE id = $3;`,
+      [passwordHash, JSON.stringify(meta), row.id]
+    );
+
+    return {
+      success: true,
+      message: 'Đặt lại mật khẩu thành công! Quý đạo hữu có thể đăng nhập ngay với mật khẩu mới.',
+    };
+  } finally {
+    client.release();
+  }
+}
+
+// =========================================================================
+// QUẢN LÝ TÀI KHOẢN USER CHO ADMIN (XEM, TẠO, SỬA, ĐỔI MẬT KHẨU, XÓA)
+// =========================================================================
+
+export async function listTempleMembersInNeon(): Promise<any[]> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  const res = await pool.query(
+    `SELECT id, username, full_name, dharma_name, phone, email, address,
+            role, is_active, merit_points, total_donated, tombs_built,
+            last_login_at, created_at, updated_at
+     FROM neon_temple_members
+     ORDER BY created_at DESC;`
+  );
+
+  return res.rows.map((r) => {
+    const dt = r.created_at ? new Date(r.created_at) : new Date();
+    const lastLogin = r.last_login_at ? new Date(r.last_login_at).toISOString() : null;
+    return {
+      id: String(r.id),
+      username: r.username || '',
+      fullName: String(r.full_name || 'Phật tử'),
+      dharmaName: r.dharma_name || '',
+      phone: r.phone || '',
+      email: r.email || '',
+      address: r.address || '',
+      role: r.role || 'member',
+      isActive: r.is_active !== false,
+      meritPoints: Number(r.merit_points || 0),
+      totalDonated: Number(r.total_donated || 0),
+      tombsBuilt: Number(r.tombs_built || 0),
+      createdAt: dt.toISOString(),
+      lastLoginAt: lastLogin,
+    };
+  });
+}
+
+export async function adminCreateTempleMemberInNeon(params: {
+  fullName: string;
+  username?: string;
+  password: string;
+  phone?: string;
+  email?: string;
+  dharmaName?: string;
+  address?: string;
+  role?: string;
+}): Promise<any> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  const fullName = String(params.fullName || '').trim();
+  const password = String(params.password || '');
+  const phone = String(params.phone || '').trim();
+  const email = String(params.email || '').trim().toLowerCase();
+  const role = String(params.role || 'member').trim();
+
+  let rawUsername = String(params.username || phone || email.split('@')[0] || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
+
+  if (!fullName) throw new Error('Họ và tên không được để trống!');
+  if (!rawUsername) rawUsername = `user_${Date.now().toString(36)}`;
+  if (!password || password.length < 4) throw new Error('Mật khẩu tối thiểu 4 ký tự!');
+
+  const passwordHash = hashPasswordScrypt(password);
+  const memberId = `mem-adm-${rawUsername.replace(/[^a-z0-9]/g, '').slice(0, 16)}-${Date.now().toString(36)}`;
+
+  const res = await pool.query(
+    `INSERT INTO neon_temple_members (
+       id, username, password_hash, full_name, dharma_name, phone, email, address,
+       role, is_active, merit_points, total_donated, tombs_built, updated_at
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, 100, 0, 0, NOW())
+     RETURNING *;`,
+    [
+      memberId,
+      rawUsername,
+      passwordHash,
+      fullName,
+      params.dharmaName ? String(params.dharmaName).trim() : null,
+      phone || null,
+      email || null,
+      params.address ? String(params.address).trim() : null,
+      role,
+    ]
+  );
+
+  return formatMemberRowFromDb(res.rows[0]);
+}
+
+export async function adminUpdateTempleMemberInNeon(
+  memberId: string,
+  updates: {
+    fullName?: string;
+    dharmaName?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    role?: string;
+    isActive?: boolean;
+    meritPoints?: number;
+  }
+): Promise<any> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  const res = await pool.query(
+    `UPDATE neon_temple_members SET
+       full_name = COALESCE(NULLIF($2, ''), full_name),
+       dharma_name = COALESCE($3, dharma_name),
+       phone = COALESCE($4, phone),
+       email = COALESCE($5, email),
+       address = COALESCE($6, address),
+       role = COALESCE($7, role),
+       is_active = COALESCE($8, is_active),
+       merit_points = COALESCE($9, merit_points),
+       updated_at = NOW()
+     WHERE id = $1
+     RETURNING *;`,
+    [
+      memberId,
+      updates.fullName ? updates.fullName.trim() : '',
+      updates.dharmaName !== undefined ? updates.dharmaName.trim() || null : null,
+      updates.phone !== undefined ? updates.phone.trim() || null : null,
+      updates.email !== undefined ? updates.email.trim().toLowerCase() || null : null,
+      updates.address !== undefined ? updates.address.trim() || null : null,
+      updates.role !== undefined ? updates.role.trim() || null : null,
+      updates.isActive !== undefined ? Boolean(updates.isActive) : null,
+      updates.meritPoints !== undefined ? Number(updates.meritPoints) : null,
+    ]
+  );
+
+  if (res.rows.length === 0) throw new Error('Không tìm thấy tài khoản thành viên!');
+  return formatMemberRowFromDb(res.rows[0]);
+}
+
+export async function adminChangeMemberPasswordInNeon(
+  memberId: string,
+  newPassword: string
+): Promise<{ success: boolean; message: string }> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  if (!newPassword || newPassword.trim().length < 4) {
+    throw new Error('Mật khẩu mới phải có ít nhất 4 ký tự!');
+  }
+
+  const passwordHash = hashPasswordScrypt(newPassword.trim());
+  const res = await pool.query(
+    `UPDATE neon_temple_members SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING id, full_name, username;`,
+    [passwordHash, memberId]
+  );
+
+  if (res.rows.length === 0) throw new Error('Không tìm thấy tài khoản để đổi mật khẩu!');
+  return {
+    success: true,
+    message: `Đã đổi mật khẩu thành công cho tài khoản ${res.rows[0].full_name || res.rows[0].username}!`,
+  };
+}
+
+export async function adminDeleteTempleMemberInNeon(memberId: string): Promise<{ success: boolean }> {
+  await ensureNeonBootstrapped();
+  const pool = getPool();
+  if (!pool) throw new Error('Chưa kết nối Neon PostgreSQL');
+
+  // Delete sessions first
+  await pool.query(`DELETE FROM neon_temple_member_sessions WHERE member_id = $1;`, [memberId]);
+  const res = await pool.query(`DELETE FROM neon_temple_members WHERE id = $1;`, [memberId]);
+  return { success: res.rowCount !== null && res.rowCount > 0 };
 }
 
 export async function verifyTempleMemberToken(rawToken: string): Promise<any | null> {

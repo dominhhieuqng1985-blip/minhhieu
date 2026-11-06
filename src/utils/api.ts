@@ -25,11 +25,6 @@ export function getCustomBackendUrl(): string | null {
   if (import.meta.env.VITE_BACKEND_URL) {
     return String(import.meta.env.VITE_BACKEND_URL).trim().replace(/\/$/, '');
   }
-  // Automatic production routing for custom domain on GitHub Pages
-  const host = window.location.hostname.toLowerCase();
-  if (host.endsWith('vemaybaynhauyen.com') || host.endsWith('github.io')) {
-    return DEFAULT_PRODUCTION_RENDER_URL;
-  }
   return null;
 }
 
@@ -46,13 +41,11 @@ export function setCustomBackendUrl(url: string | null): void {
 }
 
 /**
- * Check if running on a static host like GitHub Pages
+ * Check if running on a static host without an active Node.js server
  */
 export const isStaticHost: boolean =
   typeof window !== 'undefined' &&
-  (window.location.hostname.endsWith('github.io') ||
-    window.location.hostname.endsWith('vemaybaynhauyen.com') ||
-    window.location.protocol === 'file:');
+  window.location.protocol === 'file:';
 
 /**
  * Whether the application currently has a usable Node.js / Express backend
@@ -128,7 +121,7 @@ export function getOptionalAiHeaders(): Record<string, string> {
 
 /**
  * Safely fetches and parses JSON.
- * Throws clean errors if response is HTML (e.g. GitHub Pages 404.html).
+ * Returns clean errors if response is HTML (e.g. fallback error page or offline 404).
  */
 export async function safeFetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
@@ -138,18 +131,33 @@ export async function safeFetchJson<T>(url: string, options?: RequestInit): Prom
 
   if (contentType.includes('text/html') || text.trim().startsWith('<') || text.trim().startsWith('<!DOCTYPE')) {
     throw new Error(
-      `Máy chủ trả về trang HTML thay vì JSON (Endpoint không tồn tại trên máy chủ tĩnh).`
+      'Hệ thống đang hoạt động ở chế độ ngoại tuyến hoặc máy chủ tạm thời phản hồi chậm. Dữ liệu đang được đồng bộ nội bộ.'
     );
   }
 
   if (!response.ok) {
+    let cleanMessage = '';
     try {
       const errJson = JSON.parse(text);
-      throw new Error(errJson.error || `HTTP ${response.status}: ${response.statusText}`);
-    } catch (e: any) {
-      if (e.message?.startsWith('HTTP')) throw e;
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      cleanMessage = errJson.error || errJson.message || '';
+    } catch {}
+
+    if (!cleanMessage) {
+      if (response.status === 401) {
+        cleanMessage = 'Thông tin đăng nhập hoặc mật khẩu chưa chính xác.';
+      } else if (response.status === 400) {
+        cleanMessage = 'Thông tin nhập chưa hợp lệ hoặc đã tồn tại trong hệ thống.';
+      } else if (response.status === 403) {
+        cleanMessage = 'Bạn không có quyền thực hiện chức năng này.';
+      } else if (response.status === 404) {
+        cleanMessage = 'Dữ liệu chưa có trên máy chủ, đang dùng chế độ lưu trữ an toàn.';
+      } else if (response.status === 504) {
+        cleanMessage = 'Hệ thống đang bận hoặc phản hồi chậm (504 Gateway Timeout). Vui lòng thử lại sau giây lát.';
+      } else {
+        cleanMessage = `Lỗi phản hồi từ máy chủ (${response.status}: ${response.statusText || 'Vui lòng thử lại sau'})`;
+      }
     }
+    throw new Error(cleanMessage);
   }
 
   try {

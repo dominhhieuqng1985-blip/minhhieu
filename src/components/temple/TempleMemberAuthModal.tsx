@@ -50,13 +50,21 @@ export const TempleMemberAuthModal: React.FC<TempleMemberAuthModalProps> = ({
   onViewCertificate,
   onShowToast,
 }) => {
-  const [mode, setMode] = useState<'login' | 'register' | 'profile'>(
+  const [mode, setMode] = useState<'login' | 'register' | 'profile' | 'forgot-password'>(
     currentMember ? 'profile' : initialMode === 'profile' ? 'login' : initialMode
   );
 
   // Login state
   const [identifier, setIdentifier] = useState<string>('');
   const [loginPassword, setLoginPassword] = useState<string>('');
+
+  // Forgot password state
+  const [forgotIdentifier, setForgotIdentifier] = useState<string>('');
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1);
+  const [receivedResetCode, setReceivedResetCode] = useState<string>('');
+  const [inputResetCode, setInputResetCode] = useState<string>('');
+  const [resetNewPassword, setResetNewPassword] = useState<string>('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState<string>('');
 
   // Register state
   const [regFullName, setRegFullName] = useState<string>('');
@@ -172,6 +180,10 @@ export const TempleMemberAuthModal: React.FC<TempleMemberAuthModalProps> = ({
     }
 
     setIsSubmitting(true);
+    const cleanPhone = regPhone.trim().replace(/[\s\-\.\(\)]/g, '');
+    const cleanEmail = regEmail.trim().toLowerCase();
+    const cleanUsername = regUsername.trim() || cleanPhone || cleanEmail.split('@')[0] || `phattu_${Date.now().toString(36)}`;
+
     try {
       const res = await safeFetchJson<{
         success: boolean;
@@ -184,10 +196,10 @@ export const TempleMemberAuthModal: React.FC<TempleMemberAuthModalProps> = ({
         body: JSON.stringify({
           fullName: regFullName.trim(),
           dharmaName: regDharmaName.trim() || undefined,
-          username: regUsername.trim() || regPhone.trim() || regEmail.trim(),
+          username: cleanUsername,
           password: regPassword,
-          phone: regPhone.trim() || undefined,
-          email: regEmail.trim() || undefined,
+          phone: cleanPhone || undefined,
+          email: cleanEmail || undefined,
           address: regAddress.trim() || undefined,
         }),
       });
@@ -203,7 +215,99 @@ export const TempleMemberAuthModal: React.FC<TempleMemberAuthModalProps> = ({
       );
       onClose();
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Không thể đăng ký thành viên. Vui lòng thử tên đăng nhập khác.');
+      setErrorMsg(err?.message || 'Không thể đăng ký thành viên. Vui lòng kiểm tra lại thông tin.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPasswordRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    if (!forgotIdentifier.trim()) {
+      setErrorMsg('Vui lòng nhập Số điện thoại hoặc Email đã đăng ký.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await safeFetchJson<{
+        success: boolean;
+        message?: string;
+        resetCode?: string;
+        contactTarget?: string;
+        error?: string;
+      }>(resolveApiEndpoint('temple/members/forgot-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: forgotIdentifier.trim(),
+        }),
+      });
+
+      if (!res.success) {
+        throw new Error(res.error || 'Không tìm thấy tài khoản với thông tin này.');
+      }
+
+      if (res.resetCode) {
+        setReceivedResetCode(res.resetCode);
+        setInputResetCode(res.resetCode);
+      }
+      setForgotStep(2);
+      setSuccessMsg(res.message || 'Đã tạo mã xác thực khôi phục mật khẩu!');
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Lỗi gửi yêu cầu khôi phục mật khẩu.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!inputResetCode.trim()) {
+      setErrorMsg('Vui lòng nhập Mã xác nhận 6 số.');
+      return;
+    }
+    if (!resetNewPassword || resetNewPassword.length < 4) {
+      setErrorMsg('Mật khẩu mới phải từ 4 ký tự trở lên.');
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      setErrorMsg('Mật khẩu mới và xác nhận mật khẩu không khớp.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await safeFetchJson<{
+        success: boolean;
+        message?: string;
+        error?: string;
+      }>(resolveApiEndpoint('temple/members/reset-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: forgotIdentifier.trim(),
+          resetCode: inputResetCode.trim(),
+          newPassword: resetNewPassword,
+        }),
+      });
+
+      if (!res.success) {
+        throw new Error(res.error || 'Đặt lại mật khẩu không thành công.');
+      }
+
+      onShowToast('Đổi mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.');
+      setMode('login');
+      setIdentifier(forgotIdentifier.trim());
+      setLoginPassword(resetNewPassword);
+      setSuccessMsg('Đã đổi mật khẩu thành công! Hãy bấm Đăng Nhập bên dưới.');
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Mã xác nhận không đúng hoặc đã hết hạn.');
     } finally {
       setIsSubmitting(false);
     }
@@ -363,9 +467,24 @@ export const TempleMemberAuthModal: React.FC<TempleMemberAuthModalProps> = ({
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                Mật khẩu thành viên: *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-300 block">
+                  Mật khẩu thành viên: *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('forgot-password');
+                    setForgotStep(1);
+                    setForgotIdentifier(identifier);
+                    setErrorMsg('');
+                    setSuccessMsg('');
+                  }}
+                  className="text-[11px] text-amber-400 hover:text-amber-300 underline"
+                >
+                  Quên mật khẩu?
+                </button>
+              </div>
               <input
                 type="password"
                 required
@@ -396,6 +515,125 @@ export const TempleMemberAuthModal: React.FC<TempleMemberAuthModalProps> = ({
               </button>
             </p>
           </form>
+        )}
+
+        {/* FORGOT PASSWORD FORM */}
+        {!currentMember && mode === 'forgot-password' && (
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/40 text-xs space-y-1">
+              <span className="font-bold text-amber-300 block">Khôi Phục Mật Khẩu Thành Viên</span>
+              <p className="text-slate-300">
+                Nhập Số điện thoại hoặc Email đã đăng ký để nhận mã xác nhận 6 số và đặt lại mật khẩu mới.
+              </p>
+            </div>
+
+            {forgotStep === 1 ? (
+              <form onSubmit={handleForgotPasswordRequest} className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                    Số điện thoại hoặc Email đã đăng ký: *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={forgotIdentifier}
+                    onChange={(e) => setForgotIdentifier(e.target.value)}
+                    placeholder="VD: 0912345678 hoặc email@domain.com"
+                    autoFocus
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMode('login')}
+                    className="py-2.5 px-4 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                  >
+                    Quay lại
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow"
+                  >
+                    {isSubmitting ? 'Đang kiểm tra...' : 'Gửi Mã Xác Nhận Khôi Phục'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+                {receivedResetCode && (
+                  <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/50 text-emerald-300 text-xs flex items-center justify-between">
+                    <span>Mã xác nhận bảo mật:</span>
+                    <span className="font-mono text-base font-black tracking-widest text-emerald-200 bg-emerald-900/60 px-2 py-0.5 rounded">
+                      {receivedResetCode}
+                    </span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Nhập mã xác nhận 6 số: *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={inputResetCode}
+                    onChange={(e) => setInputResetCode(e.target.value)}
+                    placeholder="VD: 123456"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono tracking-widest"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">
+                      Mật khẩu mới: *
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={resetNewPassword}
+                      onChange={(e) => setResetNewPassword(e.target.value)}
+                      placeholder="Tối thiểu 4 ký tự"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">
+                      Xác nhận mật khẩu mới: *
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={resetConfirmPassword}
+                      onChange={(e) => setResetConfirmPassword(e.target.value)}
+                      placeholder="Nhập lại mật khẩu mới"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setForgotStep(1)}
+                    className="py-2.5 px-4 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                  >
+                    Gửi lại mã
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold shadow"
+                  >
+                    {isSubmitting ? 'Đang xử lý...' : 'Xác Nhận Đặt Lại Mật Khẩu'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         )}
 
         {/* 2. REGISTER FORM */}

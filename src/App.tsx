@@ -1574,31 +1574,52 @@ function AppContent() {
         </div>
       )}
 
-      {/* Header with 3-Column Controls */}
-      <Header
-        activeSection={activeNav}
-        onNavigate={(section) => {
-          setActiveNav(section);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        onOpenConnectModal={() =>
-          requireAdmin(
-            () => setIsConnectModalOpen(true),
-            'Kết Nối & Thay Đổi Kênh YouTube',
-            'Kết nối kênh YouTube mới hoặc thay đổi ID kênh yêu cầu quyền Quản trị viên.'
-          )
-        }
-        onOpenSettings={() => setIsChannelSettingsModalOpen(true)}
-        onOpenGlobalSearch={() => setIsGlobalSearchModalOpen(true)}
-        onOpenDocuments={() => setIsDocumentLibraryOpen(true)}
-        favoritesCount={favorites.length}
-        onToggleLeftSidebar={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
-        isLeftSidebarOpen={isLeftSidebarOpen}
-        onToggleRightSidebar={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-        isRightSidebarOpen={isRightSidebarOpen}
-      />
+      {/* FULL SCREEN DEDICATED VIEW: ĐẠI BI TỰ & HOA VIÊN KHU MỘ 3D */}
+      {activeNav === 'le-chua' && (
+        <div className="fixed inset-0 z-50 bg-slate-950 overflow-y-auto w-full h-full text-slate-100 flex flex-col">
+          <VirtualBuddhistTemple
+            onShowToast={showToast}
+            onExitTemple={() => {
+              setActiveNav('catalog');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onSendToTTS={(text) => {
+              setTtsInitialText(text);
+              setActiveNav('tts');
+              showToast('Đã chuyển bài giảng sang Studio Giọng Nói Minh Hiếu!');
+            }}
+          />
+        </div>
+      )}
 
-      {/* 3-Column Layout Container */}
+      {/* Header with 3-Column Controls (Hidden in Full Screen Temple Mode) */}
+      {activeNav !== 'le-chua' && (
+        <Header
+          activeSection={activeNav}
+          onNavigate={(section) => {
+            setActiveNav(section);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onOpenConnectModal={() =>
+            requireAdmin(
+              () => setIsConnectModalOpen(true),
+              'Kết Nối & Thay Đổi Kênh YouTube',
+              'Kết nối kênh YouTube mới hoặc thay đổi ID kênh yêu cầu quyền Quản trị viên.'
+            )
+          }
+          onOpenSettings={() => setIsChannelSettingsModalOpen(true)}
+          onOpenGlobalSearch={() => setIsGlobalSearchModalOpen(true)}
+          onOpenDocuments={() => setIsDocumentLibraryOpen(true)}
+          favoritesCount={favorites.length}
+          onToggleLeftSidebar={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
+          isLeftSidebarOpen={isLeftSidebarOpen}
+          onToggleRightSidebar={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+          isRightSidebarOpen={isRightSidebarOpen}
+        />
+      )}
+
+      {/* 3-Column Layout Container (Hidden in Full Screen Temple Mode) */}
+      {activeNav !== 'le-chua' && (
       <div className="flex-1 flex w-full">
         {/* Column 1: Left Navigation Sidebar */}
         <SidebarLeft
@@ -1667,15 +1688,6 @@ function AppContent() {
                 setTimeout(() => {
                   document.getElementById('player-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }, 100);
-              }}
-            />
-          ) : activeNav === 'le-chua' ? (
-            <VirtualBuddhistTemple
-              onShowToast={showToast}
-              onSendToTTS={(text) => {
-                setTtsInitialText(text);
-                setActiveNav('tts');
-                showToast('Đã chuyển bài giảng sang Studio Giọng Nói Minh Hiếu!');
               }}
             />
           ) : activeNav === 'tts' ? (
@@ -2400,27 +2412,30 @@ function AppContent() {
         onCloseMoviePlayer={() => setActiveMovieState(null)}
       />
     </div>
+    )}
 
-    {/* Footer with Minh Hiếu TuBe Branding */}
-    <footer className="mt-8 border-t border-slate-800/80 bg-slate-950 py-8 text-xs text-slate-400">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-slate-300">
-          <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center text-white text-[10px] font-bold">
-            ▶
+    {/* Footer with Minh Hiếu TuBe Branding (Hidden in Full Screen Temple Mode) */}
+    {activeNav !== 'le-chua' && (
+      <footer className="mt-8 border-t border-slate-800/80 bg-slate-950 py-8 text-xs text-slate-400">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-slate-300">
+            <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center text-white text-[10px] font-bold">
+              ▶
+            </div>
+            <span className="font-extrabold text-white">Minh Hiếu TuBe</span>
+            <span>· Kênh: {channelInfo.name}</span>
           </div>
-          <span className="font-extrabold text-white">Minh Hiếu TuBe</span>
-          <span>· Kênh: {channelInfo.name}</span>
-        </div>
 
-        <div className="text-slate-400 flex items-center gap-4 flex-wrap">
-          <a href={channelInfo.youtubeUrl} target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 underline">
-            Mở kênh trên YouTube
-          </a>
-          <span>·</span>
-          <span>coppyright Đỗ Minh Hiếu chương trình thử nghiệm</span>
+          <div className="text-slate-400 flex items-center gap-4 flex-wrap">
+            <a href={channelInfo.youtubeUrl} target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 underline">
+              Mở kênh trên YouTube
+            </a>
+            <span>·</span>
+            <span>coppyright Đỗ Minh Hiếu chương trình thử nghiệm</span>
+          </div>
         </div>
-      </div>
-    </footer>
+      </footer>
+    )}
 
       {/* Connect Modal */}
       <ConnectModal

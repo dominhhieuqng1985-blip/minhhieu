@@ -1,0 +1,15 @@
+{
+  "short_name": "Nhã Uyên Air",
+  "name": "Vemaybaynhauyen.com Flight Search",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "display": "standalone",
+  "theme_color": "#DA251D",
+  "background_color": "#ffffff"
+}
