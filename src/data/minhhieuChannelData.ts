@@ -69,7 +69,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
-    "duration": "5:08",
+    "duration": "05:08",
     "durationSeconds": 308,
     "thumbnail": "https://i.ytimg.com/vi/fDNmrC9tbmQ/hqdefault.jpg",
     "description": "Bóng cha già - Kênh Minh Hiếu Official VN.",
@@ -105,7 +105,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Một giấc mơ thôi - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "5 lượt xem",
+    "views": "6 lượt xem",
     "id": "mh-v3"
   },
   {
@@ -315,7 +315,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thức Tỉnh Hệ Thống Taxi Lịch Sử, Anh Chở Tần Thủy Hoàng Về Hiện Đại Khiến Cả Nước Chấn Động - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "4 lượt xem",
+    "views": "5 lượt xem",
     "id": "mh-v17"
   },
   {
@@ -330,7 +330,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "27 lượt xem",
+    "views": "26 lượt xem",
     "id": "mh-v18"
   },
   {
