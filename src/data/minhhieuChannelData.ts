@@ -110,14 +110,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "6ITpsytCz4g",
-    "title": "Mai anh về thăm lại b��n xưa",
+    "title": "Mai anh về thăm lại bến xưa",
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "05:03",
     "durationSeconds": 303,
     "thumbnail": "https://i.ytimg.com/vi/6ITpsytCz4g/hqdefault.jpg",
-    "description": "Mai anh về thăm lại b��n xưa - Kênh Minh Hiếu Official VN.",
+    "description": "Mai anh về thăm lại bến xưa - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "4 lượt xem",
@@ -330,7 +330,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "24 lượt xem",
+    "views": "25 lượt xem",
     "id": "mh-v18"
   },
   {
