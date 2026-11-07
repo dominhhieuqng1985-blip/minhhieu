@@ -12,7 +12,9 @@ import {
   Eye,
   CheckCircle2,
 } from 'lucide-react';
-import { BuddhaStatue } from '../../data/buddhistTempleData';
+import { BuddhaStatue, TempleMemberRecord } from '../../data/buddhistTempleData';
+import { speakViaStudioVoiceApi, stopSpeaking } from '../../utils/buddhistAudio';
+import { MINH_HIEU_LE_CHUA_VOICE_ID } from '../../utils/everai';
 
 interface RealisticBuddhaStatue3DModalProps {
   statue: BuddhaStatue | null;
@@ -20,6 +22,7 @@ interface RealisticBuddhaStatue3DModalProps {
   onClose: () => void;
   onOpenOfferings: (targetName: string) => void;
   onShowToast: (msg: string) => void;
+  currentMember?: TempleMemberRecord | null;
 }
 
 export const RealisticBuddhaStatue3DModal: React.FC<RealisticBuddhaStatue3DModalProps> = ({
@@ -28,6 +31,7 @@ export const RealisticBuddhaStatue3DModal: React.FC<RealisticBuddhaStatue3DModal
   onClose,
   onOpenOfferings,
   onShowToast,
+  currentMember,
 }) => {
   const [lightingMode, setLightingMode] = useState<'dawn' | 'noon' | 'dusk' | 'night'>('dusk');
   const [isIncenseBurning, setIsIncenseBurning] = useState(true);
@@ -82,13 +86,22 @@ export const RealisticBuddhaStatue3DModal: React.FC<RealisticBuddhaStatue3DModal
       osc.stop(audioCtx.currentTime + 2.5);
     } catch {}
 
-    onShowToast(`🙏 Đạo hữu vừa thành kính đảnh lễ ${statue.name} (${nextBows}/3 lạy)!`);
+    const memberGreeting = currentMember
+      ? `Phật tử ${currentMember.fullName}${currentMember.dharmaName ? ` (Pháp danh ${currentMember.dharmaName})` : ''}`
+      : 'Đạo hữu';
+
+    onShowToast(`🙏 ${memberGreeting} vừa thành kính đảnh lễ ${statue.name} (${nextBows}/3 lạy)!`);
     setTimeout(() => {
       setIsBowing(false);
     }, 1000);
   };
 
-  const handleReciteMantra = () => {
+  const handleReciteMantra = async () => {
+    if (mantraPlaying) {
+      stopSpeaking();
+      setMantraPlaying(false);
+      return;
+    }
     setMantraPlaying(true);
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -104,17 +117,32 @@ export const RealisticBuddhaStatue3DModal: React.FC<RealisticBuddhaStatue3DModal
       osc.stop(audioCtx.currentTime + 3.0);
     } catch {}
 
-    // Web Speech synthesis to speak the mantra clearly
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(statue.mantra);
-      utter.lang = 'vi-VN';
-      utter.rate = 0.85;
-      utter.pitch = 0.95;
-      utter.onend = () => setMantraPlaying(false);
-      utter.onerror = () => setMantraPlaying(false);
-      window.speechSynthesis.speak(utter);
-    } else {
+    const memberIntro = currentMember
+      ? `Nam Mô A Di Đà Phật. Phật tử ${currentMember.fullName}${currentMember.dharmaName ? `, pháp danh ${currentMember.dharmaName}` : ''} thành tâm quy y trước kim thân ${statue.name}. Chân ngôn trì tụng: ${statue.mantra}.`
+      : `Nam Mô A Di Đà Phật. Thành tâm cung kính trước kim thân ${statue.name}. Chân ngôn trì tụng: ${statue.mantra}.`;
+
+    const spoken = await speakViaStudioVoiceApi(memberIntro, {
+      voiceId: MINH_HIEU_LE_CHUA_VOICE_ID,
+      speedRate: 0.9,
+      onEnd: () => setMantraPlaying(false),
+      onError: () => {
+        // Fallback to Web Speech synthesis
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(memberIntro);
+          utter.lang = 'vi-VN';
+          utter.rate = 0.88;
+          utter.pitch = 0.95;
+          utter.onend = () => setMantraPlaying(false);
+          utter.onerror = () => setMantraPlaying(false);
+          window.speechSynthesis.speak(utter);
+        } else {
+          setMantraPlaying(false);
+        }
+      },
+    });
+
+    if (!spoken && !('speechSynthesis' in window)) {
       setTimeout(() => setMantraPlaying(false), 3000);
     }
 

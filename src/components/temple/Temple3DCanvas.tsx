@@ -365,11 +365,11 @@ export const Temple3DCanvas: React.FC<Temple3DCanvasProps> = ({
 
     // 5b. Photorealistic Authentic Statue Textures
     const texLoader = new THREE.TextureLoader();
-    const shakyamuniRealTex = texLoader.load(new URL('../../assets/images/buddha_shakyamuni_real_1793969726250.jpg', import.meta.url).href);
+    const shakyamuniRealTex = texLoader.load('/assets/aistudio/images_44773acb.jfif');
     shakyamuniRealTex.colorSpace = THREE.SRGBColorSpace;
     const quanAmRealTex = texLoader.load(new URL('../../assets/images/boddhisattva_quan_am_real_1793969741943.jpg', import.meta.url).href);
     quanAmRealTex.colorSpace = THREE.SRGBColorSpace;
-    const diaTangRealTex = texLoader.load(new URL('../../assets/images/bodhisattva_dia_tang_real_1793969759129.jpg', import.meta.url).href);
+    const diaTangRealTex = texLoader.load('/assets/aistudio/_aiiatang_4950003d.jfif');
     diaTangRealTex.colorSpace = THREE.SRGBColorSpace;
 
     // 6. Ground Courtyard & Pathways
@@ -748,56 +748,58 @@ export const Temple3DCanvas: React.FC<Temple3DCanvasProps> = ({
       buddhaGroup.add(petal);
     }
 
-    // Buddha Body in Padmasana Lotus Pose (Thân kim thân ngồi kiết già)
-    const torsoGeo = new THREE.CylinderGeometry(0.55, 0.75, 1.5, 16);
-    const torso = new THREE.Mesh(torsoGeo, goldMat);
-    torso.position.set(0, 1.7, 0);
-    torso.castShadow = true;
-    buddhaGroup.add(torso);
+    // ==========================================
+    // 9. KIM THÂN ĐỨC PHẬT THÍCH CA MÂU NI (REAL 3D PHOTOREALISTIC BUDDHA STATUE)
+    // ==========================================
+    // Tôn tượng thật Đức Bổn Sư Thích Ca Mâu Ni thếp vàng rực rỡ ngự trên đài sen
+    const realStatueWidth = 2.4;
+    const realStatueHeight = 3.3;
 
-    // Crossed Legs Base
-    const legsGeo = new THREE.TorusGeometry(0.85, 0.35, 12, 24, Math.PI);
-    const legs = new THREE.Mesh(legsGeo, goldMat);
-    legs.position.set(0, 1.05, 0.1);
-    legs.rotation.x = Math.PI / 2;
-    buddhaGroup.add(legs);
+    // Real Statue Front Display (Mapped with authentic golden Buddha on lotus throne)
+    const realBuddhaGeo = new THREE.PlaneGeometry(realStatueWidth, realStatueHeight);
+    const realBuddhaMat = new THREE.MeshStandardMaterial({
+      map: shakyamuniRealTex,
+      roughness: 0.25,
+      metalness: 0.25,
+      side: THREE.DoubleSide,
+    });
+    const realBuddhaMesh = new THREE.Mesh(realBuddhaGeo, realBuddhaMat);
+    realBuddhaMesh.position.set(0, 2.5, 0.04);
+    realBuddhaMesh.castShadow = true;
+    buddhaGroup.add(realBuddhaMesh);
 
-    // Shoulders & Chest Robe Drape (Áo cà sa vắt vai thanh tịnh)
-    const robeGeo = new THREE.SphereGeometry(0.78, 16, 16);
-    const robe = new THREE.Mesh(robeGeo, goldMat);
-    robe.position.set(0, 2.1, 0);
-    buddhaGroup.add(robe);
+    // Realistic gold backing giving the statue solid 3D depth and thickness on the altar
+    const statueBacking = new THREE.Mesh(
+      new THREE.BoxGeometry(realStatueWidth + 0.12, realStatueHeight + 0.12, 0.14),
+      goldMat
+    );
+    statueBacking.position.set(0, 2.5, -0.04);
+    statueBacking.castShadow = true;
+    buddhaGroup.add(statueBacking);
 
-    // Buddha Head with Ushnisha (Đầu tượng có nhục kế vô kiến đảnh tướng)
-    const headGeo = new THREE.SphereGeometry(0.42, 20, 20);
-    const head = new THREE.Mesh(headGeo, goldMat);
-    head.position.set(0, 2.7, 0);
-    buddhaGroup.add(head);
-
-    // Ushnisha bump
-    const ushnishaGeo = new THREE.SphereGeometry(0.18, 16, 16);
-    const ushnisha = new THREE.Mesh(ushnishaGeo, goldMat);
-    ushnisha.position.set(0, 3.12, 0);
-    buddhaGroup.add(ushnisha);
-
-    // Golden Dharmachakra Halo (Hào quang Phật chuyển động)
-    const haloGeo = new THREE.TorusGeometry(1.6, 0.06, 16, 64);
+    // Golden Dharmachakra Halo (Hào quang Phật chuyển động sau đầu)
+    const haloGeo = new THREE.TorusGeometry(1.4, 0.06, 16, 64);
     const haloMat = new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.85 });
     const halo = new THREE.Mesh(haloGeo, haloMat);
-    halo.position.set(0, 2.5, -0.4);
+    halo.position.set(0, 3.25, -0.16);
     buddhaGroup.add(halo);
 
     // Radiating sunburst disc
-    const sunburstGeo = new THREE.CircleGeometry(1.5, 32);
+    const sunburstGeo = new THREE.CircleGeometry(1.35, 32);
     const sunburstMat = new THREE.MeshBasicMaterial({
       color: 0xffd54f,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.25,
       side: THREE.DoubleSide,
     });
     const sunburst = new THREE.Mesh(sunburstGeo, sunburstMat);
-    sunburst.position.set(0, 2.5, -0.42);
+    sunburst.position.set(0, 3.25, -0.18);
     buddhaGroup.add(sunburst);
+
+    // Warm golden spiritual light emanating from Buddha statue
+    const buddhaAuraLight = new THREE.PointLight(0xffdf80, 1.8, 6.0);
+    buddhaAuraLight.position.set(0, 2.8, 0.8);
+    buddhaGroup.add(buddhaAuraLight);
 
     // Signboard: "ĐẠI HÙNG BẢO ĐIỆN"
     const hallPlaqueTex = createSignCanvasTexture('ĐẠI HÙNG BẢO ĐIỆN', 'VẠN ĐỨC TRANG NGHIÊM');
@@ -838,28 +840,53 @@ export const Temple3DCanvas: React.FC<Temple3DCanvasProps> = ({
       mainHallGroup.add(candleLight);
     });
 
-    // Plates of Offering Fruits & Lotus Flowers (Dâng Hoa Quả Cúng Dường)
-    [-0.8, 0.8].forEach((fx, idx) => {
-      const plateGeo = new THREE.CylinderGeometry(0.3, 0.2, 0.08, 16);
-      const plate = new THREE.Mesh(plateGeo, goldMat);
-      plate.position.set(fx, 1.35, 1.0);
-      mainHallGroup.add(plate);
+    // Plates of Offering Fruits & Lotus Flowers (Dâng Hoa Quả & Bình Hoa Sen Cúng Dường)
+    // Left: Ornate Golden Lotus Vase with Blooming Lotus Flowers
+    const vaseGeo = new THREE.CylinderGeometry(0.18, 0.12, 0.6, 16);
+    const vaseMesh = new THREE.Mesh(vaseGeo, goldMat);
+    vaseMesh.position.set(-0.85, 1.5, 1.0);
+    mainHallGroup.add(vaseMesh);
 
-      if (idx === 0) {
-        // Fresh Lotus Buds (Búp Hoa Sen Hồng)
-        const lotusBudGeo = new THREE.ConeGeometry(0.14, 0.35, 8);
-        const lotusBudMat = new THREE.MeshStandardMaterial({ color: 0xff6699, roughness: 0.3 });
-        const lotusBud = new THREE.Mesh(lotusBudGeo, lotusBudMat);
-        lotusBud.position.set(fx, 1.55, 1.0);
-        mainHallGroup.add(lotusBud);
-      } else {
-        // Fruit Stack (Mâm Ngũ Quả)
-        const fruitGeo = new THREE.SphereGeometry(0.12, 12, 12);
-        const fruitMat = new THREE.MeshStandardMaterial({ color: 0xff5500, roughness: 0.4 });
-        const fruit = new THREE.Mesh(fruitGeo, fruitMat);
-        fruit.position.set(fx, 1.46, 1.0);
-        mainHallGroup.add(fruit);
-      }
+    // Blooming Lotus Flowers in vase
+    const lotusPetalGeo = new THREE.ConeGeometry(0.08, 0.28, 6);
+    const lotusMat = new THREE.MeshStandardMaterial({ color: 0xff6699, roughness: 0.3 });
+    for (let lp = 0; lp < 5; lp++) {
+      const angle = (lp / 5) * Math.PI * 2;
+      const petal = new THREE.Mesh(lotusPetalGeo, lotusMat);
+      petal.position.set(-0.85 + Math.cos(angle) * 0.1, 1.88, 1.0 + Math.sin(angle) * 0.1);
+      petal.rotation.x = Math.PI / 6;
+      petal.rotation.y = angle;
+      mainHallGroup.add(petal);
+    }
+    const lotusCore = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), goldMat);
+    lotusCore.position.set(-0.85, 1.9, 1.0);
+    mainHallGroup.add(lotusCore);
+
+    // Right: Tiered Five-Fruit Offering Tray (Mâm Ngũ Quả Cúng Phật)
+    const fruitTrayGeo = new THREE.CylinderGeometry(0.38, 0.22, 0.12, 20);
+    const fruitTray = new THREE.Mesh(fruitTrayGeo, goldMat);
+    fruitTray.position.set(0.85, 1.36, 1.0);
+    mainHallGroup.add(fruitTray);
+
+    // Fruit Pyramid on Tray
+    const fruitColors = [0xff5500, 0xffbb00, 0xdd2222, 0x55aa22, 0xffaa33];
+    const fruitOffsets = [
+      [-0.1, 0, -0.08],
+      [0.1, 0, -0.08],
+      [0, 0, 0.1],
+      [-0.08, 0.14, 0.02],
+      [0.08, 0.14, 0.02],
+      [0, 0.26, 0],
+    ];
+    fruitOffsets.forEach(([fx, fy, fz], fIdx) => {
+      const fGeo = new THREE.SphereGeometry(0.09, 12, 12);
+      const fMat = new THREE.MeshStandardMaterial({
+        color: fruitColors[fIdx % fruitColors.length],
+        roughness: 0.35,
+      });
+      const fMesh = new THREE.Mesh(fGeo, fMat);
+      fMesh.position.set(0.85 + fx, 1.48 + fy, 1.0 + fz);
+      mainHallGroup.add(fMesh);
     });
 
     // Incense Urn & Burner in front of Buddha
@@ -883,22 +910,6 @@ export const Temple3DCanvas: React.FC<Temple3DCanvasProps> = ({
       mainHallGroup.add(tip);
     });
 
-    // Photorealistic Authentic Shakyamuni Buddha Altar Shrine Panel
-    const altarPanelGeo = new THREE.PlaneGeometry(2.6, 2.6);
-    const altarPanelMat = new THREE.MeshStandardMaterial({
-      map: shakyamuniRealTex,
-      roughness: 0.35,
-      metalness: 0.15,
-    });
-    const altarPanel = new THREE.Mesh(altarPanelGeo, altarPanelMat);
-    altarPanel.position.set(0, 2.5, -0.44);
-    buddhaGroup.add(altarPanel);
-
-    const frameBorderGeo = new THREE.BoxGeometry(2.78, 2.78, 0.08);
-    const frameBorder = new THREE.Mesh(frameBorderGeo, goldMat);
-    frameBorder.position.set(0, 2.5, -0.48);
-    buddhaGroup.add(frameBorder);
-
     mainHallGroup.add(buddhaGroup);
     scene.add(mainHallGroup);
 
@@ -920,42 +931,46 @@ export const Temple3DCanvas: React.FC<Temple3DCanvasProps> = ({
     pondBorder.position.y = 0.3;
     quanAmGroup.add(pondBorder);
 
-    // Quan Âm White Marble Statue (Tượng Quán Thế Âm áo trắng tinh khiết)
-    const qaPedestalGeo = new THREE.CylinderGeometry(1.1, 1.3, 1.2, 16);
+    // Quan Âm White Marble Statue (Tôn tượng Quán Thế Âm Bạch Ngọc Thật)
+    const qaPedestalGeo = new THREE.CylinderGeometry(1.1, 1.3, 1.0, 16);
     const qaPedestal = new THREE.Mesh(qaPedestalGeo, whiteMarbleMat);
-    qaPedestal.position.y = 0.8;
+    qaPedestal.position.y = 0.6;
     quanAmGroup.add(qaPedestal);
 
-    const qaBodyGeo = new THREE.CylinderGeometry(0.4, 0.65, 2.4, 16);
-    const qaBody = new THREE.Mesh(qaBodyGeo, whiteMarbleMat);
-    qaBody.position.y = 2.4;
-    quanAmGroup.add(qaBody);
-
-    const qaHeadGeo = new THREE.SphereGeometry(0.38, 16, 16);
-    const qaHead = new THREE.Mesh(qaHeadGeo, whiteMarbleMat);
-    qaHead.position.y = 3.7;
-    quanAmGroup.add(qaHead);
-
-    // Willow branch & Pure Water Vase (Nhành dương liễu & Bình tịnh thủy)
-    const vaseGeo = new THREE.CylinderGeometry(0.08, 0.14, 0.35, 12);
-    const vase = new THREE.Mesh(vaseGeo, whiteMarbleMat);
-    vase.position.set(0.35, 2.4, 0.3);
-    quanAmGroup.add(vase);
-
-    // Photorealistic Quan Âm Bodhisattva Shrine Panel
-    const qaAltarGeo = new THREE.PlaneGeometry(2.6, 3.4);
-    const qaAltarMat = new THREE.MeshStandardMaterial({
+    // Real Bodhisattva Avalokiteshvara Statue (Tôn tượng Quán Thế Âm Thật)
+    const qaStatueWidth = 2.4;
+    const qaStatueHeight = 3.4;
+    const qaStatueGeo = new THREE.PlaneGeometry(qaStatueWidth, qaStatueHeight);
+    const qaStatueMat = new THREE.MeshStandardMaterial({
       map: quanAmRealTex,
-      roughness: 0.4,
+      roughness: 0.3,
       metalness: 0.1,
+      side: THREE.DoubleSide,
     });
-    const qaAltarMesh = new THREE.Mesh(qaAltarGeo, qaAltarMat);
-    qaAltarMesh.position.set(0, 2.6, -0.32);
-    quanAmGroup.add(qaAltarMesh);
+    const realQaMesh = new THREE.Mesh(qaStatueGeo, qaStatueMat);
+    realQaMesh.position.set(0, 2.3, 0.04);
+    realQaMesh.castShadow = true;
+    quanAmGroup.add(realQaMesh);
 
-    const qaAltarFrame = new THREE.Mesh(new THREE.BoxGeometry(2.78, 3.58, 0.08), whiteMarbleMat);
-    qaAltarFrame.position.set(0, 2.6, -0.36);
-    quanAmGroup.add(qaAltarFrame);
+    // Marble backing for 3D thickness
+    const qaBacking = new THREE.Mesh(
+      new THREE.BoxGeometry(qaStatueWidth + 0.1, qaStatueHeight + 0.1, 0.12),
+      whiteMarbleMat
+    );
+    qaBacking.position.set(0, 2.3, -0.04);
+    qaBacking.castShadow = true;
+    quanAmGroup.add(qaBacking);
+
+    // Cam Lộ Halo (Hào quang tịnh thủy thanh lương)
+    const qaHaloGeo = new THREE.TorusGeometry(1.3, 0.05, 16, 48);
+    const qaHaloMat = new THREE.MeshBasicMaterial({ color: 0x99eeff, transparent: true, opacity: 0.8 });
+    const qaHalo = new THREE.Mesh(qaHaloGeo, qaHaloMat);
+    qaHalo.position.set(0, 3.1, -0.12);
+    quanAmGroup.add(qaHalo);
+
+    const qaAuraLight = new THREE.PointLight(0xaae8ff, 1.5, 5.0);
+    qaAuraLight.position.set(0, 2.6, 0.6);
+    quanAmGroup.add(qaAuraLight);
 
     scene.add(quanAmGroup);
 
@@ -976,37 +991,46 @@ export const Temple3DCanvas: React.FC<Temple3DCanvasProps> = ({
     dtLotus.position.y = 0.7;
     diaTangGroup.add(dtLotus);
 
-    const dtBodyGeo = new THREE.CylinderGeometry(0.45, 0.7, 2.2, 16);
-    const dtBodyMat = new THREE.MeshStandardMaterial({ color: 0x995511, roughness: 0.4 });
-    const dtBody = new THREE.Mesh(dtBodyGeo, dtBodyMat);
-    dtBody.position.y = 1.95;
-    diaTangGroup.add(dtBody);
+    // Real Bodhisattva Ksitigarbha Statue (Tôn tượng Địa Tạng Vương Bồ Tát Thật)
+    const dtStatueWidth = 2.4;
+    const dtStatueHeight = 3.4;
+    const dtStatueGeo = new THREE.PlaneGeometry(dtStatueWidth, dtStatueHeight);
+    const dtStatueMat = new THREE.MeshStandardMaterial({
+      map: diaTangRealTex,
+      roughness: 0.25,
+      metalness: 0.25,
+      side: THREE.DoubleSide,
+    });
+    const realDtMesh = new THREE.Mesh(dtStatueGeo, dtStatueMat);
+    realDtMesh.position.set(0, 2.4, 0.04);
+    realDtMesh.castShadow = true;
+    diaTangGroup.add(realDtMesh);
 
-    const dtHeadGeo = new THREE.SphereGeometry(0.38, 16, 16);
-    const dtHead = new THREE.Mesh(dtHeadGeo, goldMat);
-    dtHead.position.y = 3.25;
-    diaTangGroup.add(dtHead);
+    // Golden backing for 3D thickness
+    const dtBacking = new THREE.Mesh(
+      new THREE.BoxGeometry(dtStatueWidth + 0.1, dtStatueHeight + 0.1, 0.12),
+      goldMat
+    );
+    dtBacking.position.set(0, 2.4, -0.04);
+    dtBacking.castShadow = true;
+    diaTangGroup.add(dtBacking);
 
-    // Khakkhara Staff (Tích Trượng 12 Khoen)
+    // Golden Khakkhara Staff (Tích Trượng 12 Khoen Vàng)
     const staffGeo = new THREE.CylinderGeometry(0.03, 0.03, 3.8, 8);
     const staff = new THREE.Mesh(staffGeo, goldMat);
-    staff.position.set(0.55, 2.4, 0.25);
+    staff.position.set(0.85, 2.4, 0.2);
     diaTangGroup.add(staff);
 
-    // Photorealistic Dia Tang Bodhisattva Shrine Panel
-    const dtAltarGeo = new THREE.PlaneGeometry(2.5, 3.2);
-    const dtAltarMat = new THREE.MeshStandardMaterial({
-      map: diaTangRealTex,
-      roughness: 0.35,
-      metalness: 0.15,
-    });
-    const dtAltarMesh = new THREE.Mesh(dtAltarGeo, dtAltarMat);
-    dtAltarMesh.position.set(0, 2.4, -0.32);
-    diaTangGroup.add(dtAltarMesh);
+    // U Minh Halo (Hào quang cứu độ u minh)
+    const dtHaloGeo = new THREE.TorusGeometry(1.3, 0.05, 16, 48);
+    const dtHaloMat = new THREE.MeshBasicMaterial({ color: 0xffaa33, transparent: true, opacity: 0.85 });
+    const dtHalo = new THREE.Mesh(dtHaloGeo, dtHaloMat);
+    dtHalo.position.set(0, 3.2, -0.12);
+    diaTangGroup.add(dtHalo);
 
-    const dtAltarFrame = new THREE.Mesh(new THREE.BoxGeometry(2.68, 3.38, 0.08), goldMat);
-    dtAltarFrame.position.set(0, 2.4, -0.36);
-    diaTangGroup.add(dtAltarFrame);
+    const dtAuraLight = new THREE.PointLight(0xffb84d, 1.6, 5.0);
+    dtAuraLight.position.set(0, 2.7, 0.6);
+    diaTangGroup.add(dtAuraLight);
 
     scene.add(diaTangGroup);
 

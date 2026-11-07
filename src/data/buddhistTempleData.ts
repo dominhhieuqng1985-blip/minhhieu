@@ -83,10 +83,10 @@ export interface TempleGuestbookEntry {
 }
 
 export const REAL_STATUE_IMAGES = {
-  thichCa: new URL('../assets/images/buddha_shakyamuni_real_1793969726250.jpg', import.meta.url).href,
+  thichCa: '/assets/aistudio/images_44773acb.jfif',
+  diaTang: '/assets/aistudio/_aiiatang_4950003d.jfif',
+  aDiDa: '/assets/aistudio/images_44773acb.jfif',
   quanAm: new URL('../assets/images/boddhisattva_quan_am_real_1793969741943.jpg', import.meta.url).href,
-  aDiDa: new URL('../assets/images/buddha_amitabha_real_1793969781444.jpg', import.meta.url).href,
-  diaTang: new URL('../assets/images/bodhisattva_dia_tang_real_1793969759129.jpg', import.meta.url).href,
   congTamQuan: new URL('../assets/images/vietnamese_triple_gate_real_1793969797558.jpg', import.meta.url).href,
 };
 
@@ -94,9 +94,9 @@ export const BUDDHA_STATUES: BuddhaStatue[] = [
   {
     id: 'thich-ca',
     name: 'Đức Bổn Sư Thích Ca Mâu Ni',
-    title: 'Đấng Toàn Giác • Giáo Chủ Cõi Ta Bà',
-    imageUrl: REAL_STATUE_IMAGES.thichCa,
-    description: 'Kim thân Đức Bổn Sư Thích Ca Mâu Ni thếp vàng rực rỡ ngự trên đài sen tam cấp, pháp tướng trang nghiêm từ bi vô lượng, khai sáng đạo Phật cứu độ chúng sinh thoát khỏi luân hồi sinh tử.',
+    title: 'Đấng Toàn Giác • Kim Thân Hoàng Kim Ngự Đài Sen',
+    imageUrl: '/assets/aistudio/images_44773acb.jfif',
+    description: 'Kim thân Đức Bổn Sư Thích Ca Mâu Ni thếp vàng rực rỡ ngự trên đài sen tam cấp, ngực khắc chữ Vạn kiết tường, tay kiết ấn Vô Úy Giáo Hóa, pháp tướng trang nghiêm từ bi vô lượng khai sáng đạo Phật cứu độ chúng sinh.',
     vow: 'Tất cả chúng sinh đều có Phật tính, chỉ cần dứt trừ vô minh và tham ái thì đều có thể đạt tới giác ngộ giải thoát.',
     mantra: 'Nam Mô Bổn Sư Thích Ca Mâu Ni Phật',
     color: 'from-amber-500 to-yellow-600',
@@ -115,8 +115,8 @@ export const BUDDHA_STATUES: BuddhaStatue[] = [
     id: 'a-di-da',
     name: 'Đức Phật A Di Đà',
     title: 'Vô Lượng Thọ • Giáo Chủ Cõi Tây Phương Cực Lạc',
-    imageUrl: REAL_STATUE_IMAGES.aDiDa,
-    description: 'Đức Phật của ánh sáng vô lượng quang và thọ mạng vô biên, đứng trên hoa sen vàng tiếp dẫn chư vị thiện nam tín nữ vãng sanh Tây Phương Tịnh Độ.',
+    imageUrl: '/assets/aistudio/images_44773acb.jfif',
+    description: 'Đức Phật của ánh sáng vô lượng quang và thọ mạng vô biên, ngự trên liên hoa tọa hoàng kim tiếp dẫn chư vị thiện nam tín nữ vãng sanh Tây Phương Tịnh Độ.',
     vow: 'Chúng sinh trong mười phương hết lòng tin ưa, xưng niệm danh hiệu từ một đến mười niệm khi lâm chung tất được vãng sanh Cực Lạc.',
     mantra: 'Nam Mô A Di Đà Phật',
     color: 'from-red-500 to-rose-600',
@@ -125,8 +125,8 @@ export const BUDDHA_STATUES: BuddhaStatue[] = [
     id: 'dia-tang',
     name: 'Đại Nguyện Địa Tạng Vương Bồ Tát',
     title: 'U Minh Giáo Chủ • Kim Thân Hoàng Kim Tích Trượng',
-    imageUrl: REAL_STATUE_IMAGES.diaTang,
-    description: 'Đức Địa Tạng Vương Bồ Tát thủ trì tích trượng 12 khoen vàng và như ý bảo châu tỏa sáng cõi u minh, đại nguyện sâu dày độ tận chúng sinh nơi ba đường ác.',
+    imageUrl: '/assets/aistudio/_aiiatang_4950003d.jfif',
+    description: 'Đức Địa Tạng Vương Bồ Tát đội mão Tỳ Lư kim sắc, thủ trì tích trượng 12 khoen vàng và ngọc Như Ý bảo châu tỏa ánh quang minh phá tan tăm tối cõi u minh, độ tận chúng sinh nơi ba đường ác.',
     vow: 'Địa ngục vị không, thệ bất thành Phật; Chúng sinh độ tận, phương chứng Bồ Đề.',
     mantra: 'Nam Mô Đại Nguyện Địa Tạng Vương Bồ Tát • Án Bát La Mạt Lân Đà Nẵng Ta Bà Ha',
     color: 'from-amber-500 via-yellow-500 to-amber-700',

@@ -57,6 +57,46 @@ function wrapCanvasLines(
 }
 
 /**
+ * Creates dynamic lacquer & gold calligraphy signboards for pavilion shrines
+ */
+function createSignCanvasTexture(title: string, sub?: string): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 140;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#4a0d0d'; // Sơn son gụ đỏ
+    ctx.fillRect(0, 0, 512, 140);
+
+    // Khung viền thếp vàng kép
+    ctx.strokeStyle = '#d4af37';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(6, 6, 500, 128);
+    ctx.strokeStyle = '#fde68a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(14, 14, 484, 112);
+
+    // Chữ thư pháp vàng ánh kim
+    ctx.fillStyle = '#fef08a';
+    ctx.font = 'bold 36px "Times New Roman", "Palatino Linotype", serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.85)';
+    ctx.shadowBlur = 6;
+    ctx.fillText(title, 256, sub ? 52 : 70);
+
+    if (sub) {
+      ctx.fillStyle = '#fde047';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText(sub, 256, 104);
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
  * High-DPI Procedural 3D Gravestone Stele Texture (Bia Mộ 3D Thật Đầy Đủ Dương Lịch, Âm Lịch, Hưởng Thọ / Hưởng Dương)
  */
 function createTombSteleCanvasTexture(
@@ -748,6 +788,7 @@ export const MemorialPark3DCanvas: React.FC<MemorialPark3DCanvasProps> = ({
 
     const staticGeos: THREE.BufferGeometry[] = [];
     const staticMats: THREE.Material[] = [];
+    const staticTextures: THREE.Texture[] = [];
 
     // Lights
     const ambientLight = new THREE.AmbientLight(0xfff4dc, 0.85);
@@ -826,24 +867,126 @@ export const MemorialPark3DCanvas: React.FC<MemorialPark3DCanvasProps> = ({
     shRoof2.rotation.y = Math.PI / 4;
     shrineGroup.add(shRoof1, shRoof2);
 
-    // Ksitigarbha Bodhisattva Golden Statue Silhouette + Halo at center of shrine
-    const pedestalGeo = new THREE.CylinderGeometry(0.55, 0.72, 0.45, 16);
+    // ==========================================
+    // TÔN TƯỢNG THẬT ĐẠI NGUYỆN ĐỊA TẠNG VƯƠNG BỒ TÁT (REAL 3D PHOTOREALISTIC BODHISATTVA STATUE)
+    // ==========================================
+    const texLoader = new THREE.TextureLoader();
+    const diaTangRealTex = texLoader.load('/assets/aistudio/_aiiatang_4950003d.jfif');
+    diaTangRealTex.colorSpace = THREE.SRGBColorSpace;
+    staticTextures.push(diaTangRealTex);
+
+    // Multi-tier Lotus Throne & Pedestal
+    const pedestalGeo = new THREE.CylinderGeometry(0.85, 1.05, 0.38, 24);
     const pedestal = new THREE.Mesh(pedestalGeo, goldMat);
-    pedestal.position.y = 0.92;
-    const statueBodyGeo = new THREE.CapsuleGeometry(0.32, 0.95, 8, 16);
-    const statueBody = new THREE.Mesh(statueBodyGeo, goldMat);
-    statueBody.position.y = 1.75;
-    const shHaloGeo = new THREE.TorusGeometry(0.95, 0.045, 12, 48);
-    const shHaloMat = new THREE.MeshBasicMaterial({ color: 0xffe066 });
+    pedestal.position.y = 0.88;
+    pedestal.castShadow = true;
+    pedestal.receiveShadow = true;
+    shrineGroup.add(pedestal);
+
+    const pedestalTier2Geo = new THREE.CylinderGeometry(0.72, 0.88, 0.28, 24);
+    const pedestalTier2 = new THREE.Mesh(pedestalTier2Geo, goldMat);
+    pedestalTier2.position.y = 1.18;
+    shrineGroup.add(pedestalTier2);
+
+    // Sculpted golden lotus petals around throne
+    const petalGeo = new THREE.ConeGeometry(0.12, 0.36, 5);
+    staticGeos.push(petalGeo);
+    for (let p = 0; p < 16; p++) {
+      const angle = (p / 16) * Math.PI * 2;
+      const petal = new THREE.Mesh(petalGeo, goldMat);
+      petal.position.set(Math.cos(angle) * 0.88, 1.15, Math.sin(angle) * 0.88);
+      petal.rotation.x = Math.PI / 4;
+      petal.rotation.y = angle;
+      shrineGroup.add(petal);
+    }
+
+    // Authentic Photorealistic Bodhisattva Ksitigarbha Statue Plane
+    const dtWidth = 1.9;
+    const dtHeight = 2.65;
+    const dtStatueGeo = new THREE.PlaneGeometry(dtWidth, dtHeight);
+    const dtStatueMat = new THREE.MeshStandardMaterial({
+      map: diaTangRealTex,
+      roughness: 0.25,
+      metalness: 0.25,
+      side: THREE.DoubleSide,
+    });
+    const dtStatueMesh = new THREE.Mesh(dtStatueGeo, dtStatueMat);
+    dtStatueMesh.position.set(0, 2.45, 0.05);
+    dtStatueMesh.castShadow = true;
+    shrineGroup.add(dtStatueMesh);
+
+    // Realistic gold backing giving the Bodhisattva solid 3D depth and thickness
+    const dtBackingGeo = new THREE.BoxGeometry(dtWidth + 0.08, dtHeight + 0.08, 0.12);
+    const dtBacking = new THREE.Mesh(dtBackingGeo, goldMat);
+    dtBacking.position.set(0, 2.45, -0.02);
+    dtBacking.castShadow = true;
+    shrineGroup.add(dtBacking);
+
+    // Golden Khakkhara Staff (Tích Trượng 12 khoen vàng thức tỉnh u minh)
+    const staffGeo = new THREE.CylinderGeometry(0.022, 0.022, 2.9, 8);
+    const staff = new THREE.Mesh(staffGeo, goldMat);
+    staff.position.set(0.68, 2.45, 0.18);
+    shrineGroup.add(staff);
+
+    // Radiant Golden Halo
+    const shHaloGeo = new THREE.TorusGeometry(1.05, 0.045, 16, 48);
+    const shHaloMat = new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.9 });
     const shHalo = new THREE.Mesh(shHaloGeo, shHaloMat);
-    shHalo.position.set(0, 1.95, -0.35);
-    shrineGroup.add(pedestal, statueBody, shHalo);
+    shHalo.position.set(0, 2.95, -0.09);
+    shrineGroup.add(shHalo);
+
+    // Radiating Sunburst Disc
+    const sunburstGeo = new THREE.CircleGeometry(1.0, 32);
+    const sunburstMat = new THREE.MeshBasicMaterial({
+      color: 0xffc44d,
+      transparent: true,
+      opacity: 0.26,
+      side: THREE.DoubleSide,
+    });
+    const sunburst = new THREE.Mesh(sunburstGeo, sunburstMat);
+    sunburst.position.set(0, 2.95, -0.11);
+    shrineGroup.add(sunburst);
+
+    // Warm golden spiritual light from Bodhisattva
+    const dtAuraLight = new THREE.PointLight(0xffb84d, 2.2, 7.5);
+    dtAuraLight.position.set(0, 2.65, 0.7);
+    shrineGroup.add(dtAuraLight);
+
+    // Pavilion Signboard Plaque: "NAM MÔ ĐỊA TẠNG VƯƠNG BỒ TÁT"
+    const plaqueTex = createSignCanvasTexture('ĐỊA TẠNG VƯƠNG', 'ĐẠI NGUYỆN CỨU ĐỘ TRẦM LUÂN');
+    staticTextures.push(plaqueTex);
+    const plaqueMat = new THREE.MeshStandardMaterial({
+      map: plaqueTex,
+      roughness: 0.35,
+      metalness: 0.15,
+    });
+    const plaqueGeo = new THREE.BoxGeometry(3.2, 0.82, 0.08);
+    const plaqueMesh = new THREE.Mesh(plaqueGeo, plaqueMat);
+    plaqueMesh.position.set(0, 3.45, 1.4);
+    shrineGroup.add(plaqueMesh);
 
     // Great Bronze Incense Cauldron in front of Shrine
-    const cauldronGeo = new THREE.CylinderGeometry(0.45, 0.36, 0.55, 16);
+    const cauldronGeo = new THREE.CylinderGeometry(0.52, 0.42, 0.6, 20);
     const cauldron = new THREE.Mesh(cauldronGeo, goldMat);
-    cauldron.position.set(0, 0.95, 1.65);
+    cauldron.position.set(0, 0.98, 1.65);
+    cauldron.castShadow = true;
     shrineGroup.add(cauldron);
+
+    // Incense sticks in cauldron
+    [-0.07, 0, 0.07].forEach((ix) => {
+      const stGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.55, 6);
+      const stMat = new THREE.MeshBasicMaterial({ color: 0x991b1b });
+      const stick = new THREE.Mesh(stGeo, stMat);
+      stick.position.set(ix, 1.45, 1.65);
+      const tipGeo = new THREE.SphereGeometry(0.02, 6, 6);
+      const tipMat = new THREE.MeshBasicMaterial({ color: 0xff3b00 });
+      const tip = new THREE.Mesh(tipGeo, tipMat);
+      tip.position.y = 0.28;
+      stick.add(tip);
+      shrineGroup.add(stick);
+      staticGeos.push(stGeo, tipGeo);
+      staticMats.push(stMat, tipMat);
+    });
 
     scene.add(shrineGroup);
     staticGeos.push(
@@ -853,11 +996,16 @@ export const MemorialPark3DCanvas: React.FC<MemorialPark3DCanvasProps> = ({
       shRoof1Geo,
       shRoof2Geo,
       pedestalGeo,
-      statueBodyGeo,
+      pedestalTier2Geo,
+      dtStatueGeo,
+      dtBackingGeo,
+      staffGeo,
       shHaloGeo,
+      sunburstGeo,
+      plaqueGeo,
       cauldronGeo
     );
-    staticMats.push(shHaloMat);
+    staticMats.push(dtStatueMat, shHaloMat, sunburstMat, plaqueMat);
 
     // Perimeter Cypress & Apricot Trees
     const treeTrunkGeo = new THREE.CylinderGeometry(0.12, 0.18, 1.4, 8);
@@ -1097,6 +1245,7 @@ export const MemorialPark3DCanvas: React.FC<MemorialPark3DCanvasProps> = ({
       ctxObj.plotDisposables.textures.forEach((t) => t.dispose());
       staticGeos.forEach((g) => g.dispose());
       staticMats.forEach((m) => m.dispose());
+      staticTextures.forEach((t) => t.dispose());
 
       renderer.dispose();
       if (renderer.domElement.parentNode === container) {

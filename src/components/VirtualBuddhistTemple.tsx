@@ -43,12 +43,17 @@ import {
   UserCheck,
   RefreshCw,
   Maximize2,
+  Minimize2,
+  Navigation,
+  MapPin,
+  Eye,
 } from 'lucide-react';
 import { Temple3DCanvas } from './temple/Temple3DCanvas';
 import { MemorialParkSection } from './temple/MemorialParkSection';
 import { TempleMemberAuthModal } from './temple/TempleMemberAuthModal';
 import { HoaVienGatekeeperModal } from './temple/HoaVienGatekeeperModal';
 import { UniversalOfferingsStoreModal } from './temple/UniversalOfferingsStoreModal';
+import { RealisticBuddhaStatue3DModal } from './temple/RealisticBuddhaStatue3DModal';
 import {
   buddhistAudio,
   speakViaStudioVoiceApi,
@@ -145,6 +150,24 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
   const [simulateOverCapacity, setSimulateOverCapacity] = useState<boolean>(false);
   const [queueCountdown, setQueueCountdown] = useState<number>(8);
   const [isQueueBypassed, setIsQueueBypassed] = useState<boolean>(false);
+
+  // Fullscreen, Exit confirm & Hall Notes State
+  const [isBrowserFullscreen, setIsBrowserFullscreen] = useState<boolean>(false);
+  const [isExitConfirmOpen, setIsExitConfirmOpen] = useState<boolean>(false);
+  const [hoveredHallNote, setHoveredHallNote] = useState<{
+    id: string;
+    name: string;
+    title: string;
+    statue: string;
+    icon: string;
+    meaning: string;
+    merit: string;
+    actionTitle: string;
+    tabTarget?: TempleTab;
+    statueId?: string;
+  } | null>(null);
+  const [is3DControlsDockOpen, setIs3DControlsDockOpen] = useState<boolean>(true);
+  const [isSceneExpanded, setIsSceneExpanded] = useState<boolean>(false);
 
   useEffect(() => {
     if (!simulateOverCapacity && onlineCount) {
@@ -574,6 +597,156 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
       buddhistAudio.ringTempleBell(0.5);
       addMerit(20, 'Gieo Quẻ Lời Vàng Phật Dạy');
     }, 1200);
+  };
+
+  // Comprehensive Hall Information & Meaning Notes
+  const TEMPLE_HALL_NOTES: Record<string, {
+    id: string;
+    name: string;
+    title: string;
+    statue: string;
+    icon: string;
+    meaning: string;
+    merit: string;
+    actionTitle: string;
+    tabTarget?: TempleTab;
+    statueId?: string;
+  }> = {
+    'chanh-dien': {
+      id: 'chanh-dien',
+      name: 'Đại Hùng Bảo Điện (Chánh Điện)',
+      title: 'Tam Bảo Tôn Nghiêm • Đức Phật Thích Ca Mâu Ni & A Di Đà',
+      statue: 'Đức Bổn Sư Thích Ca Mâu Ni Kim Thân Ngự Đài Sen',
+      icon: '🪷',
+      meaning: 'Nơi trung tâm linh thiêng nhất của chùa, tôn trí kim thân Đức Thích Ca Mâu Ni ngự tòa sen hoàng kim, trước ngực khắc chữ Vạn kiết tường, tay kiết ấn giáo hóa vô lượng chúng sinh.',
+      merit: 'Thành kính đảnh lễ tiêu trừ trăm ngàn muôn kiếp tội chướng, mở mang trí tuệ bát nhã.',
+      actionTitle: 'Chiêm Bái Kim Thân 3D',
+      statueId: 'thich-ca',
+    },
+    'dien-quan-am': {
+      id: 'dien-quan-am',
+      name: 'Quan Âm Các (Điện Bồ Tát Quán Thế Âm)',
+      title: 'Mẹ Hiền Quán Thế Âm • Tầm Thanh Cứu Khổ',
+      statue: 'Đại Bi Quán Thế Âm Bồ Tát Bạch Ngọc Cam Lộ',
+      icon: '🕊️',
+      meaning: 'Tôn tượng Mẹ Từ Bi tạc bằng bạch ngọc ngự bên hồ sen thơm ngát, tay cầm cành dương liễu rưới tịnh thủy xua tan vạn nỗi khổ đau trần thế.',
+      merit: 'Cầu tai qua nạn khỏi, gia đạo bình an hạnh phúc, hóa giải hiểm nguy tật bệnh.',
+      actionTitle: 'Chiêm Bái Mẹ Quan Âm 3D',
+      statueId: 'quan-am',
+    },
+    'dien-dia-tang': {
+      id: 'dien-dia-tang',
+      name: 'U Minh Điện (Đại Nguyện Địa Tạng Vương)',
+      title: 'U Minh Giáo Chủ • Kim Thân Hoàng Kim Tích Trượng',
+      statue: 'Đại Nguyện Địa Tạng Vương Bồ Tát Thủ Trì Tích Trượng',
+      icon: '⚜️',
+      meaning: 'Tôn trí Đức Địa Tạng Vương Bồ Tát đội mão Tỳ Lư, tay cầm tích trượng 12 khoen vàng và ngọc Như Ý bảo châu chiếu soi phá tan bóng đêm tăm tối u minh.',
+      merit: 'Cầu siêu cửu huyền thất tổ vãng sanh tịnh độ, siêu độ thai nhi vong linh, phúc ấm trường tồn.',
+      actionTitle: 'Chiêm Bái Địa Tạng 3D',
+      statueId: 'dia-tang',
+    },
+    'hoa-vien-mo': {
+      id: 'hoa-vien-mo',
+      name: 'Hoa Viên Khu Mộ 3D Tưởng Niệm 🔒',
+      title: 'Khu Tưởng Niệm Vĩnh Hằng & Kim Tĩnh Gia Tộc',
+      statue: 'Đức Bồ Tát Địa Tạng Tiếp Dẫn Hương Linh',
+      icon: '🪦',
+      meaning: 'Hoa viên an nghỉ trang nghiêm vĩnh hằng. Có mã khóa bảo mật số điện thoại & mật khẩu bảo vệ gia quyến, dâng hoa quả cúng viếng, thắp nhang tưởng niệm hương linh.',
+      merit: 'Báo ân hiếu nghĩa tổ tiên, giữ gìn phúc ấm cho con cháu muôn đời.',
+      actionTitle: 'Mở Cửa Vào Hoa Viên 3D',
+      tabTarget: 'hoa-vien-mo',
+    },
+    'tung-kinh': {
+      id: 'tung-kinh',
+      name: 'Phòng Tụng Kinh (Trì Tụng Pháp Bảo)',
+      title: 'Trì Tụng Kinh Điển • Gõ Mõ Niệm Phật',
+      statue: 'Kinh Dược Sư, Vu Lan, Chú Đại Bi, Kinh A Di Đà',
+      icon: '📿',
+      meaning: 'Không gian tụng kinh tương tác, gõ mõ chuông đồng thanh tịnh, hiển thị từng câu từng chữ và có giọng tụng chuẩn Minh Hiếu Lễ Chùa.',
+      merit: 'Tụng niệm chánh pháp thân tâm thanh tịnh, nghiệp chướng tiêu trừ.',
+      actionTitle: 'Vào Phòng Tụng Kinh',
+      tabTarget: 'tung-kinh',
+    },
+    'nghe-kinh': {
+      id: 'nghe-kinh',
+      name: 'Phòng Nghe Kinh (Diệu Âm Pháp Âm)',
+      title: 'Lắng Nghe Tiếng Kinh • YouTube & Studio Âm Thanh',
+      statue: 'Các bài kinh tụng trang nghiêm chất lượng cao',
+      icon: '🔔',
+      meaning: 'Nơi quý Phật tử lắng nghe các bài kinh trầm hùng, mầu nhiệm được truyền phát từ YouTube và kho âm thanh pháp bảo.',
+      merit: 'Lắng nghe diệu pháp thức tỉnh tâm Bồ Đề, gieo duyên lành với Tam Bảo.',
+      actionTitle: 'Vào Phòng Nghe Kinh',
+      tabTarget: 'nghe-kinh',
+    },
+    'giang-dao': {
+      id: 'giang-dao',
+      name: 'Pháp Đường Giảng Đạo',
+      title: 'Thuyết Pháp Khai Thị • Đạo Lý Nhân Quả & Giải Thoát',
+      statue: 'Pháp Tòa Giảng Sư & Trợ Lý Giọng Nói Minh Hiếu',
+      icon: '🎙️',
+      meaning: 'Nơi lắng nghe các bài pháp thoại thâm sâu về đạo làm con, chữ hiếu, quy luật nhân quả và con đường thoát khổ an vui trong đời sống.',
+      merit: 'Khai mở trí tuệ chánh kiến, thấu suốt lẽ đời và giải thoát phiền não.',
+      actionTitle: 'Đến Phòng Giảng Đạo',
+      tabTarget: 'giang-dao',
+    },
+    'tang-kinh-cac': {
+      id: 'tang-kinh-cac',
+      name: 'Tàng Kinh Các (Thư Viện Sách Kinh)',
+      title: 'Đại Tạng Kinh Điển • Kinh Kim Cang, Pháp Hoa, Địa Tạng',
+      statue: 'Thư viện kinh điển chữ to rõ nét, lật từng chương',
+      icon: '📜',
+      meaning: 'Nơi lưu giữ các bộ kinh điển Đại Thừa vô giá, giải thích tường tận từng phẩm kinh và có chức năng đọc tự động.',
+      merit: 'Đọc tụng một câu kinh diệt trừ tội lỗi vô lượng, công đức bất khả tư nghì.',
+      actionTitle: 'Mở Tàng Kinh Các',
+      tabTarget: 'tang-kinh-cac',
+    },
+    'cong-tam-quan': {
+      id: 'cong-tam-quan',
+      name: 'Cổng Tam Quan Uy Nghiêm',
+      title: 'Tam Giải Thoát Môn • Bước Vào Thanh Tịnh',
+      statue: 'Hộ Pháp Vi Đà Tôn Thiên & Tiêu Diện Đại Sĩ',
+      icon: '⛩️',
+      meaning: 'Cổng vào chùa gồm ba lối đi tượng trưng Tam Giải Thoát: Không Môn, Vô Tướng Môn và Vô Tác Môn. Rũ bỏ bụi trần muộn phiền khi bước qua.',
+      merit: 'Tâm ý thanh tịnh, bước chân an lạc nơi cửa Phật.',
+      actionTitle: 'Xem Cổng Tam Quan',
+    },
+  };
+
+  // Personalized Member Action Announcement (Đọc Kinh, Nghe Kinh, Thắp Hương, Cúng Dường)
+  const announceMemberAction = async (actionType: 'thap-huong' | 'cung-duong' | 'doc-kinh' | 'nghe-kinh') => {
+    const memberName = currentMember ? currentMember.fullName : 'Đạo hữu thiện nam tín nữ';
+    const dharmaTitle = currentMember?.dharmaName ? ` - Pháp danh ${currentMember.dharmaName}` : '';
+
+    let speech = '';
+    if (actionType === 'thap-huong') {
+      speech = `Nam Mô A Di Đà Phật. Phật tử ${memberName}${dharmaTitle} thành tâm dâng ba nén tâm hương cúng dường mười phương chư Phật, chư Đại Bồ Tát, cầu nguyện quốc thái dân an, gia đạo bình an cát tường!`;
+      handleLightIncense();
+    } else if (actionType === 'cung-duong') {
+      speech = `A Di Đà Phật. Kính mừng Phật tử ${memberName}${dharmaTitle} phát tâm cúng dường Tam Bảo. Công đức cúng dường vô lượng vô biên!`;
+      setActiveTab('cung-duong');
+    } else if (actionType === 'doc-kinh') {
+      speech = `A Di Đà Phật. Phật tử ${memberName}${dharmaTitle} khai mở pháp bảo, tinh tấn đọc tụng kinh điển Đại Thừa, trí tuệ quang minh khai thông!`;
+      setActiveTab('tung-kinh');
+    } else if (actionType === 'nghe-kinh') {
+      speech = `A Di Đà Phật. Phật tử ${memberName}${dharmaTitle} lắng lòng thanh tịnh, lắng nghe diệu pháp âm ba ngàn cõi. Thân tâm an lạc!`;
+      setActiveTab('nghe-kinh');
+    }
+
+    onShowToast(`🙏 ${currentMember ? `Phật tử ${memberName}${dharmaTitle}` : 'Đạo hữu'}: ${actionType === 'thap-huong' ? 'Đã thắp 3 nén tâm hương dâng Phật!' : 'Đang chuyển đến pháp phòng...'}`);
+
+    await speakViaStudioVoiceApi(speech, {
+      voiceId: MINH_HIEU_LE_CHUA_VOICE_ID,
+      speedRate: 1.0,
+      onError: () => {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(speech);
+          utter.lang = 'vi-VN';
+          utter.rate = 0.9;
+          window.speechSynthesis.speak(utter);
+        }
+      },
+    });
   };
 
   // Chú Tiểu NPC Speaking directly via API Voice Minh Hiếu Lễ Chùa (voice-ab888766-b59f-402b)
@@ -1052,7 +1225,7 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
   return (
     <div className="w-full min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-amber-500 selection:text-slate-950 pb-20">
       {/* 1. TOP TEMPLE STATUS & TIME HEADER */}
-      <header className="sticky top-16 z-30 bg-slate-950/95 backdrop-blur border-b border-amber-900/40 shadow-xl px-4 sm:px-6 py-2.5">
+      <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur border-b border-amber-900/40 shadow-xl px-4 sm:px-6 py-2.5">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Temple Brand & Title */}
           <div className="flex items-center gap-3">
@@ -1076,17 +1249,42 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
 
           {/* Quick Metrics & Direct Cúng Dường + Khu Mộ 3D + Thành Viên Buttons */}
           <div className="flex items-center flex-wrap gap-2">
-            {onExitTemple && (
-              <button
-                type="button"
-                onClick={onExitTemple}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 font-bold text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
-                title="Trở về trang chủ"
-              >
-                <span>←</span>
-                <span>Trang Chủ</span>
-              </button>
-            )}
+            {/* CHÚ TIỂU EXIT BUTTON: QUAY VỀ TRANG CHÍNH */}
+            <button
+              type="button"
+              onClick={() => setIsExitConfirmOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600/30 via-slate-900 to-yellow-600/30 hover:from-amber-600/60 hover:to-yellow-600/60 text-amber-200 hover:text-white border border-amber-500/60 font-black text-xs flex items-center gap-1.5 shadow-md transition-all whitespace-nowrap active:scale-95"
+              title="Chú Tiểu Thích Đồng An hướng dẫn xuất tự quy hồi về trang chính"
+            >
+              <span className="text-base">🧒🏽</span>
+              <span>Xuất Tự (Chú Tiểu)</span>
+            </button>
+
+            {/* FULL SCREEN TOGGLE BUTTON */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!document.fullscreenElement) {
+                  document.documentElement.requestFullscreen().then(() => setIsBrowserFullscreen(true)).catch(() => {});
+                } else {
+                  document.exitFullscreen().then(() => setIsBrowserFullscreen(false)).catch(() => {});
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-white border border-amber-500/40 font-bold text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
+              title="Bật/Tắt chế độ toàn màn hình xem cảnh chùa 3D tràn viền"
+            >
+              {isBrowserFullscreen ? (
+                <>
+                  <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">Thu Nhỏ</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">Toàn Màn Hình</span>
+                </>
+              )}
+            </button>
 
             {/* MEMBER LOGIN / REGISTER / PROFILE BUTTON */}
             <button
@@ -1261,14 +1459,19 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
         </div>
       )}
 
-      {/* 2. THREE.JS 3D/4D SANCTUARY HERO CANVAS WITH ALTAR ACTIONS */}
-      <section className="relative w-full h-[520px] sm:h-[600px] lg:h-[640px] bg-slate-950 overflow-hidden border-b border-amber-950/60">
+      {/* 2. THREE.JS 3D/4D SANCTUARY HERO CANVAS WITH ALTAR ACTIONS & 3D WAYPOINTS */}
+      <section className={`relative w-full ${isSceneExpanded ? 'h-[85vh] min-h-[660px]' : 'h-[540px] sm:h-[620px] lg:h-[680px]'} bg-slate-950 overflow-hidden border-b border-amber-950/60 transition-all duration-300`}>
         <Temple3DCanvas
           timeOfDay={timeOfDay}
           isIncenseLit={isIncenseLit}
           isBellRinging={isBellRinging}
           selectedHallId={selectedHallId}
-          onSelectHall={(hall) => setSelectedHallId(hall.id)}
+          onSelectHall={(hall) => {
+            setSelectedHallId(hall.id);
+            if (TEMPLE_HALL_NOTES[hall.id]) {
+              setHoveredHallNote(TEMPLE_HALL_NOTES[hall.id]);
+            }
+          }}
           onOpenOfferings={(hallName) => {
             setUniversalStoreTarget(hallName);
             setIsUniversalStoreOpen(true);
@@ -1279,83 +1482,324 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
         />
 
         {/* Overlay Ambient Vignette & Buddhist Lighting */}
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-slate-950 via-transparent to-slate-950/40" />
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-slate-950 via-transparent to-slate-950/30" />
 
-        {/* 3D Scene Interactive Overlay Controls */}
-        <div className="absolute bottom-16 sm:bottom-20 inset-x-4 max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-2 sm:gap-3 pointer-events-auto">
-          {/* Thắp Hương Button */}
+        {/* 3D Scene Top Helper & Controls Bar */}
+        <div className="absolute top-4 left-4 right-4 z-20 pointer-events-none flex items-center justify-between gap-2">
+          <div className="bg-slate-950/80 backdrop-blur-md border border-amber-500/40 px-3 py-1.5 rounded-2xl text-[11px] text-amber-200 flex items-center gap-2 pointer-events-auto shadow-lg">
+            <Compass className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Kéo chuột/vuốt để xoay 360°</span>
+            <span className="sm:hidden">Vuốt để xoay 3D</span>
+            <span className="text-amber-500/40">|</span>
+            <span className="text-amber-300 font-bold">Nhấn các mũi tên để di chuyển đến Chánh Điện</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 pointer-events-auto">
+            {/* Expand / Minimize 3D Viewport */}
+            <button
+              type="button"
+              onClick={() => setIsSceneExpanded(!isSceneExpanded)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-900 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1 shadow-lg transition-all"
+              title={isSceneExpanded ? 'Thu hẹp khung cảnh 3D' : 'Mở rộng khung cảnh 3D siêu đại'}
+            >
+              {isSceneExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              <span className="hidden md:inline">{isSceneExpanded ? 'Thu Hẹp Khung' : 'Mở Rộng 3D'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 3D FLOATING DIRECTIONAL WAYPOINT ARROWS (Mũi tên điều hướng Chánh Điện) */}
+        {/* Top: Chánh Điện Tam Bảo */}
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
           <button
             type="button"
-            onClick={handleLightIncense}
-            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg active:scale-95 ${
-              isIncenseLit
-                ? 'bg-amber-500/20 border-2 border-amber-400 text-amber-200'
-                : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-300'
-            }`}
-          >
-            <Flame className={`w-3.5 h-3.5 ${isIncenseLit ? 'text-amber-400 animate-bounce' : 'text-slate-400'}`} />
-            <span>{isIncenseLit ? 'Hương Trầm Đang Tỏa' : 'Thắp 3 Nén Tâm Hương'}</span>
-          </button>
-
-          {/* Lạy Phật 3 Lạy */}
-          <button
-            type="button"
-            onClick={handleBowToBuddha}
-            disabled={isBowing}
-            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg active:scale-95 ${
-              isBowing
-                ? 'bg-yellow-500 text-slate-950 font-black scale-105'
-                : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-200'
-            }`}
-          >
-            <span>🙏</span>
-            <span>{isBowing ? 'Cung Kính Lạy Phật...' : 'Lạy Phật 3 Lạy'}</span>
-          </button>
-
-          {/* Thỉnh Chuông Gia Trì */}
-          <button
-            type="button"
-            onClick={handleRingBell}
-            disabled={isBellRinging}
-            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg active:scale-95 ${
-              isBellRinging
-                ? 'bg-amber-600 text-white font-black animate-pulse'
-                : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-200'
-            }`}
-          >
-            <span>🔔</span>
-            <span>{isBellRinging ? 'Chuông Ngân Vang...' : 'Thỉnh Đại Hồng Chung'}</span>
-          </button>
-
-          {/* Mở Cửa Hàng Hoa Quả & Lễ Vật Cúng Dường */}
-          <button
-            type="button"
+            onMouseEnter={() => setHoveredHallNote(TEMPLE_HALL_NOTES['chanh-dien'])}
             onClick={() => {
-              setUniversalStoreTarget('Chánh Điện Đại Bi Tự');
-              setIsUniversalStoreOpen(true);
+              setSelectedHallId('chanh-dien');
+              setHoveredHallNote(TEMPLE_HALL_NOTES['chanh-dien']);
             }}
-            className="px-3.5 py-1.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+            className="group px-3 py-1.5 rounded-2xl bg-slate-950/85 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-400/60 shadow-xl shadow-amber-950/60 flex items-center gap-1.5 text-xs font-black transition-all active:scale-95"
           >
-            <ShoppingBag className="w-3.5 h-3.5 text-emerald-200" />
-            <span>Shop Hoa Quả &amp; Lễ Vật</span>
-          </button>
-
-          {/* Gieo Quẻ Xăm Lời Phật Dạy */}
-          <button
-            type="button"
-            onClick={handleDrawFortune}
-            disabled={isDrawingFortune}
-            className="px-3.5 py-1.5 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg transition-all active:scale-95"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-            <span>{isDrawingFortune ? 'Đang Lắc Quẻ...' : 'Gieo Quẻ Phật Dạy'}</span>
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping group-hover:bg-slate-950" />
+            <span>⬆️</span>
+            <span>Chánh Điện Tam Bảo</span>
+            <span className="text-[10px] opacity-70 group-hover:opacity-100 hidden sm:inline">(Xem Chú Thích)</span>
           </button>
         </div>
 
-        {/* 3D Scene Controls Hint */}
-        <div className="absolute top-4 left-4 bg-slate-900/70 backdrop-blur-sm border border-slate-800 px-3 py-1.5 rounded-xl text-[11px] text-amber-200/80 flex items-center gap-1.5 pointer-events-none">
-          <Compass className="w-3.5 h-3.5 text-amber-400" />
-          <span>Kéo chuột hoặc vuốt màn hình để xoay góc nhìn 3D</span>
+        {/* Left: Điện Bồ Tát Quán Thế Âm */}
+        <div className="absolute top-1/2 -translate-y-1/2 left-3 sm:left-6 z-20 pointer-events-auto">
+          <button
+            type="button"
+            onMouseEnter={() => setHoveredHallNote(TEMPLE_HALL_NOTES['dien-quan-am'])}
+            onClick={() => {
+              setSelectedHallId('dien-quan-am');
+              setHoveredHallNote(TEMPLE_HALL_NOTES['dien-quan-am']);
+            }}
+            className="group px-3 py-2 rounded-2xl bg-slate-950/85 hover:bg-teal-500 text-teal-300 hover:text-slate-950 border border-teal-400/60 shadow-xl shadow-teal-950/60 flex items-center gap-1.5 text-xs font-black transition-all active:scale-95"
+          >
+            <span>⬅️</span>
+            <span>🕊️ Quan Âm Các</span>
+          </button>
+        </div>
+
+        {/* Right: Điện Bồ Tát Địa Tạng Vương */}
+        <div className="absolute top-1/2 -translate-y-1/2 right-3 sm:right-6 z-20 pointer-events-auto">
+          <button
+            type="button"
+            onMouseEnter={() => setHoveredHallNote(TEMPLE_HALL_NOTES['dien-dia-tang'])}
+            onClick={() => {
+              setSelectedHallId('dien-dia-tang');
+              setHoveredHallNote(TEMPLE_HALL_NOTES['dien-dia-tang']);
+            }}
+            className="group px-3 py-2 rounded-2xl bg-slate-950/85 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-400/60 shadow-xl shadow-amber-950/60 flex items-center gap-1.5 text-xs font-black transition-all active:scale-95"
+          >
+            <span>⚜️ U Minh Điện (Địa Tạng)</span>
+            <span>➡️</span>
+          </button>
+        </div>
+
+        {/* Top-Right: Cổng Vào Hoa Viên Khu Mộ 3D */}
+        <div className="absolute top-16 right-4 sm:right-8 z-20 pointer-events-auto">
+          <button
+            type="button"
+            onMouseEnter={() => setHoveredHallNote(TEMPLE_HALL_NOTES['hoa-vien-mo'])}
+            onClick={() => {
+              setSelectedHallId('hoa-vien-mo');
+              setHoveredHallNote(TEMPLE_HALL_NOTES['hoa-vien-mo']);
+            }}
+            className="group px-3 py-1.5 rounded-2xl bg-gradient-to-r from-amber-950/80 to-slate-950/85 hover:from-amber-500 hover:to-yellow-500 text-amber-300 hover:text-slate-950 border border-amber-500/70 shadow-xl flex items-center gap-1.5 text-xs font-black transition-all active:scale-95"
+          >
+            <span>↗️</span>
+            <span>🪦 Hoa Viên 3D 🔒</span>
+          </button>
+        </div>
+
+        {/* Bottom-Left: Pháp Đường Giảng Đạo */}
+        <div className="absolute bottom-28 left-4 sm:left-8 z-20 pointer-events-auto hidden md:block">
+          <button
+            type="button"
+            onMouseEnter={() => setHoveredHallNote(TEMPLE_HALL_NOTES['giang-dao'])}
+            onClick={() => {
+              setHoveredHallNote(TEMPLE_HALL_NOTES['giang-dao']);
+            }}
+            className="group px-3 py-1.5 rounded-2xl bg-slate-950/85 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/50 shadow-xl flex items-center gap-1.5 text-xs font-black transition-all active:scale-95"
+          >
+            <span>↙️</span>
+            <span>🎙️ Pháp Đường</span>
+          </button>
+        </div>
+
+        {/* Bottom-Right: Tàng Kinh Các */}
+        <div className="absolute bottom-28 right-4 sm:right-8 z-20 pointer-events-auto hidden md:block">
+          <button
+            type="button"
+            onMouseEnter={() => setHoveredHallNote(TEMPLE_HALL_NOTES['tang-kinh-cac'])}
+            onClick={() => {
+              setHoveredHallNote(TEMPLE_HALL_NOTES['tang-kinh-cac']);
+            }}
+            className="group px-3 py-1.5 rounded-2xl bg-slate-950/85 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/50 shadow-xl flex items-center gap-1.5 text-xs font-black transition-all active:scale-95"
+          >
+            <span>📜 Tàng Kinh Các</span>
+            <span>↘️</span>
+          </button>
+        </div>
+
+        {/* POPOVER EXPLANATORY NOTE MODAL (Khi rê chuột hoặc nhấn vào các nút chánh điện) */}
+        {hoveredHallNote && (
+          <div className="absolute top-28 left-1/2 -translate-x-1/2 z-30 max-w-md w-[92vw] bg-slate-950/95 backdrop-blur-md border-2 border-amber-500/80 rounded-3xl p-4 sm:p-5 shadow-2xl shadow-amber-950/80 pointer-events-auto animate-fadeIn">
+            <div className="flex items-start justify-between gap-3 border-b border-amber-500/30 pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl p-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40">
+                  {hoveredHallNote.icon}
+                </span>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block">
+                    Ghi Chú Chánh Điện &amp; Tôn Tượng
+                  </span>
+                  <h4 className="text-sm sm:text-base font-black text-white">{hoveredHallNote.name}</h4>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHoveredHallNote(null)}
+                className="p-1 rounded-lg bg-slate-900 hover:bg-rose-600 text-slate-400 hover:text-white transition-colors"
+                title="Đóng ghi chú"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="py-2.5 space-y-2 text-xs">
+              <div className="flex items-center gap-1.5 text-amber-300 font-bold">
+                <span>🪷 Tôn Trí:</span>
+                <span className="text-white font-normal">{hoveredHallNote.statue}</span>
+              </div>
+              <p className="text-slate-300 leading-relaxed font-serif bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                {hoveredHallNote.meaning}
+              </p>
+              <div className="p-2 rounded-xl bg-amber-950/40 border border-amber-500/30 text-[11px] text-amber-200">
+                <strong>Công Đức:</strong> {hoveredHallNote.merit}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800">
+              {hoveredHallNote.statueId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const st = BUDDHA_STATUES.find((s) => s.id === hoveredHallNote.statueId) || BUDDHA_STATUES[0];
+                    setSelectedStatue(st);
+                    setHoveredHallNote(null);
+                  }}
+                  className="py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1 shadow-md transition-all"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Chiêm Bái 3D Thật</span>
+                </button>
+              )}
+
+              {hoveredHallNote.tabTarget && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (hoveredHallNote.tabTarget === 'hoa-vien-mo') {
+                      handleOpenHoaVien();
+                    } else if (hoveredHallNote.tabTarget) {
+                      setActiveTab(hoveredHallNote.tabTarget);
+                    }
+                    setHoveredHallNote(null);
+                  }}
+                  className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+                >
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>{hoveredHallNote.actionTitle}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setUniversalStoreTarget(hoveredHallNote.name);
+                  setIsUniversalStoreOpen(true);
+                  setHoveredHallNote(null);
+                }}
+                className={`py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1 ${
+                  !hoveredHallNote.statueId && !hoveredHallNote.tabTarget ? 'col-span-2' : ''
+                }`}
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Dâng Lễ Vật</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 3D SCENE COMPACT ERGONOMIC DOCK (Các nút nghi lễ nhỏ gọn không che khuất màn hình) */}
+        <div className="absolute bottom-4 inset-x-3 sm:inset-x-6 z-20 pointer-events-auto flex flex-col items-center gap-2">
+          {/* Member Personalized Dedication Pill (If logged in) */}
+          {currentMember && (
+            <div className="px-3 py-1 rounded-full bg-slate-950/90 backdrop-blur-md border border-amber-500/50 text-[11px] text-amber-300 flex items-center gap-1.5 shadow-lg animate-fadeIn">
+              <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Phật tử kính viếng:</span>
+              <strong className="text-white">{currentMember.fullName}</strong>
+              {currentMember.dharmaName && (
+                <span className="text-amber-400">(PD: {currentMember.dharmaName})</span>
+              )}
+            </div>
+          )}
+
+          {/* Compact Floating Ritual Buttons Dock */}
+          <div className="max-w-4xl w-full flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-amber-500/40 shadow-2xl">
+            {/* 1. Nút Đọc Kinh Nhỏ Gọn */}
+            <button
+              type="button"
+              onClick={() => announceMemberAction('doc-kinh')}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-200 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95"
+              title="Đọc tụng kinh điển Đại Thừa (Phòng Tụng Kinh)"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+              <span>Đọc Kinh</span>
+            </button>
+
+            {/* 2. Nút Nghe Kinh Nhỏ Gọn */}
+            <button
+              type="button"
+              onClick={() => announceMemberAction('nghe-kinh')}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-200 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95"
+              title="Nghe kinh Phật giáo YouTube & Diệu Âm"
+            >
+              <Music className="w-3.5 h-3.5 text-amber-400" />
+              <span>Nghe Kinh</span>
+            </button>
+
+            {/* 3. Nút Thắp Hương Nhỏ Gọn (Đọc tên thành viên đã đăng ký) */}
+            <button
+              type="button"
+              onClick={() => announceMemberAction('thap-huong')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 ${
+                isIncenseLit
+                  ? 'bg-amber-500/20 border-2 border-amber-400 text-amber-200'
+                  : 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300'
+              }`}
+              title="Thắp 3 nén tâm hương dâng Phật (Tự động đọc tên thành viên nếu đã đăng ký)"
+            >
+              <Flame className={`w-3.5 h-3.5 ${isIncenseLit ? 'text-amber-400 animate-bounce' : 'text-slate-400'}`} />
+              <span>{isIncenseLit ? 'Hương Đang Tỏa' : 'Thắp Hương'}</span>
+            </button>
+
+            {/* 4. Nút Lễ Cúng Dường / Shop Lễ Vật Nhỏ Gọn (Đọc tên thành viên) */}
+            <button
+              type="button"
+              onClick={() => announceMemberAction('cung-duong')}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-950/40 transition-all active:scale-95"
+              title="Cúng dường Tam Bảo & Hoa quả lễ vật"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-emerald-200" />
+              <span>Lễ Cúng Dường</span>
+            </button>
+
+            {/* 5. Lạy Phật 3 Lạy */}
+            <button
+              type="button"
+              onClick={handleBowToBuddha}
+              disabled={isBowing}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 ${
+                isBowing
+                  ? 'bg-yellow-500 text-slate-950 font-black scale-105'
+                  : 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200'
+              }`}
+            >
+              <span>🙏</span>
+              <span>{isBowing ? 'Đang Lạy...' : 'Lạy Phật'}</span>
+            </button>
+
+            {/* 6. Thỉnh Chuông */}
+            <button
+              type="button"
+              onClick={handleRingBell}
+              disabled={isBellRinging}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 ${
+                isBellRinging
+                  ? 'bg-amber-600 text-white font-black animate-pulse'
+                  : 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200'
+              }`}
+            >
+              <span>🔔</span>
+              <span>{isBellRinging ? 'Chuông Ngân...' : 'Thỉnh Chuông'}</span>
+            </button>
+
+            {/* 7. Gieo Quẻ Lời Phật Dạy */}
+            <button
+              type="button"
+              onClick={handleDrawFortune}
+              disabled={isDrawingFortune}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+              <span>{isDrawingFortune ? 'Đang Lắc...' : 'Gieo Quẻ'}</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -3610,92 +4054,63 @@ export const VirtualBuddhistTemple: React.FC<VirtualBuddhistTempleProps> = ({
         onShowToast={onShowToast}
       />
 
-      {/* MODAL: CHIÊM BÁI TÔN TƯỢNG PHẬT & BỒ TÁT */}
-      {selectedStatue && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-lg w-full bg-slate-900 border border-amber-500/50 rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
-                  {selectedStatue.title}
-                </span>
-                <h3 className="text-lg font-black text-amber-300">{selectedStatue.name}</h3>
+      {/* REALISTIC 3D/4D BUDDHA STATUE SHOWCASE MODAL */}
+      <RealisticBuddhaStatue3DModal
+        statue={selectedStatue}
+        isOpen={Boolean(selectedStatue)}
+        onClose={() => {
+          stopSpeaking();
+          setSelectedStatue(null);
+        }}
+        onOpenOfferings={(targetName) => {
+          setSelectedStatue(null);
+          setUniversalStoreTarget(targetName);
+          setIsUniversalStoreOpen(true);
+        }}
+        onShowToast={onShowToast}
+        currentMember={currentMember}
+      />
+
+      {/* MODAL: CHÚ TIỂU DẪN ĐƯỜNG XUẤT TỰ QUY HỒI VỀ TRANG CHÍNH */}
+      {isExitConfirmOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+          <div className="max-w-md w-full bg-slate-900 border-2 border-amber-500/80 rounded-3xl p-6 sm:p-7 text-center shadow-2xl shadow-amber-950/80 space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 p-0.5 mx-auto shadow-lg shadow-amber-500/30">
+              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-3xl">
+                🧒🏽
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  stopSpeaking();
-                  setSelectedStatue(null);
-                }}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
-              >
-                ✕
-              </button>
             </div>
-
-            <div className="aspect-[4/3] w-full rounded-2xl overflow-hidden bg-slate-950 border border-amber-500/30">
-              <img
-                src={selectedStatue.imageUrl}
-                alt={selectedStatue.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-
-            <div className="space-y-2.5 text-xs">
-              <p className="text-slate-300 leading-relaxed font-serif">
-                {selectedStatue.description}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 block">
+                Chú Tiểu Thích Đồng An (Tiểu Đồng Hướng Dẫn)
+              </span>
+              <h3 className="text-base sm:text-lg font-black text-white">
+                Xác Nhận Xuất Tự Quy Hồi
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-200 font-serif leading-relaxed italic bg-slate-950/70 p-3.5 rounded-2xl border border-amber-500/30">
+                &ldquo;A Di Đà Phật! Đạo hữu có muốn xuất tự quy hồi (quay về trang chính CastTube &amp; Phim) không ạ? Chú tiểu kính chúc quý đạo hữu thân tâm luôn luôn an lạc, phước lành tăng trưởng!&rdquo;
               </p>
-              {selectedStatue.vow && (
-                <div className="bg-amber-950/30 border border-amber-600/30 rounded-xl p-3">
-                  <strong className="text-amber-400 block mb-1">Đại Nguyện &amp; Hạnh Đức:</strong>
-                  <span className="text-amber-100 italic">{selectedStatue.vow}</span>
-                </div>
-              )}
-              {selectedStatue.mantra && (
-                <div className="bg-slate-950/60 border border-slate-700/60 rounded-xl p-3">
-                  <strong className="text-amber-300 block mb-1">Chân Ngôn / Thần Chú:</strong>
-                  <span className="text-emerald-300 font-mono text-[11px] select-all">{selectedStatue.mantra}</span>
-                </div>
-              )}
             </div>
 
-            <div className="flex items-center gap-2 pt-2">
+            <div className="grid grid-cols-2 gap-3 pt-2">
               <button
                 type="button"
-                onClick={async () => {
-                  if (isSpeaking) {
-                    stopSpeaking();
-                    setIsSpeaking(false);
-                    return;
-                  }
-                  setIsSpeaking(true);
-                  await speakViaStudioVoiceApi(
-                    `${selectedStatue.name}. ${selectedStatue.title}. ${selectedStatue.description}. Nguyện: ${selectedStatue.vow}. Chân ngôn: ${selectedStatue.mantra}`,
-                    {
-                      voiceId: MINH_HIEU_LE_CHUA_VOICE_ID,
-                      speedRate: 1.0,
-                      onEnd: () => setIsSpeaking(false),
-                      onError: (errMsg) => {
-                        setIsSpeaking(false);
-                        onShowToast(errMsg || 'Không thể kết nối giọng đọc API');
-                      },
-                    }
-                  );
-                  addMerit(5, `Chiêm bái ${selectedStatue.name}`);
-                }}
-                className="flex-1 py-2.5 px-3 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+                onClick={() => setIsExitConfirmOpen(false)}
+                className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all active:scale-95"
               >
-                {isSpeaking ? '⏹ Dừng Đọc' : '🔊 Nghe Thuyết Minh (Minh Hiếu)'}
+                Ở Lại Chiêm Bái Tiếp
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedStatue(null);
-                  setActiveTab('cung-duong');
+                  setIsExitConfirmOpen(false);
+                  if (onExitTemple) {
+                    onExitTemple();
+                  }
                 }}
-                className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-bold rounded-xl text-xs transition-colors"
+                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/30 transition-all active:scale-95"
               >
-                Dâng Lễ Vật
+                Đồng Ý Về Trang Chính
               </button>
             </div>
           </div>

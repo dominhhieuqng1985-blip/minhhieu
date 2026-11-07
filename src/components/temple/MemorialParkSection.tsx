@@ -21,6 +21,9 @@ import {
   RefreshCw,
   Sparkles,
   Pencil,
+  Maximize2,
+  Minimize2,
+  Compass,
 } from 'lucide-react';
 import { MemorialPark3DCanvas } from './MemorialPark3DCanvas';
 import { UniversalOfferingsStoreModal } from './UniversalOfferingsStoreModal';
@@ -119,6 +122,18 @@ export const MemorialParkSection: React.FC<MemorialParkSectionProps> = ({
   const [cameraViewMode, setCameraViewMode] = useState<'overview' | 'closeup'>('overview');
   const [isHudCollapsed, setIsHudCollapsed] = useState<boolean>(false);
   const [burningPlotCode, setBurningPlotCode] = useState<string | null>(null);
+  const [isParkFullscreen, setIsParkFullscreen] = useState<boolean>(false);
+
+  // ESC key listener to exit fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isParkFullscreen) {
+        setIsParkFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isParkFullscreen]);
 
   // Studio Voice API status for memorial prayer
   const [isReadingPrayer, setIsReadingPrayer] = useState<boolean>(false);
@@ -931,9 +946,17 @@ export const MemorialParkSection: React.FC<MemorialParkSectionProps> = ({
         </div>
       </div>
 
-      {/* 1. 3D MEMORIAL PARK SANCTUARY VIEWPORT WITH COLLAPSIBLE BOTTOM CONTROL DOCK */}
-      <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl relative">
-        <div className="relative w-full h-[520px] sm:h-[580px] bg-slate-950">
+      {/* 1. 3D MEMORIAL PARK SANCTUARY VIEWPORT WITH FULLSCREEN & COLLAPSIBLE CONTROL DOCK */}
+      <div
+        className={`${
+          isParkFullscreen ? 'fixed inset-0 z-50 rounded-none border-0' : 'rounded-3xl border border-slate-800'
+        } overflow-hidden bg-slate-950 shadow-2xl relative transition-all duration-300`}
+      >
+        <div
+          className={`relative w-full ${
+            isParkFullscreen ? 'h-full w-full' : 'h-[560px] sm:h-[640px] lg:h-[720px]'
+          } bg-slate-950`}
+        >
           <MemorialPark3DCanvas
             tombs={tombs}
             selectedPlotCode={isBuilderOpen ? builderSlot.plotCode : selectedPlotCode}
@@ -958,12 +981,51 @@ export const MemorialParkSection: React.FC<MemorialParkSectionProps> = ({
 
           {/* Top-Left Minimal Spec Header (Solid/RGBA surface — NO backdrop-filter over WebGL) */}
           <div className="absolute top-4 left-4 z-10 pointer-events-none bg-slate-950/90 border border-slate-800 rounded-2xl px-4 py-2.5 max-w-md">
-            <h3 className="text-sm sm:text-base font-bold text-amber-300">
-              Hoa Viên Tâm Linh &amp; Khu Lăng Mộ Tưởng Niệm 3D
+            <h3 className="text-sm sm:text-base font-bold text-amber-300 flex items-center gap-2">
+              <span>Hoa Viên Tâm Linh &amp; Khu Lăng Mộ Tưởng Niệm 3D</span>
+              {isParkFullscreen && (
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-semibold border border-amber-500/30">
+                  Toàn Màn Hình
+                </span>
+              )}
             </h3>
             <p className="text-xs text-slate-300 mt-0.5">
-              Đã xây dựng {occupiedMap.size}/24 vị trí · Còn trống {emptyPlotsCount} ô đất · Nhấn trực tiếp vào ô trống trên sân 3D hoặc bấm "Lập Mộ Mới 3D"
+              Đài Tưởng Niệm Tôn Tượng Địa Tạng Vương Bồ Tát · {occupiedMap.size}/24 vị trí · Trống {emptyPlotsCount} ô đất
             </p>
+          </div>
+
+          {/* Top-Right Controls: Fullscreen Mode & Camera View Toggle */}
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-2 pointer-events-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setCameraViewMode(cameraViewMode === 'overview' ? 'closeup' : 'overview');
+              }}
+              className="px-3 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-lg transition-all"
+              title={cameraViewMode === 'overview' ? 'Chuyển sang góc nhìn cận cảnh mộ' : 'Chuyển sang góc nhìn toàn cảnh hoa viên'}
+            >
+              <Compass className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">{cameraViewMode === 'overview' ? 'Cận Cảnh Mộ' : 'Toàn Cảnh'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsParkFullscreen(!isParkFullscreen)}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-xl transition-all"
+              title={isParkFullscreen ? 'Thu nhỏ khung nhìn (ESC)' : 'Mở toàn màn hình Hoa Viên Khu Mộ 3D'}
+            >
+              {isParkFullscreen ? (
+                <>
+                  <Minimize2 className="w-4 h-4" />
+                  <span>Thu Nhỏ (ESC)</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-4 h-4" />
+                  <span>Toàn Màn Hình</span>
+                </>
+              )}
+            </button>
           </div>
 
           {/* Collapsible Bottom-Center Control Dock (Zero Side-Panel Clutter, Zero backdrop-filter) */}
