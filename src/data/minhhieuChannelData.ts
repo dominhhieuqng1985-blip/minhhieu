@@ -285,7 +285,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Trăng tàn bến cũ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "18 lượt xem",
+    "views": "19 lượt xem",
     "id": "mh-v15"
   },
   {
@@ -300,7 +300,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Thành Thái Tử Ăn Mày, Anh Nhặt Tú Cầu Cưới Vợ Xấu Thức Tỉnh Thần Vương Hệ Thống - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "10 lượt xem",
+    "views": "11 lượt xem",
     "id": "mh-v16"
   },
   {
