@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Bóng cha già - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "3 lượt xem",
+    "views": "5 lượt xem",
     "id": "mh-v1"
   },
   {
@@ -90,7 +90,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mẹ ơi con chưa về - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "7 lượt xem",
+    "views": "8 lượt xem",
     "id": "mh-v2"
   },
   {
@@ -285,7 +285,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Trăng tàn bến cũ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "21 lượt xem",
+    "views": "25 lượt xem",
     "id": "mh-v15"
   },
   {
