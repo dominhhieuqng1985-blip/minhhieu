@@ -320,14 +320,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "Co2OgH2FGr0",
-    "title": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka",
+    "title": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Ch��c Tức Cày Điểm Ka",
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "2:18:02",
     "durationSeconds": 8282,
     "thumbnail": "https://i.ytimg.com/vi/Co2OgH2FGr0/hqdefault.jpg",
-    "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
+    "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Ch��c Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "27 lượt xem",
@@ -375,7 +375,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Hai Thế Giới, Cô Gái Dùng Mì Gói Đổi Ngọc Quý, Được Bộ Tộc Nguyên Thủy Tôn Làm Nữ Thần - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "53 lượt xem",
+    "views": "54 lượt xem",
     "id": "mh-v21"
   },
   {
