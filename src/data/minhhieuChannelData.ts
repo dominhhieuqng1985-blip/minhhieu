@@ -360,7 +360,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Cổ Đại Dùng Kiến Thức Hiện Đại Chế Tạo Thần Khí, Khiến Cả Hoàng Tộc Phải Quỳ Phục - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "11 lượt xem",
+    "views": "12 lượt xem",
     "id": "mh-v20"
   },
   {
