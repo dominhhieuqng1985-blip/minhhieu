@@ -315,7 +315,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thức Tỉnh Hệ Thống Taxi Lịch Sử, Anh Chở Tần Thủy Hoàng Về Hiện Đại Khiến Cả Nước Chấn Động - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "5 lượt xem",
+    "views": "7 lượt xem",
     "id": "mh-v17"
   },
   {
@@ -330,7 +330,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "29 lượt xem",
+    "views": "31 lượt xem",
     "id": "mh-v18"
   },
   {
