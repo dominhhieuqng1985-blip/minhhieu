@@ -320,14 +320,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "Co2OgH2FGr0",
-    "title": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Th��ng Chọc Tức Cày Điểm Ka",
+    "title": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka",
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "2:18:02",
     "durationSeconds": 8282,
     "thumbnail": "https://i.ytimg.com/vi/Co2OgH2FGr0/hqdefault.jpg",
-    "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Th��ng Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
+    "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "31 lượt xem",
@@ -360,7 +360,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Cổ Đại Dùng Kiến Thức Hiện Đại Chế Tạo Thần Khí, Khiến Cả Hoàng Tộc Phải Quỳ Phục - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "14 lượt xem",
+    "views": "15 lượt xem",
     "id": "mh-v20"
   },
   {
