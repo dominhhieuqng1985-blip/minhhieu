@@ -180,7 +180,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Căn nhà xưa vắng mẹ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "7 lượt xem",
+    "views": "8 lượt xem",
     "id": "mh-v8"
   },
   {
@@ -225,7 +225,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Thư tình gửi người xưa - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "6 lượt xem",
+    "views": "7 lượt xem",
     "id": "mh-v11"
   },
   {
@@ -240,7 +240,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Mùa lúa chín không anh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "14 lượt xem",
+    "views": "15 lượt xem",
     "id": "mh-v12"
   },
   {
@@ -330,7 +330,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "31 lượt xem",
+    "views": "32 lượt xem",
     "id": "mh-v18"
   },
   {
@@ -345,7 +345,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Đến Tu Tiên 16 Năm Làm Phế Vật, Thức Tỉnh Hệ Thống Đoạt Cơ Duyên Nghịch Thiên Cải Mệnh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "13 lượt xem",
+    "views": "14 lượt xem",
     "id": "mh-v19"
   },
   {
