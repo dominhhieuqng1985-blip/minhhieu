@@ -61,8 +61,23 @@ export const DEFAULT_CHANNEL_PLAYLISTS: PodcastPlaylist[] = [
   },
 ];
 
-// Danh sách toàn bộ 57 video chính thức từ kênh @MinhHieuOfficialvn (Minh Hiếu Official VN)
+// Danh sách toàn bộ 58 video chính thức từ kênh @MinhHieuOfficialvn (Minh Hiếu Official VN)
 export const DEFAULT_VIDEOS: PodcastEpisode[] = [
+  {
+    "youtubeId": "quoFw5s-d9k",
+    "title": "Ngày vui đôi lứa",
+    "channel": "Minh Hiếu Official VN",
+    "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
+    "category": "nghe-thuat-sang-tao",
+    "duration": "03:40",
+    "durationSeconds": 220,
+    "thumbnail": "https://i.ytimg.com/vi/quoFw5s-d9k/hqdefault.jpg",
+    "description": "Ngày vui đôi lứa - Kênh Minh Hiếu Official VN.",
+    "publishedDate": "Video chính thức",
+    "isShort": false,
+    "views": "0 lượt xem",
+    "id": "mh-v1"
+  },
   {
     "youtubeId": "fDNmrC9tbmQ",
     "title": "Bóng cha già",
@@ -76,7 +91,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "5 lượt xem",
-    "id": "mh-v1"
+    "id": "mh-v2"
   },
   {
     "youtubeId": "00_wDwTVVoo",
@@ -91,7 +106,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "8 lượt xem",
-    "id": "mh-v2"
+    "id": "mh-v3"
   },
   {
     "youtubeId": "iR29yJMR5go",
@@ -106,7 +121,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "5 lượt xem",
-    "id": "mh-v3"
+    "id": "mh-v4"
   },
   {
     "youtubeId": "6ITpsytCz4g",
@@ -121,7 +136,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "5 lượt xem",
-    "id": "mh-v4"
+    "id": "mh-v5"
   },
   {
     "youtubeId": "03FG4Z40Su4",
@@ -136,7 +151,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "3 lượt xem",
-    "id": "mh-v5"
+    "id": "mh-v6"
   },
   {
     "youtubeId": "RkMbqd8SSAE",
@@ -151,7 +166,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "9 lượt xem",
-    "id": "mh-v6"
+    "id": "mh-v7"
   },
   {
     "youtubeId": "GdRhmA5q3tg",
@@ -166,7 +181,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "9 lượt xem",
-    "id": "mh-v7"
+    "id": "mh-v8"
   },
   {
     "youtubeId": "GyYl2W_mSDM",
@@ -181,7 +196,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "8 lượt xem",
-    "id": "mh-v8"
+    "id": "mh-v9"
   },
   {
     "youtubeId": "OpDtPFMhvPw",
@@ -196,7 +211,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "7 lượt xem",
-    "id": "mh-v9"
+    "id": "mh-v10"
   },
   {
     "youtubeId": "cK6N3YsNGqQ",
@@ -211,7 +226,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "6 lượt xem",
-    "id": "mh-v10"
+    "id": "mh-v11"
   },
   {
     "youtubeId": "ifZyisgYN4c",
@@ -226,7 +241,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "7 lượt xem",
-    "id": "mh-v11"
+    "id": "mh-v12"
   },
   {
     "youtubeId": "v9_PxCgnDuc",
@@ -241,7 +256,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "15 lượt xem",
-    "id": "mh-v12"
+    "id": "mh-v13"
   },
   {
     "youtubeId": "YhtH3rKt_gE",
@@ -256,7 +271,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "12 lượt xem",
-    "id": "mh-v13"
+    "id": "mh-v14"
   },
   {
     "youtubeId": "hUBBxFRsKW4",
@@ -271,7 +286,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "13 lượt xem",
-    "id": "mh-v14"
+    "id": "mh-v15"
   },
   {
     "youtubeId": "zNiMLKn1nSc",
@@ -286,7 +301,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "24 lượt xem",
-    "id": "mh-v15"
+    "id": "mh-v16"
   },
   {
     "youtubeId": "nYEf-DT6MOA",
@@ -301,7 +316,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "16 lượt xem",
-    "id": "mh-v16"
+    "id": "mh-v17"
   },
   {
     "youtubeId": "Crm7PI8WA5k",
@@ -316,7 +331,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "7 lượt xem",
-    "id": "mh-v17"
+    "id": "mh-v18"
   },
   {
     "youtubeId": "Co2OgH2FGr0",
@@ -330,8 +345,8 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "33 lượt xem",
-    "id": "mh-v18"
+    "views": "36 lượt xem",
+    "id": "mh-v19"
   },
   {
     "youtubeId": "PmR-0mHv4wU",
@@ -346,7 +361,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "14 lượt xem",
-    "id": "mh-v19"
+    "id": "mh-v20"
   },
   {
     "youtubeId": "mUBFf4cZzK8",
@@ -361,7 +376,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "15 lượt xem",
-    "id": "mh-v20"
+    "id": "mh-v21"
   },
   {
     "youtubeId": "wWLTeDAW8g0",
@@ -376,7 +391,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "55 lượt xem",
-    "id": "mh-v21"
+    "id": "mh-v22"
   },
   {
     "youtubeId": "RBDiyKI0sH0",
@@ -391,7 +406,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "11 lượt xem",
-    "id": "mh-v22"
+    "id": "mh-v23"
   },
   {
     "youtubeId": "oB3xmS-kP0Y",
@@ -406,7 +421,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "0 lượt xem",
-    "id": "mh-v23"
+    "id": "mh-v24"
   },
   {
     "youtubeId": "BWzOmHQsbBA",
@@ -421,7 +436,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "12 lượt xem",
-    "id": "mh-v24"
+    "id": "mh-v25"
   },
   {
     "youtubeId": "B2CijJhm3Gs",
@@ -436,7 +451,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "13 lượt xem",
-    "id": "mh-v25"
+    "id": "mh-v26"
   },
   {
     "youtubeId": "YEGhthGa8fE",
@@ -451,7 +466,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "18 lượt xem",
-    "id": "mh-v26"
+    "id": "mh-v27"
   },
   {
     "youtubeId": "CbpHoTtUulQ",
@@ -466,7 +481,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "2 lượt xem",
-    "id": "mh-v27"
+    "id": "mh-v28"
   },
   {
     "youtubeId": "aUVV8wlj1KE",
@@ -481,7 +496,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "6 lượt xem",
-    "id": "mh-v28"
+    "id": "mh-v29"
   },
   {
     "youtubeId": "P0MxHN62ZMs",
@@ -496,7 +511,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "12 lượt xem",
-    "id": "mh-v29"
+    "id": "mh-v30"
   },
   {
     "youtubeId": "RLuGfOlOVvo",
@@ -511,7 +526,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "13 lượt xem",
-    "id": "mh-v30"
+    "id": "mh-v31"
   },
   {
     "youtubeId": "sFx3g_fZAcY",
@@ -526,7 +541,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "13 lượt xem",
-    "id": "mh-v31"
+    "id": "mh-v32"
   },
   {
     "youtubeId": "OrUyLBzMNqg",
@@ -540,7 +555,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "tâm an đờ nở hoa - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Mới cập nhật",
     "isShort": false,
-    "id": "mh-v32"
+    "id": "mh-v33"
   },
   {
     "youtubeId": "U7ucFrkJ6ok",
@@ -555,7 +570,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "9 lượt xem",
-    "id": "mh-v33"
+    "id": "mh-v34"
   },
   {
     "youtubeId": "NmUVqZoAcWk",
@@ -570,7 +585,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "3 lượt xem",
-    "id": "mh-v34"
+    "id": "mh-v35"
   },
   {
     "youtubeId": "zcXkuUKHgBw",
@@ -584,7 +599,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: nhất kiếm phá cửu thiên - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v35"
+    "id": "mh-v36"
   },
   {
     "youtubeId": "sukb8JcMDvQ",
@@ -598,7 +613,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Thiếu nữ thầm yêu ngài A Nan được đức phật cảm hóa - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v36"
+    "id": "mh-v37"
   },
   {
     "youtubeId": "f1nk0-rwyI4",
@@ -612,7 +627,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: 🙏 Lần đầu Đức Phật trở về gặp cha sau khi thành đạo - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v37"
+    "id": "mh-v38"
   },
   {
     "youtubeId": "CA0LEy6twmE",
@@ -626,7 +641,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Tập 5: căn nhà cuối con đường #xuyênkhông #phimreview #phimai #tap5 - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v38"
+    "id": "mh-v39"
   },
   {
     "youtubeId": "lpiKfekPrgc",
@@ -640,7 +655,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Tập 4: căn nhà ở cuối con đường - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v39"
+    "id": "mh-v40"
   },
   {
     "youtubeId": "OILEwjXxeRY",
@@ -654,7 +669,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Tập 3 căn nhà cuối con đường - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v40"
+    "id": "mh-v41"
   },
   {
     "youtubeId": "CfhZWC1nfLQ",
@@ -668,7 +683,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Tập 2 căn nhà cuối con đường - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v41"
+    "id": "mh-v42"
   },
   {
     "youtubeId": "MClIjQqrSe4",
@@ -682,7 +697,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Tập 1 : căn nhà cuối con đường - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v42"
+    "id": "mh-v43"
   },
   {
     "youtubeId": "jDKfuwqPGYI",
@@ -696,7 +711,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: bước chân đi #xuyênkhông - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v43"
+    "id": "mh-v44"
   },
   {
     "youtubeId": "qtZ7GUXxMXw",
@@ -710,7 +725,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Bị Nữ Đế Phế Bỏ Ngay Lúc Phong Thiện, Anh Thức Tỉnh Hệ Thống Tu Vi Khiến Vạn Quân Quỳ Phục - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v44"
+    "id": "mh-v45"
   },
   {
     "youtubeId": "YyHu65wH1nI",
@@ -724,7 +739,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Rơi Xuống Vực Nhặt Được Thần Dược Trăm Năm,Chàng Trai Thức Tỉnh Công Pháp Vô Địch Chấn Động Tiên Môn - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v45"
+    "id": "mh-v46"
   },
   {
     "youtubeId": "QVAqtv7RUoc",
@@ -738,7 +753,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Xuyên Không Thành Hoàng Đế, 3 Ngày Sau 30 Vạn Phản Quân Công Thành, Anh Dùng Hóa Học Cứu Cả Đại Càn - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v46"
+    "id": "mh-v47"
   },
   {
     "youtubeId": "lzZ0wzFczDs",
@@ -752,7 +767,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Xuyên Không Về Đại Đường, Mở Siêu Thị Bán Que Cay Cho Hoàng Đế Cả Triều Đình Mê Mẩn Tranh Nhau Mua - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v47"
+    "id": "mh-v48"
   },
   {
     "youtubeId": "3_G3f_60Eas",
@@ -766,7 +781,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Phần 1-3 | Xuyên Không Thành Phế Vật , Dùng Trí Tuệ Hiện Đại Thâu Tóm 30 Vạn Thiết Kỵ Lập Quốc - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v48"
+    "id": "mh-v49"
   },
   {
     "youtubeId": "9Fv89Pveh14",
@@ -780,7 +795,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: P2 | Xuyên Không Giữa 2 Thế Giới, Bỏ Bạn Gái Đào Mỏ Mang Hàng Hiện Đại Buôn Sang Cổ Đại Thành Phú Hộ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v49"
+    "id": "mh-v50"
   },
   {
     "youtubeId": "vTjN53_61V0",
@@ -794,7 +809,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Trùng Sinh Chê Chồng Bần Hàn Chọn Tài Tử, Ngày Chàng Phong Ngụy Vương Triệt Hạ Thế Gia Khóc Hối Hận - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v50"
+    "id": "mh-v51"
   },
   {
     "youtubeId": "6uXYBV3athU",
@@ -808,7 +823,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: P1 Xuyên Không Giữa Hai Thế Giới, Bỏ Bạn Gái Đào Mỏ Mang Hàng Hiện Đại Buôn Sang Cổ Đại Thành Phú Hộ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v51"
+    "id": "mh-v52"
   },
   {
     "youtubeId": "SrFmx2uWgxk",
@@ -822,7 +837,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Xuyên Không Hai Thế Giới Cứu Chồng Thiên Tài Vợ Bao Mỹ Nam 100 Lượng Vàng Khiến Tướng Quân Phát Điên - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v52"
+    "id": "mh-v53"
   },
   {
     "youtubeId": "oA7SPRdvD60",
@@ -836,7 +851,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Xuyên Không Về Thời Nguyên Thủy, Mang Kiến Thức Hiện Đại Tìm Lương Thực Quạng Sắt Thu Phục Bộ Lạc - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v53"
+    "id": "mh-v54"
   },
   {
     "youtubeId": "LH5M1p33mJE",
@@ -850,7 +865,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: PhimXuyên Không Mang Theo Cả Siêu Thị Hiện Đại Về Cổ Đại, Vừa Mở Cửa Đã Khiến Triều Đình Kinh Ngạc - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v54"
+    "id": "mh-v55"
   },
   {
     "youtubeId": "zHsbwZk4N2Y",
@@ -864,7 +879,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: món ngon mỗi ngày phần 15, 1,6 nghìn lượt xem – phát video ngắn - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v55"
+    "id": "mh-v56"
   },
   {
     "youtubeId": "WpnYVK8qEKo",
@@ -878,7 +893,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: món ngon mỗi ngày phần 10 #amthuc #food #cooking #minhhieuvlog, 2,6 nghìn lượt xem – phát video ngắn - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v56"
+    "id": "mh-v57"
   },
   {
     "youtubeId": "zrqOfv6sPFA",
@@ -892,7 +907,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Shorts: Nguồn hình ảnh - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
-    "id": "mh-v57"
+    "id": "mh-v58"
   }
 ];
 
