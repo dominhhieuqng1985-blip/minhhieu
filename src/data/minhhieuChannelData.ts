@@ -345,7 +345,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "36 lượt xem",
+    "views": "39 lượt xem",
     "id": "mh-v19"
   },
   {
@@ -645,14 +645,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "lpiKfekPrgc",
-    "title": "Tập 4: căn nhà ở cuối con đường",
+    "title": "Tập 4: căn nhà ở cuối con đường, 21 l��ợt xem – phát video ngắn",
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "00:60",
     "durationSeconds": 60,
     "thumbnail": "https://i.ytimg.com/vi/lpiKfekPrgc/hqdefault.jpg",
-    "description": "Shorts: Tập 4: căn nhà ở cuối con đường - Kênh Minh Hiếu Official VN.",
+    "description": "Shorts: Tập 4: căn nhà ở cuối con đường, 21 l��ợt xem – phát video ngắn - Kênh Minh Hiếu Official VN.",
     "publishedDate": "YouTube Shorts",
     "isShort": true,
     "id": "mh-v40"
