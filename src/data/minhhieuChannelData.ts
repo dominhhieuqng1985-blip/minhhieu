@@ -495,7 +495,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Âm mưu hảm hại đức phật của cô gái bị bại lộ - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "6 lượt xem",
+    "views": "7 lượt xem",
     "id": "mh-v29"
   },
   {
