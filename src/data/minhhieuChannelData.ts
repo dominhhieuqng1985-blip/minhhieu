@@ -305,14 +305,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "nYEf-DT6MOA",
-    "title": "Xuyên Không Thành Thái Tử Ăn Mày, Anh Nhặt Tú Cầu Cưới Vợ Xấu Thức T���nh Thần Vương Hệ Thống",
+    "title": "Xuyên Không Thành Thái Tử Ăn Mày, Anh Nhặt Tú Cầu Cưới Vợ Xấu Thức Tỉnh Thần Vương Hệ Thống",
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "2:37:02",
     "durationSeconds": 9422,
     "thumbnail": "https://i.ytimg.com/vi/nYEf-DT6MOA/hqdefault.jpg",
-    "description": "Xuyên Không Thành Thái Tử Ăn Mày, Anh Nhặt Tú Cầu Cưới Vợ Xấu Thức T���nh Thần Vương Hệ Thống - Kênh Minh Hiếu Official VN.",
+    "description": "Xuyên Không Thành Thái Tử Ăn Mày, Anh Nhặt Tú Cầu Cưới Vợ Xấu Thức Tỉnh Thần Vương Hệ Thống - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "16 lượt xem",
@@ -345,7 +345,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "45 lượt xem",
+    "views": "50 lượt xem",
     "id": "mh-v19"
   },
   {
