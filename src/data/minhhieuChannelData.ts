@@ -75,7 +75,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Ngày vui đôi lứa - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "2 lượt xem",
+    "views": "3 lượt xem",
     "id": "mh-v1"
   },
   {
