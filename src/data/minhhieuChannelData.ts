@@ -345,7 +345,7 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
     "description": "Xuyên Không Về Đại Đường Kích Hoạt Hệ Thống Chọc Tức Cày Điểm Ka - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
-    "views": "64 lượt xem",
+    "views": "71 lượt xem",
     "id": "mh-v19"
   },
   {
@@ -500,14 +500,14 @@ export const DEFAULT_VIDEOS: PodcastEpisode[] = [
   },
   {
     "youtubeId": "P0MxHN62ZMs",
-    "title": "Đức phật quay lại hoàng cung khai th��� cho cha trước khi cha qua đời",
+    "title": "Đức phật quay lại hoàng cung khai thị cho cha trước khi cha qua đời",
     "channel": "Minh Hiếu Official VN",
     "channelAvatar": "https://yt3.googleusercontent.com/IAZc3hD-MjzJAtG3Eainm3ueaTvyalzFYEeBqHm-1rkIbUCmIz9--aemFtvSsV-eQIZS0AS0EQ=s3000-c-k-c0x00ffffff-no-rj",
     "category": "nghe-thuat-sang-tao",
     "duration": "3:25",
     "durationSeconds": 205,
     "thumbnail": "https://i.ytimg.com/vi/P0MxHN62ZMs/hqdefault.jpg",
-    "description": "Đức phật quay lại hoàng cung khai th��� cho cha trước khi cha qua đời - Kênh Minh Hiếu Official VN.",
+    "description": "Đức phật quay lại hoàng cung khai thị cho cha trước khi cha qua đời - Kênh Minh Hiếu Official VN.",
     "publishedDate": "Video chính thức",
     "isShort": false,
     "views": "12 lượt xem",
